@@ -41,6 +41,7 @@
 # Logs and temporary run inputs
 *.log
 params.json
+rustup-init.exe
 
 # Environment files
 .env

@@ -8,12 +8,12 @@
 use std::path::Path;
 
 use b3_core::{
-    BranchId, BranchMetadata, ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind,
-    EdgeProvenance, FileId, FileRecord, FileRepository, FtsSearchHit, GraphDirection, GraphEdge,
-    GraphEdgeMetadata, GraphNeighbor, GraphNode, GraphRepository, IndexStore, IndexedFileRecord,
-    NodeId, NodeKind, ProjectId, QueryFile, QueryRepository, QueryScope, QuerySymbol,
-    StorageProvider, SymbolId, SymbolRecord, SymbolRepository, TokenSavingsRecord,
-    TokenSavingsRepository,
+    BranchId, BranchMetadata, CentralityMetric, CentralityRepository, CentralitySnapshot,
+    ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance, FileId,
+    FileRecord, FileRepository, FtsSearchHit, GraphDirection, GraphEdge, GraphEdgeMetadata,
+    GraphNeighbor, GraphNode, GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind,
+    ProjectId, QueryFile, QueryRepository, QueryScope, QuerySymbol, StorageProvider, SymbolId,
+    SymbolRecord, SymbolRepository, TokenSavingsRecord, TokenSavingsRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 
@@ -124,6 +124,26 @@ CREATE TABLE IF NOT EXISTS embeddings (
     created_at_unix_ms INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS centrality_snapshots (
+    project_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    symbol_id TEXT NOT NULL,
+    algorithm_version TEXT NOT NULL,
+    calculated_at_unix_ms INTEGER NOT NULL,
+    in_degree INTEGER NOT NULL,
+    out_degree INTEGER NOT NULL,
+    fan_in INTEGER NOT NULL,
+    fan_out INTEGER NOT NULL,
+    degree_centrality REAL NOT NULL,
+    pagerank_score REAL NOT NULL,
+    component_size INTEGER,
+    is_cycle_member INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(project_id, branch_id, symbol_id, algorithm_version),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -324,7 +344,35 @@ impl SqliteStorage {
         }
 
         self.ensure_phase4_columns()?;
+        self.ensure_centrality_table()?;
 
+        Ok(())
+    }
+
+    fn ensure_centrality_table(&self) -> ContractResult<()> {
+        self.connection
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS centrality_snapshots (
+                    project_id TEXT NOT NULL,
+                    branch_id TEXT NOT NULL,
+                    symbol_id TEXT NOT NULL,
+                    algorithm_version TEXT NOT NULL,
+                    calculated_at_unix_ms INTEGER NOT NULL,
+                    in_degree INTEGER NOT NULL,
+                    out_degree INTEGER NOT NULL,
+                    fan_in INTEGER NOT NULL,
+                    fan_out INTEGER NOT NULL,
+                    degree_centrality REAL NOT NULL,
+                    pagerank_score REAL NOT NULL,
+                    component_size INTEGER,
+                    is_cycle_member INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(project_id, branch_id, symbol_id, algorithm_version),
+                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+                    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
+                );",
+            )
+            .map_err(to_contract_error)?;
         Ok(())
     }
 
@@ -751,6 +799,30 @@ impl FileRepository for SqliteStorage {
 }
 
 impl QueryRepository for SqliteStorage {
+    fn list_symbols(&self, scope: &QueryScope, limit: usize) -> ContractResult<Vec<QuerySymbol>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT id, file_id, name, kind, snippet, start_line, end_line, visibility
+                 FROM symbols
+                 WHERE project_id = ?1 AND branch_id = ?2
+                 ORDER BY name, id
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+        let rows = statement
+            .query_map(
+                params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    limit as i64
+                ],
+                query_symbol_from_row,
+            )
+            .map_err(to_contract_error)?;
+        collect_rows(rows)
+    }
+
     fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>> {
         let mut statement = self
             .connection
@@ -981,6 +1053,10 @@ impl QueryRepository for SqliteStorage {
 }
 
 impl QueryRepository for &SqliteStorage {
+    fn list_symbols(&self, scope: &QueryScope, limit: usize) -> ContractResult<Vec<QuerySymbol>> {
+        <SqliteStorage as QueryRepository>::list_symbols(*self, scope, limit)
+    }
+
     fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>> {
         <SqliteStorage as QueryRepository>::find_symbols(*self, scope, name)
     }
@@ -1022,6 +1098,103 @@ impl QueryRepository for &SqliteStorage {
             edge_filter,
             min_confidence,
         )
+    }
+}
+
+impl CentralityRepository for SqliteStorage {
+    fn get_centrality_metric(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<CentralityMetric>> {
+        self.connection
+            .prepare_cached(
+                "SELECT symbol_id, in_degree, out_degree, fan_in, fan_out,
+                        degree_centrality, pagerank_score, component_size,
+                        is_cycle_member, algorithm_version, calculated_at_unix_ms
+                 FROM centrality_snapshots
+                 WHERE project_id = ?1 AND branch_id = ?2 AND symbol_id = ?3
+                 ORDER BY calculated_at_unix_ms DESC, algorithm_version DESC
+                 LIMIT 1",
+            )
+            .map_err(to_contract_error)?
+            .query_row(
+                params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    symbol_id.as_str()
+                ],
+                centrality_metric_from_row,
+            )
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn upsert_centrality_snapshot(
+        &self,
+        scope: &QueryScope,
+        snapshot: CentralitySnapshot,
+    ) -> ContractResult<()> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "INSERT INTO centrality_snapshots (
+                    project_id, branch_id, symbol_id, algorithm_version, calculated_at_unix_ms,
+                    in_degree, out_degree, fan_in, fan_out, degree_centrality,
+                    pagerank_score, component_size, is_cycle_member
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                 ON CONFLICT(project_id, branch_id, symbol_id, algorithm_version) DO UPDATE SET
+                    calculated_at_unix_ms = excluded.calculated_at_unix_ms,
+                    in_degree = excluded.in_degree,
+                    out_degree = excluded.out_degree,
+                    fan_in = excluded.fan_in,
+                    fan_out = excluded.fan_out,
+                    degree_centrality = excluded.degree_centrality,
+                    pagerank_score = excluded.pagerank_score,
+                    component_size = excluded.component_size,
+                    is_cycle_member = excluded.is_cycle_member",
+            )
+            .map_err(to_contract_error)?;
+
+        for metric in snapshot.metrics {
+            statement
+                .execute(params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    metric.symbol_id.as_str(),
+                    snapshot.algorithm_version.as_str(),
+                    snapshot.calculated_at_unix_ms as i64,
+                    metric.in_degree as i64,
+                    metric.out_degree as i64,
+                    metric.fan_in as i64,
+                    metric.fan_out as i64,
+                    metric.degree_centrality,
+                    metric.pagerank_score,
+                    metric.component_size.map(|value| value as i64),
+                    bool_to_i64(metric.is_cycle_member)
+                ])
+                .map_err(to_contract_error)?;
+        }
+        Ok(())
+    }
+}
+
+impl CentralityRepository for &SqliteStorage {
+    fn get_centrality_metric(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<CentralityMetric>> {
+        <SqliteStorage as CentralityRepository>::get_centrality_metric(*self, scope, symbol_id)
+    }
+
+    fn upsert_centrality_snapshot(
+        &self,
+        scope: &QueryScope,
+        snapshot: CentralitySnapshot,
+    ) -> ContractResult<()> {
+        <SqliteStorage as CentralityRepository>::upsert_centrality_snapshot(*self, scope, snapshot)
     }
 }
 
@@ -1456,6 +1629,22 @@ where
         values.push(row.map_err(to_contract_error)?);
     }
     Ok(values)
+}
+
+fn centrality_metric_from_row(row: &Row<'_>) -> rusqlite::Result<CentralityMetric> {
+    Ok(CentralityMetric {
+        symbol_id: row.get(0)?,
+        in_degree: row.get::<_, i64>(1)? as usize,
+        out_degree: row.get::<_, i64>(2)? as usize,
+        fan_in: row.get::<_, i64>(3)? as usize,
+        fan_out: row.get::<_, i64>(4)? as usize,
+        degree_centrality: row.get(5)?,
+        pagerank_score: row.get(6)?,
+        component_size: row.get::<_, Option<i64>>(7)?.map(|value| value as usize),
+        is_cycle_member: row.get::<_, i64>(8)? != 0,
+        algorithm_version: row.get(9)?,
+        calculated_at_unix_ms: row.get::<_, i64>(10)? as u64,
+    })
 }
 
 fn query_symbol_from_row(row: &Row<'_>) -> rusqlite::Result<QuerySymbol> {

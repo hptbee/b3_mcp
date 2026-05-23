@@ -8,6 +8,7 @@ use crate::{
     GraphDirection, GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile,
     QueryRequest, QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
 };
+use crate::{CentralityMetric, CentralitySnapshot};
 
 pub type ContractResult<T> = Result<T, ContractError>;
 
@@ -84,6 +85,7 @@ pub trait QueryEngine {
 }
 
 pub trait QueryRepository {
+    fn list_symbols(&self, scope: &QueryScope, limit: usize) -> ContractResult<Vec<QuerySymbol>>;
     fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>>;
     fn get_symbol(
         &self,
@@ -105,6 +107,20 @@ pub trait QueryRepository {
         edge_filter: &[EdgeKind],
         min_confidence: u16,
     ) -> ContractResult<Vec<GraphNeighbor>>;
+}
+
+pub trait CentralityRepository {
+    fn get_centrality_metric(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<CentralityMetric>>;
+
+    fn upsert_centrality_snapshot(
+        &self,
+        scope: &QueryScope,
+        snapshot: CentralitySnapshot,
+    ) -> ContractResult<()>;
 }
 
 pub trait EmbeddingProvider {
