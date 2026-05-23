@@ -84,6 +84,15 @@ pub trait IndexStore {
         branch_id: &BranchId,
         file: IndexedFileRecord,
     ) -> ContractResult<()>;
+
+    fn remove_file(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+        _path: &str,
+    ) -> ContractResult<()> {
+        Ok(())
+    }
 }
 
 pub trait QueryEngine {

@@ -26,10 +26,10 @@ use axum::{
 };
 use b3_core::{
     AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, FileId,
-    FileRecord, ProjectId, QueryRequest, QueryResult, SymbolRepository, PRODUCT_NAME,
+    FileRecord, ProjectId, QueryRequest, QueryResult, SymbolRepository, IndexStore, PRODUCT_NAME,
 };
 use b3_indexer::{
-    IndexStore, IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, WatchConfig,
+    IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, WatchConfig,
     WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
@@ -1784,28 +1784,43 @@ impl IndexStore for SqliteIndexStore {
             .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
         b3_core::FileRepository::get_file(&*storage, file_id)
     }
-
-    fn upsert_file(&self, branch_id: &BranchId, file: FileRecord) -> ContractResult<()> {
-        self.storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?
-            .upsert_file(&file, branch_id)
-    }
-
-    fn upsert_symbols(
+    fn ensure_project_branch(
         &self,
         project_id: &ProjectId,
         branch_id: &BranchId,
-        symbols: Vec<b3_core::SymbolRecord>,
+        root_path: &str,
     ) -> ContractResult<()> {
         let storage = self
             .storage
             .lock()
             .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
-        for symbol in symbols {
-            storage.upsert_symbol(project_id, branch_id, &symbol)?;
-        }
-        Ok(())
+        storage.ensure_project_branch(project_id, branch_id, root_path)
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        let storage = self
+            .storage
+            .lock()
+            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
+        storage.cleanup_deleted_files(project_id, branch_id, live_file_ids)
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: b3_core::IndexedFileRecord,
+    ) -> ContractResult<()> {
+        let storage = self
+            .storage
+            .lock()
+            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
+        storage.upsert_indexed_file(project_id, branch_id, file)
     }
 
     fn remove_file(
