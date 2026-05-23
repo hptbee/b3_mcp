@@ -9,15 +9,18 @@ use std::path::Path;
 
 use b3_core::{
     BranchId, BranchMetadata, ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind,
-    EdgeProvenance, FileId, FileRecord, FileRepository, GraphEdge, GraphEdgeMetadata, GraphNode,
-    GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind, ProjectId, StorageProvider,
-    SymbolId, SymbolRecord, SymbolRepository, TokenSavingsRecord, TokenSavingsRepository,
+    EdgeProvenance, FileId, FileRecord, FileRepository, FtsSearchHit, GraphDirection, GraphEdge,
+    GraphEdgeMetadata, GraphNeighbor, GraphNode, GraphRepository, IndexStore, IndexedFileRecord,
+    NodeId, NodeKind, ProjectId, QueryFile, QueryRepository, QueryScope, QuerySymbol,
+    StorageProvider, SymbolId, SymbolRecord, SymbolRepository, TokenSavingsRecord,
+    TokenSavingsRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 
 pub use b3_core::{
     FileRepository as FileRepositoryContract, GraphRepository as GraphRepositoryContract,
-    StorageProvider as StorageProviderContract, SymbolRepository as SymbolRepositoryContract,
+    QueryRepository as QueryRepositoryContract, StorageProvider as StorageProviderContract,
+    SymbolRepository as SymbolRepositoryContract,
     TokenSavingsRepository as TokenSavingsRepositoryContract,
 };
 
@@ -747,6 +750,281 @@ impl FileRepository for SqliteStorage {
     }
 }
 
+impl QueryRepository for SqliteStorage {
+    fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT id, file_id, name, kind, snippet, start_line, end_line, visibility
+                 FROM symbols
+                 WHERE project_id = ?1 AND branch_id = ?2 AND name = ?3
+                 ORDER BY CASE WHEN name = ?3 THEN 0 ELSE 1 END, name, id",
+            )
+            .map_err(to_contract_error)?;
+        let rows = statement
+            .query_map(
+                params![scope.project_id.as_str(), scope.branch_id.as_str(), name],
+                query_symbol_from_row,
+            )
+            .map_err(to_contract_error)?;
+        collect_rows(rows)
+    }
+
+    fn get_symbol(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<QuerySymbol>> {
+        self.connection
+            .prepare_cached(
+                "SELECT id, file_id, name, kind, snippet, start_line, end_line, visibility
+                 FROM symbols
+                 WHERE project_id = ?1 AND branch_id = ?2 AND id = ?3",
+            )
+            .map_err(to_contract_error)?
+            .query_row(
+                params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    symbol_id.as_str()
+                ],
+                query_symbol_from_row,
+            )
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn get_file(&self, scope: &QueryScope, file_id: &FileId) -> ContractResult<Option<QueryFile>> {
+        self.connection
+            .prepare_cached(
+                "SELECT id, path, content_hash, language
+                 FROM files
+                 WHERE project_id = ?1 AND branch_id = ?2 AND id = ?3",
+            )
+            .map_err(to_contract_error)?
+            .query_row(
+                params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    file_id.as_str()
+                ],
+                |row| {
+                    Ok(QueryFile {
+                        id: FileId::new(row.get::<_, String>(0)?),
+                        path: row.get(1)?,
+                        content_hash: row.get(2)?,
+                        language: row.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn fts_search(
+        &self,
+        scope: &QueryScope,
+        query: &str,
+        limit: usize,
+    ) -> ContractResult<Vec<FtsSearchHit>> {
+        let normalized_query = normalize_fts_query(query);
+        if normalized_query.is_empty() || limit == 0 {
+            return Ok(Vec::new());
+        }
+
+        let symbol_limit = limit as i64;
+        let file_limit = limit.saturating_sub(limit / 2).max(1) as i64;
+        let mut hits = Vec::new();
+
+        let mut symbol_statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.file_id, s.id, f.path, s.name, symbol_fts.snippet,
+                        bm25(symbol_fts) AS score
+                 FROM symbol_fts
+                 JOIN symbols s ON s.id = symbol_fts.symbol_id
+                 JOIN files f ON f.id = s.file_id
+                 WHERE symbol_fts MATCH ?1
+                   AND s.project_id = ?2
+                   AND s.branch_id = ?3
+                   AND f.branch_id = ?3
+                 ORDER BY score
+                 LIMIT ?4",
+            )
+            .map_err(to_contract_error)?;
+        let symbol_rows = symbol_statement
+            .query_map(
+                params![
+                    normalized_query.as_str(),
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    symbol_limit
+                ],
+                |row| {
+                    Ok(FtsSearchHit {
+                        file_id: FileId::new(row.get::<_, String>(0)?),
+                        symbol_id: Some(SymbolId::new(row.get::<_, String>(1)?)),
+                        path: row.get(2)?,
+                        name: Some(row.get(3)?),
+                        snippet: row.get(4)?,
+                        score: row.get::<_, f64>(5)? as f32,
+                    })
+                },
+            )
+            .map_err(to_contract_error)?;
+        hits.extend(collect_rows(symbol_rows)?);
+
+        let mut file_statement = self
+            .connection
+            .prepare_cached(
+                "SELECT f.id, f.path, substr(file_content_fts.content, 1, 400),
+                        bm25(file_content_fts) AS score
+                 FROM file_content_fts
+                 JOIN files f ON f.id = file_content_fts.file_id
+                 WHERE file_content_fts MATCH ?1
+                   AND f.project_id = ?2
+                   AND f.branch_id = ?3
+                 ORDER BY score
+                 LIMIT ?4",
+            )
+            .map_err(to_contract_error)?;
+        let file_rows = file_statement
+            .query_map(
+                params![
+                    normalized_query.as_str(),
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    file_limit
+                ],
+                |row| {
+                    Ok(FtsSearchHit {
+                        file_id: FileId::new(row.get::<_, String>(0)?),
+                        symbol_id: None,
+                        path: row.get(1)?,
+                        name: None,
+                        snippet: row.get(2)?,
+                        score: row.get::<_, f64>(3)? as f32,
+                    })
+                },
+            )
+            .map_err(to_contract_error)?;
+        hits.extend(collect_rows(file_rows)?);
+
+        hits.sort_by(|left, right| left.score.total_cmp(&right.score));
+        hits.truncate(limit);
+        Ok(hits)
+    }
+
+    fn graph_neighbors(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+        direction: GraphDirection,
+        edge_filter: &[EdgeKind],
+        min_confidence: u16,
+    ) -> ContractResult<Vec<GraphNeighbor>> {
+        let node_id = symbol_node_id(symbol_id);
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT e.id, from_symbol.id, to_symbol.id, e.edge_type, e.confidence_bps,
+                        e.provenance
+                 FROM edges e
+                 JOIN nodes from_node ON from_node.id = e.from_node_id
+                 JOIN nodes to_node ON to_node.id = e.to_node_id
+                 LEFT JOIN symbols from_symbol ON from_symbol.id = from_node.symbol_id
+                 LEFT JOIN symbols to_symbol ON to_symbol.id = to_node.symbol_id
+                 WHERE e.project_id = ?1
+                   AND e.branch_id = ?2
+                   AND e.confidence_bps >= ?3
+                   AND ((?4 = 1 AND e.from_node_id = ?6)
+                     OR (?5 = 1 AND e.to_node_id = ?6))
+                 ORDER BY e.confidence_bps DESC, e.edge_type, e.id",
+            )
+            .map_err(to_contract_error)?;
+
+        let outbound = matches!(direction, GraphDirection::Outbound | GraphDirection::Both);
+        let inbound = matches!(direction, GraphDirection::Inbound | GraphDirection::Both);
+        let rows = statement
+            .query_map(
+                params![
+                    scope.project_id.as_str(),
+                    scope.branch_id.as_str(),
+                    i64::from(min_confidence),
+                    bool_to_i64(outbound),
+                    bool_to_i64(inbound),
+                    node_id.as_str()
+                ],
+                |row| {
+                    let confidence_bps = row
+                        .get::<_, i64>(4)?
+                        .clamp(0, i64::from(EdgeConfidence::MAX_BASIS_POINTS))
+                        as u16;
+                    Ok(GraphNeighbor {
+                        edge_id: EdgeId::new(row.get::<_, String>(0)?),
+                        from_symbol: row.get::<_, Option<String>>(1)?.map(SymbolId::new),
+                        to_symbol: row.get::<_, Option<String>>(2)?.map(SymbolId::new),
+                        edge_kind: parse_edge_kind(&row.get::<_, String>(3)?),
+                        confidence: EdgeConfidence::from_basis_points(confidence_bps),
+                        provenance: parse_edge_provenance(&row.get::<_, String>(5)?),
+                    })
+                },
+            )
+            .map_err(to_contract_error)?;
+
+        let mut neighbors = collect_rows(rows)?;
+        if !edge_filter.is_empty() {
+            neighbors.retain(|neighbor| edge_filter.contains(&neighbor.edge_kind));
+        }
+        Ok(neighbors)
+    }
+}
+
+impl QueryRepository for &SqliteStorage {
+    fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>> {
+        <SqliteStorage as QueryRepository>::find_symbols(*self, scope, name)
+    }
+
+    fn get_symbol(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<QuerySymbol>> {
+        <SqliteStorage as QueryRepository>::get_symbol(*self, scope, symbol_id)
+    }
+
+    fn get_file(&self, scope: &QueryScope, file_id: &FileId) -> ContractResult<Option<QueryFile>> {
+        <SqliteStorage as QueryRepository>::get_file(*self, scope, file_id)
+    }
+
+    fn fts_search(
+        &self,
+        scope: &QueryScope,
+        query: &str,
+        limit: usize,
+    ) -> ContractResult<Vec<FtsSearchHit>> {
+        <SqliteStorage as QueryRepository>::fts_search(*self, scope, query, limit)
+    }
+
+    fn graph_neighbors(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+        direction: GraphDirection,
+        edge_filter: &[EdgeKind],
+        min_confidence: u16,
+    ) -> ContractResult<Vec<GraphNeighbor>> {
+        <SqliteStorage as QueryRepository>::graph_neighbors(
+            *self,
+            scope,
+            symbol_id,
+            direction,
+            edge_filter,
+            min_confidence,
+        )
+    }
+}
+
 impl SymbolRepository for SqliteStorage {
     fn find_symbol(&self, project_id: &ProjectId, name: &str) -> ContractResult<Vec<SymbolRecord>> {
         let mut statement = self
@@ -854,6 +1132,12 @@ impl TokenSavingsRepository for SqliteStorage {
             )
             .map_err(to_contract_error)?;
         Ok(())
+    }
+}
+
+impl TokenSavingsRepository for &SqliteStorage {
+    fn record_savings(&self, record: TokenSavingsRecord) -> ContractResult<()> {
+        <SqliteStorage as TokenSavingsRepository>::record_savings(*self, record)
     }
 }
 
@@ -1174,6 +1458,27 @@ where
     Ok(values)
 }
 
+fn query_symbol_from_row(row: &Row<'_>) -> rusqlite::Result<QuerySymbol> {
+    Ok(QuerySymbol {
+        id: SymbolId::new(row.get::<_, String>(0)?),
+        file_id: FileId::new(row.get::<_, String>(1)?),
+        name: row.get(2)?,
+        kind: parse_node_kind(&row.get::<_, String>(3)?),
+        snippet: row.get(4)?,
+        start_line: row.get::<_, i64>(5)? as usize,
+        end_line: row.get::<_, i64>(6)? as usize,
+        visibility: row.get(7)?,
+    })
+}
+
+fn normalize_fts_query(query: &str) -> String {
+    query
+        .split(|character: char| !character.is_alphanumeric() && character != '_')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" OR ")
+}
+
 fn bool_to_i64(value: bool) -> i64 {
     if value {
         1
@@ -1265,6 +1570,26 @@ fn edge_kind(kind: EdgeKind) -> &'static str {
         EdgeKind::SimilarTo => "similar_to",
         EdgeKind::Touches => "touches",
         EdgeKind::Decides => "decides",
+    }
+}
+
+fn parse_edge_kind(value: &str) -> EdgeKind {
+    match value {
+        "contains" => EdgeKind::Contains,
+        "imports" => EdgeKind::Imports,
+        "calls" => EdgeKind::Calls,
+        "references" => EdgeKind::References,
+        "implements" => EdgeKind::Implements,
+        "inherits" => EdgeKind::Inherits,
+        "depends_on" => EdgeKind::DependsOn,
+        "tests" => EdgeKind::Tests,
+        "routes_to" => EdgeKind::RoutesTo,
+        "reads_config" => EdgeKind::ReadsConfig,
+        "writes_config" => EdgeKind::WritesConfig,
+        "similar_to" => EdgeKind::SimilarTo,
+        "touches" => EdgeKind::Touches,
+        "decides" => EdgeKind::Decides,
+        _ => EdgeKind::References,
     }
 }
 
@@ -1383,8 +1708,7 @@ mod tests {
             .expect("edge");
 
         assert_eq!(
-            storage
-                .get_file(&file.id)
+            FileRepository::get_file(&storage, &file.id)
                 .expect("get file")
                 .expect("file")
                 .path,

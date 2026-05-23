@@ -4,8 +4,9 @@
 //! modules from depending on concrete implementations too early.
 
 use crate::{
-    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, EmbeddingConfig, FileId, GraphEdgeMetadata,
-    NodeId, NodeKind, ProjectId, QueryRequest, QueryResult, SymbolId, ToolCallId,
+    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, EmbeddingConfig, FileId, FtsSearchHit,
+    GraphDirection, GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile,
+    QueryRequest, QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
 };
 
 pub type ContractResult<T> = Result<T, ContractError>;
@@ -80,6 +81,30 @@ pub trait IndexStore {
 
 pub trait QueryEngine {
     fn execute(&self, request: QueryRequest) -> ContractResult<QueryResult>;
+}
+
+pub trait QueryRepository {
+    fn find_symbols(&self, scope: &QueryScope, name: &str) -> ContractResult<Vec<QuerySymbol>>;
+    fn get_symbol(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+    ) -> ContractResult<Option<QuerySymbol>>;
+    fn get_file(&self, scope: &QueryScope, file_id: &FileId) -> ContractResult<Option<QueryFile>>;
+    fn fts_search(
+        &self,
+        scope: &QueryScope,
+        query: &str,
+        limit: usize,
+    ) -> ContractResult<Vec<FtsSearchHit>>;
+    fn graph_neighbors(
+        &self,
+        scope: &QueryScope,
+        symbol_id: &SymbolId,
+        direction: GraphDirection,
+        edge_filter: &[EdgeKind],
+        min_confidence: u16,
+    ) -> ContractResult<Vec<GraphNeighbor>>;
 }
 
 pub trait EmbeddingProvider {

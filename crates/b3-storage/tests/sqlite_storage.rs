@@ -142,8 +142,7 @@ fn repositories_round_trip_against_temp_database() {
         .expect("edge");
 
     assert_eq!(
-        storage
-            .get_file(&file.id)
+        FileRepository::get_file(&storage, &file.id)
             .expect("get file")
             .expect("file")
             .path,
