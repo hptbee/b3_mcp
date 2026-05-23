@@ -244,3 +244,58 @@ Added requirements:
 - duplicate code cluster detection
 - generated/vendor classifiers
 - profile-based language/indexing depth
+
+## Project Roadmap
+
+### Completed Phases
+
+- Phase 1: Workspace / Scaffold
+- Phase 1.5: Contracts / Boundaries
+- Phase 2: SQLite Storage / Schema Foundation
+- Phase 3: Incremental Indexer Skeleton
+- Phase 3.1: Indexer Audit / Cleanup
+- Pre-Phase-4: Plugin Contracts / Docs / CI
+- Phase 4: Real Rust Parsing + Storage Adapter
+- Phase 4.1: Project/Branch Auto Ensure + Deleted File Cleanup
+- Phase 5: Query Engine + Graph Traversal + Context Pack
+
+### Planned Phases
+
+- Phase 5.1: Query Hardening + Explainability
+- Phase 5.2: Ranking Algorithms Upgrade
+- Phase 6: MCP Tools over Query Engine
+- Phase 6.1: Impact Intelligence
+- Phase 6.2: PageRank / Centrality
+- Phase 7: Control Server + Localhost API
+- Phase 7.1: Web UI Foundation
+- Phase 7.2: Graph Explorer UI
+- Phase 7.3: Query Trace UI
+- Phase 8: File Watcher + Daemon Mode
+- Phase 8.1: Parser Isolation
+- Phase 9: Local Embeddings + Vector Search
+- Phase 9.1: Semantic Context Upgrade
+- Phase 10: Multi-language Packs
+- Phase 11: Architecture Intelligence
+- Phase 12: Git Intelligence
+- Phase 13: Duplicate / Similarity Detection
+- Phase 14: Real Plugin System
+- Phase 15: Packaging + Installers
+
+## Additional Planned Algorithms
+
+The following algorithms and techniques are planned for future phases:
+
+- **Query trace / retrieval explainability**: Exposing how and why specific nodes were retrieved.
+- **Adaptive ranking by query intent**: Tuning hybrid retrieval weights dynamically.
+- **Value-per-token context packing**: Maximizing utility of context windows based on token limits.
+- **Diversity penalty**: Preventing redundant or highly similar context from crowding out varied results.
+- **Dependency path finding**: Shortest paths between symbols or files.
+- **Tarjan SCC / cycle detection**: Identifying strongly connected components and circular dependencies.
+- **Impact risk scoring**: Assessing the potential blast radius of a change.
+- **Test impact analysis**: Mapping changed files to affected test suites.
+- **PageRank**: Identifying core, heavily-depended-upon modules.
+- **Centrality scoring**: Finding bottlenecks and central orchestration points.
+- **Community detection**: Grouping related symbols into architectural boundaries.
+- **Git churn ranking**: Boosting relevance of frequently modified files.
+- **AST fingerprinting**: Identifying structural patterns independent of names.
+- **MinHash / SimHash duplicate detection**: Locating duplicated or highly similar code blocks.
