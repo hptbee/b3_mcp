@@ -10,10 +10,12 @@ use std::{
     collections::{HashSet, VecDeque},
     fs,
     path::{Path, PathBuf},
+    sync::mpsc,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
     },
+    time::{Duration, Instant},
 };
 
 use b3_core::{
@@ -22,6 +24,10 @@ use b3_core::{
     FileSkipped, GraphEdgeMetadata, IndexCompleted, IndexJob, IndexJobId, IndexStarted, IndexStore,
     IndexSummary, IndexedEdgeRecord, IndexedFileRecord, Indexer, NodeKind, ProjectId, SymbolId,
     SymbolRecord,
+};
+use notify::{
+    event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
+    EventKind as NotifyEventKind, RecursiveMode, Watcher,
 };
 use sha2::{Digest, Sha256};
 use tree_sitter::{Node, Parser, Point};
@@ -209,8 +215,208 @@ pub trait RelationshipExtractor: Send + Sync {
     ) -> ContractResult<Vec<ExtractedRelationship>>;
 }
 
+
 pub trait FileWatcher: Send + Sync {
     fn watch(&self, root: PathBuf) -> ContractResult<()>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WatchConfig {
+    pub enabled: bool,
+    pub debounce_ms: u64,
+    pub max_batch_size: usize,
+    pub ignore: IgnoreRules,
+}
+
+impl Default for WatchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            debounce_ms: 500,
+            max_batch_size: 100,
+            ignore: IgnoreRules::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WatchEventKind {
+    Created,
+    Changed,
+    Deleted,
+    Renamed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WatchEvent {
+    pub kind: WatchEventKind,
+    pub path: PathBuf,
+    pub new_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DebouncedBatch {
+    pub events: Vec<WatchEvent>,
+}
+
+#[derive(Debug)]
+pub struct WatchDebouncer {
+    delay: Duration,
+    max_batch_size: usize,
+    pending: Vec<WatchEvent>,
+    last_event_at: Option<Instant>,
+}
+
+impl WatchDebouncer {
+    pub fn new(delay: Duration, max_batch_size: usize) -> Self {
+        Self {
+            delay,
+            max_batch_size: max_batch_size.max(1),
+            pending: Vec::new(),
+            last_event_at: None,
+        }
+    }
+
+    pub fn push(&mut self, event: WatchEvent) -> Option<DebouncedBatch> {
+        self.pending.retain(|pending| pending.path != event.path);
+        self.pending.push(event);
+        self.last_event_at = Some(Instant::now());
+        if self.pending.len() >= self.max_batch_size {
+            return self.flush();
+        }
+        None
+    }
+
+    pub fn flush_if_ready(&mut self) -> Option<DebouncedBatch> {
+        if self
+            .last_event_at
+            .is_some_and(|last_event_at| last_event_at.elapsed() >= self.delay)
+        {
+            return self.flush();
+        }
+        None
+    }
+
+    pub fn flush(&mut self) -> Option<DebouncedBatch> {
+        if self.pending.is_empty() {
+            return None;
+        }
+        self.last_event_at = None;
+        Some(DebouncedBatch {
+            events: std::mem::take(&mut self.pending),
+        })
+    }
+}
+
+pub fn classify_notify_event(event: &notify::Event) -> Vec<WatchEvent> {
+    match &event.kind {
+        NotifyEventKind::Create(CreateKind::File) | NotifyEventKind::Create(CreateKind::Any) => {
+            event
+                .paths
+                .iter()
+                .cloned()
+                .map(|path| WatchEvent {
+                    kind: WatchEventKind::Created,
+                    path,
+                    new_path: None,
+                })
+                .collect()
+        }
+        NotifyEventKind::Modify(ModifyKind::Data(_)) | NotifyEventKind::Modify(ModifyKind::Any) => {
+            event
+                .paths
+                .iter()
+                .cloned()
+                .map(|path| WatchEvent {
+                    kind: WatchEventKind::Changed,
+                    path,
+                    new_path: None,
+                })
+                .collect()
+        }
+        NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Both)) if event.paths.len() >= 2 => {
+            vec![WatchEvent {
+                kind: WatchEventKind::Renamed,
+                path: event.paths[0].clone(),
+                new_path: Some(event.paths[1].clone()),
+            }]
+        }
+        NotifyEventKind::Remove(RemoveKind::File) | NotifyEventKind::Remove(RemoveKind::Any) => {
+            event
+                .paths
+                .iter()
+                .cloned()
+                .map(|path| WatchEvent {
+                    kind: WatchEventKind::Deleted,
+                    path,
+                    new_path: None,
+                })
+                .collect()
+        }
+        _ => Vec::new(),
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NotifyFileWatcher {
+    config: WatchConfig,
+}
+
+impl NotifyFileWatcher {
+    pub fn new(config: WatchConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn collect_batch(
+        &self,
+        root: &Path,
+        timeout: Duration,
+    ) -> ContractResult<Option<DebouncedBatch>> {
+        let (sender, receiver) = mpsc::channel();
+        let mut watcher = notify::recommended_watcher(sender).map_err(to_contract_error)?;
+        watcher
+            .watch(root, RecursiveMode::Recursive)
+            .map_err(to_contract_error)?;
+        let mut debouncer = WatchDebouncer::new(
+            Duration::from_millis(self.config.debounce_ms),
+            self.config.max_batch_size,
+        );
+        let started = Instant::now();
+
+        while started.elapsed() < timeout {
+            match receiver.recv_timeout(Duration::from_millis(50)) {
+                Ok(Ok(event)) => {
+                    for event in classify_notify_event(&event) {
+                        if self.config.ignore.should_skip(&event.path).is_none() {
+                            if let Some(batch) = debouncer.push(event) {
+                                return Ok(Some(batch));
+                            }
+                        }
+                    }
+                }
+                Ok(Err(error)) => return Err(to_contract_error(error)),
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if let Some(batch) = debouncer.flush_if_ready() {
+                        return Ok(Some(batch));
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+
+        Ok(debouncer.flush())
+    }
+}
+
+impl FileWatcher for NotifyFileWatcher {
+    fn watch(&self, root: PathBuf) -> ContractResult<()> {
+        let _watcher = notify::recommended_watcher(|_event: notify::Result<notify::Event>| {})
+            .map_err(to_contract_error)?;
+        if self.config.ignore.should_skip(&root).is_some() {
+            return Ok(());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -341,6 +547,90 @@ where
         let mut files = Vec::new();
         self.discover_inner(root, root, project_id, &mut files)?;
         Ok(files)
+    }
+
+    pub fn index_paths(
+        &self,
+        root: &Path,
+        project_id: &ProjectId,
+        paths: &[PathBuf],
+    ) -> ContractResult<IndexSummary> {
+        self.publish(DomainEvent::IndexStarted(IndexStarted {
+            project_id: project_id.clone(),
+            branch_id: self.config.branch_id.clone(),
+            root_path: root.to_string_lossy().to_string(),
+        }))?;
+
+        let mut files_seen = 0;
+        let mut files_parsed = 0;
+        let mut symbols_indexed = 0;
+
+        for path in paths {
+            if self.cancellation.is_cancelled() {
+                break;
+            }
+
+            if let Some(reason) = self.config.ignore.should_skip(path) {
+                self.publish(DomainEvent::FileSkipped(FileSkipped {
+                    project_id: project_id.clone(),
+                    file_id: None,
+                    path: relative_path(root, path),
+                    reason,
+                }))?;
+                continue;
+            }
+
+            if !path.exists() {
+                self.store.remove_file(
+                    project_id,
+                    &self.config.branch_id,
+                    &relative_path(root, path),
+                )?;
+                continue;
+            }
+
+            let metadata = fs::metadata(path).map_err(to_contract_error)?;
+            if !metadata.is_file() {
+                continue;
+            }
+
+            if metadata.len() > self.config.max_file_bytes {
+                self.publish(DomainEvent::FileSkipped(FileSkipped {
+                    project_id: project_id.clone(),
+                    file_id: None,
+                    path: relative_path(root, path),
+                    reason: "file exceeds max_file_bytes".to_string(),
+                }))?;
+                continue;
+            }
+
+            let relative_path = relative_path(root, path);
+            let file = DiscoveredFile {
+                id: FileId::new(stable_id("file", &relative_path)),
+                path: path.clone(),
+                relative_path,
+                content_hash: hash_file(path)?,
+                size_bytes: metadata.len(),
+            };
+            files_seen += 1;
+            if let Some(parsed) = self.index_discovered(project_id, file)? {
+                files_parsed += 1;
+                symbols_indexed += parsed.symbols.len();
+            }
+        }
+
+        self.publish(DomainEvent::IndexCompleted(IndexCompleted {
+            project_id: project_id.clone(),
+            branch_id: self.config.branch_id.clone(),
+            files_seen,
+            files_parsed,
+        }))?;
+
+        Ok(IndexSummary {
+            files_seen,
+            files_parsed,
+            symbols_indexed,
+        })
     }
 
     fn discover_inner(
@@ -1024,6 +1314,19 @@ mod tests {
                 .extend(file.symbols);
             Ok(())
         }
+
+        fn remove_file(
+            &self,
+            _project_id: &ProjectId,
+            _branch_id: &BranchId,
+            path: &str,
+        ) -> ContractResult<()> {
+            self.files
+                .lock()
+                .map_err(|_| ContractError::new("files lock poisoned"))?
+                .retain(|_, file| file.path != path);
+            Ok(())
+        }
     }
 
     #[derive(Default)]
@@ -1186,5 +1489,139 @@ mod tests {
             source: "test".to_string(),
         }))
         .expect("publish");
+    }
+
+    #[test]
+    fn debounce_coalesces_same_path() {
+        let mut debouncer = WatchDebouncer::new(Duration::from_millis(500), 10);
+        let path = PathBuf::from("src/lib.rs");
+        assert!(debouncer
+            .push(WatchEvent {
+                kind: WatchEventKind::Changed,
+                path: path.clone(),
+                new_path: None,
+            })
+            .is_none());
+        assert!(debouncer
+            .push(WatchEvent {
+                kind: WatchEventKind::Changed,
+                path,
+                new_path: None,
+            })
+            .is_none());
+        let batch = debouncer.flush().expect("batch");
+        assert_eq!(batch.events.len(), 1);
+    }
+
+    #[test]
+    fn watch_config_defaults_are_disabled_and_bounded() {
+        let config = WatchConfig::default();
+        assert!(!config.enabled);
+        assert_eq!(config.debounce_ms, 500);
+        assert_eq!(config.max_batch_size, 100);
+    }
+
+    #[test]
+    fn ignore_rules_skip_generated_and_local_data() {
+        let ignore = IgnoreRules::default();
+        assert!(ignore.should_skip(Path::new("target/debug/app")).is_some());
+        assert!(ignore
+            .should_skip(Path::new("node_modules/pkg/index.js"))
+            .is_some());
+        assert!(ignore.should_skip(Path::new(".b3/b3.db")).is_some());
+        assert!(ignore.should_skip(Path::new("src/lib.rs")).is_none());
+    }
+
+    #[test]
+    fn event_classification_handles_create_modify_delete() {
+        let create = notify::Event::new(NotifyEventKind::Create(CreateKind::File))
+            .add_path(PathBuf::from("src/lib.rs"));
+        assert_eq!(
+            classify_notify_event(&create)[0].kind,
+            WatchEventKind::Created
+        );
+
+        let modify = notify::Event::new(NotifyEventKind::Modify(ModifyKind::Data(
+            notify::event::DataChange::Content,
+        )))
+        .add_path(PathBuf::from("src/lib.rs"));
+        assert_eq!(
+            classify_notify_event(&modify)[0].kind,
+            WatchEventKind::Changed
+        );
+
+        let delete = notify::Event::new(NotifyEventKind::Remove(RemoveKind::File))
+            .add_path(PathBuf::from("src/lib.rs"));
+        assert_eq!(
+            classify_notify_event(&delete)[0].kind,
+            WatchEventKind::Deleted
+        );
+    }
+
+    #[test]
+    fn deleted_file_cleanup_path_removes_record() {
+        let root =
+            std::env::temp_dir().join(format!("b3-indexer-delete-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("root");
+        let path = root.join("lib.rs");
+        fs::write(&path, "fn main() {}\n").expect("write");
+
+        let store = MemoryStore::default();
+        let indexer = LocalIndexer::new(
+            NoopTreeSitterParser,
+            store,
+            MemoryBus::default(),
+            IndexerConfig {
+                branch_id: BranchId::new("main"),
+                ..IndexerConfig::default()
+            },
+        );
+        let project_id = ProjectId::new("project");
+        indexer
+            .index_paths(&root, &project_id, std::slice::from_ref(&path))
+            .expect("index path");
+        fs::remove_file(&path).expect("delete");
+        let summary = indexer
+            .index_paths(&root, &project_id, std::slice::from_ref(&path))
+            .expect("cleanup");
+        assert_eq!(summary.files_parsed, 0);
+        fs::remove_dir_all(root).expect("cleanup dir");
+    }
+
+    #[test]
+    fn unchanged_file_skip_works_for_changed_path_indexing() {
+        let root =
+            std::env::temp_dir().join(format!("b3-indexer-unchanged-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("root");
+        let path = root.join("lib.rs");
+        fs::write(&path, "fn main() {}\n").expect("write");
+
+        let indexer = LocalIndexer::new(
+            NoopTreeSitterParser,
+            MemoryStore::default(),
+            MemoryBus::default(),
+            IndexerConfig {
+                branch_id: BranchId::new("main"),
+                ..IndexerConfig::default()
+            },
+        );
+        let project_id = ProjectId::new("project");
+        assert_eq!(
+            indexer
+                .index_paths(&root, &project_id, std::slice::from_ref(&path))
+                .expect("first")
+                .files_parsed,
+            1
+        );
+        assert_eq!(
+            indexer
+                .index_paths(&root, &project_id, std::slice::from_ref(&path))
+                .expect("second")
+                .files_parsed,
+            0
+        );
+        fs::remove_dir_all(root).expect("cleanup");
     }
 }

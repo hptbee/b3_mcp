@@ -7,8 +7,26 @@ license.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "b3-control-server"
+path = "src/main.rs"
+
 [dependencies]
 b3-core = { path = "../b3-core" }
+b3-indexer = { path = "../b3-indexer" }
+b3-mcp-runtime = { path = "../b3-mcp-runtime" }
+b3-storage = { path = "../b3-storage" }
+axum = "0.7"
+http = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tower-http = { version = "0.5", features = ["cors"] }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
 
 [lints]
 workspace = true

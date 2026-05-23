@@ -6,14 +6,19 @@
 # Node / Next.js UI
 /node_modules/
 /web-ui/node_modules/
+/apps/web-ui/node_modules/
 /.next/
 /web-ui/.next/
+/apps/web-ui/.next/
 /out/
 /web-ui/out/
+/apps/web-ui/out/
 /dist/
 /web-ui/dist/
+/apps/web-ui/dist/
 /coverage/
 /web-ui/coverage/
+/apps/web-ui/coverage/
 *.tsbuildinfo
 
 # Tauri / desktop packaging

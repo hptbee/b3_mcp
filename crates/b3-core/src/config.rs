@@ -91,6 +91,9 @@ pub struct IndexingConfig {
     pub parser_subprocess_isolation: bool,
     pub watch_files: bool,
     pub max_parallel_workers: usize,
+    pub debounce_ms: u64,
+    pub max_watch_batch_size: usize,
+    pub ignore_patterns: Vec<String>,
 }
 
 impl Default for IndexingConfig {
@@ -100,6 +103,9 @@ impl Default for IndexingConfig {
             parser_subprocess_isolation: true,
             watch_files: false,
             max_parallel_workers: 1,
+            debounce_ms: 500,
+            max_watch_batch_size: 100,
+            ignore_patterns: Vec::new(),
         }
     }
 }

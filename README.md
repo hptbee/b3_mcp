@@ -18,6 +18,12 @@ Keep the original stack:
 - React Flow graph visualization
 - Tauri optional packaging
 
+## Recent local actions
+
+- 2026-05-23: Resolved merge conflicts in `crates/b3-indexer`, `crates/b3-storage`, and `crates/b3-control` and verified a successful build:
+  - Ran `cargo build --workspace` (Rust crates compiled successfully).
+  - Built the web UI in `apps/web-ui` using `npm ci` and `npm run build` (compiled successfully).
+
 ## Workspace
 
 This repository is a Rust Cargo workspace with local-first code intelligence
@@ -170,3 +176,38 @@ Phase 4+ work.
 - Phase 13: Duplicate / Similarity Detection
 - Phase 14: Real Plugin System
 - Phase 15: Packaging + Installers
+
+## Phase 5 Control Server
+
+`crates/b3-control` implements the local-first developer tooling server (`b3-control-server`):
+
+- **Localhost Security**: Binds to `127.0.0.1:7777` by default. Non-local bindings are rejected unless `--allow-non-local-bind` is passed. CORS accepts localhost UI origins only.
+- **REST Endpoints**: Exposes endpoints for system health, database stats, config validation, query expansion (`find-symbol`), and graph analytics:
+  - `GET /health` & `GET /api/status`
+  - `GET /api/graph/summary` & `POST /api/graph/neighbors`
+  - `POST /api/graph/path` (shortest path) & `POST /api/graph/cycles`
+  - `POST /api/graph/centrality` (PageRank centrality cache inspector)
+- **Debounced Watcher**: Spawns a background watch daemon (`b3-watch-daemon`) using `NotifyFileWatcher` to detect file additions, modifications, and deletions. Watch events are debounced and queued for incremental indexing.
+- **SSE Stream**: Broadcasts real-time watcher and indexing events (watcher started, file changed, indexing completed) on `GET /api/events`.
+
+To run the control server:
+```powershell
+cargo run -p b3-control --bin b3-control-server -- serve --project "." --database ".b3/b3.db" --port 7777 --watch
+```
+
+## Phase 6 Web UI
+
+`apps/web-ui` is a Next.js, React, and TypeScript localhost frontend for managing, querying, and visualizing the B3 platform:
+
+- **Interactive Graph Explorer**: Uses React Flow (`@xyflow/react`) to explore neighbor nodes, trace dependency paths, visualize cycle groups, and view centrality snapshots.
+- **Query Playground & Trace Inspector**: Lets developers execute queries and inspect query timelines, BM25 scoring details, ranking contribution weights, and token savings.
+- **Diagnostics & Events Dashboard**: Provides SSE-streamed event logs showing real-time watch daemon activity and local indexing progress.
+- **Strict Privacy**: Disables Next.js telemetry by default, requires no cloud accounts or API keys, and runs entirely locally.
+
+To run the Web UI:
+```powershell
+cd apps/web-ui
+npm install
+npm run dev
+```
+Open `http://127.0.0.1:3000` in your browser. Configurable base URL: `NEXT_PUBLIC_B3_API_BASE_URL` (defaults to `http://127.0.0.1:7777`).

@@ -219,6 +219,35 @@ CREATE INDEX IF NOT EXISTS idx_nodes_branch_id ON nodes(branch_id);
 CREATE INDEX IF NOT EXISTS idx_edges_branch_id ON edges(branch_id);
 "#;
 
+const MIGRATION_002: &str = r#"
+CREATE TABLE IF NOT EXISTS centrality_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    symbol_id TEXT,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    pagerank_score REAL NOT NULL DEFAULT 0,
+    in_degree INTEGER NOT NULL DEFAULT 0,
+    out_degree INTEGER NOT NULL DEFAULT 0,
+    fan_in INTEGER NOT NULL DEFAULT 0,
+    fan_out INTEGER NOT NULL DEFAULT 0,
+    degree_centrality REAL NOT NULL DEFAULT 0,
+    component_size INTEGER NOT NULL DEFAULT 0,
+    is_cycle_member INTEGER NOT NULL DEFAULT 0,
+    calculated_at_unix_ms INTEGER NOT NULL DEFAULT 0,
+    algorithm_version TEXT NOT NULL DEFAULT 'manual',
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_centrality_scope_score
+ON centrality_snapshots(project_id, branch_id, pagerank_score DESC);
+"#;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StorageConfig {
     pub project_id: ProjectId,
@@ -282,6 +311,105 @@ pub struct SqliteStorage {
     connection: Connection,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StorageStats {
+    pub files: usize,
+    pub symbols: usize,
+    pub edges: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SavingsSummary {
+    pub records: usize,
+    pub estimated_tokens_saved: usize,
+    pub returned_tokens: usize,
+    pub avoided_file_reads: usize,
+    pub avoided_search_calls: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GraphCount {
+    pub name: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredGraphSummary {
+    pub project_id: Option<String>,
+    pub branch_id: Option<String>,
+    pub node_count: usize,
+    pub edge_count: usize,
+    pub symbol_count: usize,
+    pub file_count: usize,
+    pub edge_type_counts: Vec<GraphCount>,
+    pub node_kind_counts: Vec<GraphCount>,
+    pub centrality_snapshot_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredGraphNode {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub name: String,
+    pub kind: String,
+    pub file_path: Option<String>,
+    pub symbol_id: Option<String>,
+    pub language: Option<String>,
+    pub visibility: Option<String>,
+    pub provenance: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredGraphEdge {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub edge_type: String,
+    pub from_node_id: String,
+    pub to_node_id: String,
+    pub confidence: u16,
+    pub provenance: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredCentralityRecord {
+    pub node_id: String,
+    pub symbol_id: Option<String>,
+    pub name: String,
+    pub kind: String,
+    pub pagerank_score: f64,
+    pub in_degree: usize,
+    pub out_degree: usize,
+    pub fan_in: usize,
+    pub fan_out: usize,
+    pub degree_centrality: f64,
+    pub component_size: usize,
+    pub is_cycle_member: bool,
+    pub calculated_at_unix_ms: u64,
+    pub algorithm_version: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewCentralityRecord {
+    pub project_id: String,
+    pub branch_id: String,
+    pub node_id: String,
+    pub symbol_id: Option<String>,
+    pub name: String,
+    pub kind: String,
+    pub pagerank_score: f64,
+    pub in_degree: usize,
+    pub out_degree: usize,
+    pub fan_in: usize,
+    pub fan_out: usize,
+    pub degree_centrality: f64,
+    pub component_size: usize,
+    pub is_cycle_member: bool,
+    pub calculated_at_unix_ms: u64,
+    pub algorithm_version: String,
+}
+
 impl SqliteStorage {
     pub fn open(path: impl AsRef<Path>) -> ContractResult<Self> {
         let path = path.as_ref();
@@ -318,11 +446,18 @@ impl SqliteStorage {
             )
             .map_err(to_contract_error)?;
 
+        self.apply_migration(1, "initial_storage_schema", MIGRATION_001)?;
+        self.apply_migration(2, "centrality_snapshot_schema", MIGRATION_002)?;
+
+        Ok(())
+    }
+
+    fn apply_migration(&mut self, version: i64, name: &str, sql: &str) -> ContractResult<()> {
         let applied = self
             .connection
             .query_row(
                 "SELECT 1 FROM schema_migrations WHERE version = ?1",
-                [1_i64],
+                [version],
                 |_| Ok(()),
             )
             .optional()
@@ -331,13 +466,11 @@ impl SqliteStorage {
 
         if !applied {
             let transaction = self.connection.transaction().map_err(to_contract_error)?;
-            transaction
-                .execute_batch(MIGRATION_001)
-                .map_err(to_contract_error)?;
+            transaction.execute_batch(sql).map_err(to_contract_error)?;
             transaction
                 .execute(
                     "INSERT INTO schema_migrations (version, name) VALUES (?1, ?2)",
-                    params![1_i64, "initial_storage_schema"],
+                    params![version, name],
                 )
                 .map_err(to_contract_error)?;
             transaction.commit().map_err(to_contract_error)?;
@@ -625,6 +758,69 @@ impl SqliteStorage {
             .map_err(to_contract_error)
     }
 
+    pub fn storage_stats(&self) -> ContractResult<StorageStats> {
+        Ok(StorageStats {
+            files: self.count_table("files")?,
+            symbols: self.count_table("symbols")?,
+            edges: self.count_table("edges")?,
+        })
+    }
+
+    pub fn current_branch_name(&self) -> ContractResult<Option<String>> {
+        self.connection
+            .prepare_cached(
+                "SELECT name
+                 FROM branches
+                 ORDER BY updated_at_unix_ms DESC, created_at_unix_ms DESC, name
+                 LIMIT 1",
+            )
+            .map_err(to_contract_error)?
+            .query_row([], |row| row.get::<_, String>(0))
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    pub fn project_roots(&self) -> ContractResult<Vec<String>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT root_path
+                 FROM projects
+                 ORDER BY name, id",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(to_contract_error)?;
+
+        collect_rows(rows)
+    }
+
+    pub fn savings_summary(&self) -> ContractResult<SavingsSummary> {
+        self.connection
+            .query_row(
+                "SELECT
+                    COUNT(*),
+                    COALESCE(SUM(estimated_tokens_saved), 0),
+                    COALESCE(SUM(returned_tokens), 0),
+                    COALESCE(SUM(avoided_file_reads), 0),
+                    COALESCE(SUM(avoided_search_calls), 0)
+                 FROM savings_ledger",
+                [],
+                |row| {
+                    Ok(SavingsSummary {
+                        records: row.get::<_, i64>(0)? as usize,
+                        estimated_tokens_saved: row.get::<_, i64>(1)? as usize,
+                        returned_tokens: row.get::<_, i64>(2)? as usize,
+                        avoided_file_reads: row.get::<_, i64>(3)? as usize,
+                        avoided_search_calls: row.get::<_, i64>(4)? as usize,
+                    })
+                },
+            )
+            .map_err(to_contract_error)
+    }
+
     fn ensure_phase4_columns(&self) -> ContractResult<()> {
         for (column, definition) in [
             ("start_byte", "INTEGER NOT NULL DEFAULT 0"),
@@ -662,6 +858,256 @@ impl SqliteStorage {
         Ok(false)
     }
 
+    pub fn graph_summary(
+        &self,
+        project_id: Option<&str>,
+        branch_id: Option<&str>,
+    ) -> ContractResult<StoredGraphSummary> {
+        Ok(StoredGraphSummary {
+            project_id: project_id.map(str::to_string).or(self.first_project_id()?),
+            branch_id: branch_id.map(str::to_string).or(self.first_branch_id()?),
+            node_count: self.count_scoped("nodes", project_id, branch_id)?,
+            edge_count: self.count_scoped("edges", project_id, branch_id)?,
+            symbol_count: self.count_scoped("symbols", project_id, branch_id)?,
+            file_count: self.count_scoped("files", project_id, branch_id)?,
+            edge_type_counts: self.group_counts("edges", "edge_type", project_id, branch_id)?,
+            node_kind_counts: self.group_counts("nodes", "kind", project_id, branch_id)?,
+            centrality_snapshot_count: self.count_scoped(
+                "centrality_snapshots",
+                project_id,
+                branch_id,
+            )?,
+        })
+    }
+
+    pub fn graph_node_by_id(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        node_id: &str,
+    ) -> ContractResult<Option<StoredGraphNode>> {
+        self.connection
+            .prepare_cached(
+                "SELECT n.id, n.project_id, n.branch_id, n.label, n.kind,
+                        f.path, n.symbol_id, f.language
+                 FROM nodes n
+                 LEFT JOIN files f ON f.id = n.file_id
+                 WHERE n.project_id = ?1 AND n.branch_id = ?2 AND n.id = ?3",
+            )
+            .map_err(to_contract_error)?
+            .query_row(params![project_id, branch_id, node_id], graph_node_from_row)
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    pub fn graph_node_by_symbol_id(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        symbol_id: &str,
+    ) -> ContractResult<Option<StoredGraphNode>> {
+        self.connection
+            .prepare_cached(
+                "SELECT n.id, n.project_id, n.branch_id, n.label, n.kind,
+                        f.path, n.symbol_id, f.language
+                 FROM nodes n
+                 LEFT JOIN files f ON f.id = n.file_id
+                 WHERE n.project_id = ?1 AND n.branch_id = ?2 AND n.symbol_id = ?3
+                 LIMIT 1",
+            )
+            .map_err(to_contract_error)?
+            .query_row(
+                params![project_id, branch_id, symbol_id],
+                graph_node_from_row,
+            )
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    pub fn graph_nodes_by_ids(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        node_ids: &[String],
+    ) -> ContractResult<Vec<StoredGraphNode>> {
+        let mut nodes = Vec::new();
+        for node_id in node_ids {
+            if let Some(node) = self.graph_node_by_id(project_id, branch_id, node_id)? {
+                nodes.push(node);
+            }
+        }
+        Ok(nodes)
+    }
+
+    pub fn graph_edges_for_node(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        node_id: &str,
+        min_confidence: u16,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredGraphEdge>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT id, project_id, branch_id, edge_type, from_node_id, to_node_id,
+                        confidence_bps, provenance
+                 FROM edges
+                 WHERE project_id = ?1
+                    AND branch_id = ?2
+                    AND confidence_bps >= ?3
+                    AND (from_node_id = ?4 OR to_node_id = ?4)
+                 ORDER BY id
+                 LIMIT ?5",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![
+                    project_id,
+                    branch_id,
+                    i64::from(min_confidence),
+                    node_id,
+                    limit as i64
+                ],
+                graph_edge_from_row,
+            )
+            .map_err(to_contract_error)?;
+
+        collect_rows(rows)
+    }
+
+    pub fn graph_edges_scoped(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        min_confidence: u16,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredGraphEdge>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT id, project_id, branch_id, edge_type, from_node_id, to_node_id,
+                        confidence_bps, provenance
+                 FROM edges
+                 WHERE project_id = ?1 AND branch_id = ?2 AND confidence_bps >= ?3
+                 ORDER BY id
+                 LIMIT ?4",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![
+                    project_id,
+                    branch_id,
+                    i64::from(min_confidence),
+                    limit as i64
+                ],
+                graph_edge_from_row,
+            )
+            .map_err(to_contract_error)?;
+
+        collect_rows(rows)
+    }
+
+    pub fn centrality_snapshot(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredCentralityRecord>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT node_id, symbol_id, name, kind, pagerank_score, in_degree,
+                        out_degree, fan_in, fan_out, degree_centrality, component_size,
+                        is_cycle_member, calculated_at_unix_ms, algorithm_version
+                 FROM centrality_snapshots
+                 WHERE project_id = ?1 AND branch_id = ?2
+                 ORDER BY pagerank_score DESC, node_id
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(params![project_id, branch_id, limit as i64], |row| {
+                Ok(StoredCentralityRecord {
+                    node_id: row.get(0)?,
+                    symbol_id: row.get(1)?,
+                    name: row.get(2)?,
+                    kind: row.get(3)?,
+                    pagerank_score: row.get(4)?,
+                    in_degree: row.get::<_, i64>(5)? as usize,
+                    out_degree: row.get::<_, i64>(6)? as usize,
+                    fan_in: row.get::<_, i64>(7)? as usize,
+                    fan_out: row.get::<_, i64>(8)? as usize,
+                    degree_centrality: row.get(9)?,
+                    component_size: row.get::<_, i64>(10)? as usize,
+                    is_cycle_member: row.get::<_, i64>(11)? != 0,
+                    calculated_at_unix_ms: row.get::<_, i64>(12)? as u64,
+                    algorithm_version: row.get(13)?,
+                })
+            })
+            .map_err(to_contract_error)?;
+
+        collect_rows(rows)
+    }
+
+    pub fn insert_centrality_snapshot(&self, record: &NewCentralityRecord) -> ContractResult<()> {
+        self.connection
+            .execute(
+                "INSERT INTO centrality_snapshots (
+                    project_id, branch_id, node_id, symbol_id, name, kind, pagerank_score,
+                    in_degree, out_degree, fan_in, fan_out, degree_centrality,
+                    component_size, is_cycle_member, calculated_at_unix_ms, algorithm_version
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                params![
+                    record.project_id,
+                    record.branch_id,
+                    record.node_id,
+                    record.symbol_id,
+                    record.name,
+                    record.kind,
+                    record.pagerank_score,
+                    record.in_degree as i64,
+                    record.out_degree as i64,
+                    record.fan_in as i64,
+                    record.fan_out as i64,
+                    record.degree_centrality,
+                    record.component_size as i64,
+                    bool_to_i64(record.is_cycle_member),
+                    record.calculated_at_unix_ms as i64,
+                    record.algorithm_version
+                ],
+            )
+            .map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    pub fn remove_file_by_path(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        path: &str,
+    ) -> ContractResult<()> {
+        self.connection
+            .execute(
+                "DELETE FROM files WHERE project_id = ?1 AND branch_id = ?2 AND path = ?3",
+                params![project_id.as_str(), branch_id.as_str(), path],
+            )
+            .map_err(to_contract_error)?;
+        self.connection
+            .execute(
+                "DELETE FROM file_content_fts WHERE path = ?1",
+                params![path],
+            )
+            .map_err(to_contract_error)?;
+        Ok(())
+    }
+
     fn configure_connection(&self) -> ContractResult<()> {
         self.connection
             .pragma_update(None, "journal_mode", "WAL")
@@ -673,6 +1119,113 @@ impl SqliteStorage {
             .pragma_update(None, "foreign_keys", "ON")
             .map_err(to_contract_error)?;
         Ok(())
+    }
+
+    fn count_table(&self, table_name: &'static str) -> ContractResult<usize> {
+        let sql = format!("SELECT COUNT(*) FROM {table_name}");
+        let count = self
+            .connection
+            .query_row(&sql, [], |row| row.get::<_, i64>(0))
+            .map_err(to_contract_error)?;
+        Ok(count as usize)
+    }
+
+    fn first_project_id(&self) -> ContractResult<Option<String>> {
+        self.connection
+            .query_row("SELECT id FROM projects ORDER BY id LIMIT 1", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn first_branch_id(&self) -> ContractResult<Option<String>> {
+        self.connection
+            .query_row("SELECT id FROM branches ORDER BY id LIMIT 1", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn count_scoped(
+        &self,
+        table_name: &'static str,
+        project_id: Option<&str>,
+        branch_id: Option<&str>,
+    ) -> ContractResult<usize> {
+        let count = match (project_id, branch_id) {
+            (Some(project_id), Some(branch_id)) => self.connection.query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM {table_name} WHERE project_id = ?1 AND branch_id = ?2"
+                ),
+                params![project_id, branch_id],
+                |row| row.get::<_, i64>(0),
+            ),
+            (Some(project_id), None) => self.connection.query_row(
+                &format!("SELECT COUNT(*) FROM {table_name} WHERE project_id = ?1"),
+                params![project_id],
+                |row| row.get::<_, i64>(0),
+            ),
+            (None, Some(branch_id)) => self.connection.query_row(
+                &format!("SELECT COUNT(*) FROM {table_name} WHERE branch_id = ?1"),
+                params![branch_id],
+                |row| row.get::<_, i64>(0),
+            ),
+            (None, None) => self.connection.query_row(
+                &format!("SELECT COUNT(*) FROM {table_name}"),
+                [],
+                |row| row.get::<_, i64>(0),
+            ),
+        }
+        .map_err(to_contract_error)?;
+        Ok(count as usize)
+    }
+
+    fn group_counts(
+        &self,
+        table_name: &'static str,
+        column_name: &'static str,
+        project_id: Option<&str>,
+        branch_id: Option<&str>,
+    ) -> ContractResult<Vec<GraphCount>> {
+        let sql = match (project_id, branch_id) {
+            (Some(_), Some(_)) => format!(
+                "SELECT {column_name}, COUNT(*) FROM {table_name}
+                 WHERE project_id = ?1 AND branch_id = ?2
+                 GROUP BY {column_name} ORDER BY {column_name}"
+            ),
+            (Some(_), None) => format!(
+                "SELECT {column_name}, COUNT(*) FROM {table_name}
+                 WHERE project_id = ?1 GROUP BY {column_name} ORDER BY {column_name}"
+            ),
+            (None, Some(_)) => format!(
+                "SELECT {column_name}, COUNT(*) FROM {table_name}
+                 WHERE branch_id = ?1 GROUP BY {column_name} ORDER BY {column_name}"
+            ),
+            (None, None) => format!(
+                "SELECT {column_name}, COUNT(*) FROM {table_name}
+                 GROUP BY {column_name} ORDER BY {column_name}"
+            ),
+        };
+
+        let mut statement = self.connection.prepare(&sql).map_err(to_contract_error)?;
+        let rows = match (project_id, branch_id) {
+            (Some(project_id), Some(branch_id)) => statement
+                .query_map(params![project_id, branch_id], graph_count_from_row)
+                .map_err(to_contract_error)?,
+            (Some(project_id), None) => statement
+                .query_map(params![project_id], graph_count_from_row)
+                .map_err(to_contract_error)?,
+            (None, Some(branch_id)) => statement
+                .query_map(params![branch_id], graph_count_from_row)
+                .map_err(to_contract_error)?,
+            (None, None) => statement
+                .query_map([], graph_count_from_row)
+                .map_err(to_contract_error)?,
+        };
+
+        collect_rows(rows)
     }
 }
 
@@ -1618,6 +2171,43 @@ fn cleanup_deleted_files_tx(
     }
 
     Ok(())
+}
+
+fn graph_count_from_row(row: &Row<'_>) -> rusqlite::Result<GraphCount> {
+    Ok(GraphCount {
+        name: row.get(0)?,
+        count: row.get::<_, i64>(1)? as usize,
+    })
+}
+
+fn graph_node_from_row(row: &Row<'_>) -> rusqlite::Result<StoredGraphNode> {
+    Ok(StoredGraphNode {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        branch_id: row.get(2)?,
+        name: row.get(3)?,
+        kind: row.get(4)?,
+        file_path: row.get(5)?,
+        symbol_id: row.get(6)?,
+        language: row.get(7)?,
+        visibility: None,
+        provenance: None,
+    })
+}
+
+fn graph_edge_from_row(row: &Row<'_>) -> rusqlite::Result<StoredGraphEdge> {
+    Ok(StoredGraphEdge {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        branch_id: row.get(2)?,
+        edge_type: row.get(3)?,
+        from_node_id: row.get(4)?,
+        to_node_id: row.get(5)?,
+        confidence: row
+            .get::<_, i64>(6)?
+            .clamp(0, i64::from(EdgeConfidence::MAX_BASIS_POINTS)) as u16,
+        provenance: row.get(7)?,
+    })
 }
 
 fn collect_rows<T, F>(rows: rusqlite::MappedRows<'_, F>) -> ContractResult<Vec<T>>

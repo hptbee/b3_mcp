@@ -25,6 +25,12 @@ impl ContractError {
     }
 }
 
+impl std::fmt::Display for ContractError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
 pub trait StorageProvider {
     fn name(&self) -> &str;
     fn is_local_only(&self) -> bool;
