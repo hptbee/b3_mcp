@@ -18,16 +18,17 @@ Keep the original stack:
 - React Flow graph visualization
 - Tauri optional packaging
 
-## Phase 1 Workspace
+## Workspace
 
-This repository starts with a minimal Rust Cargo workspace and base crates:
+This repository is a Rust Cargo workspace with local-first code intelligence
+crates:
 
 - `crates/b3-core`: shared domain types
 - `crates/b3-mcp-runtime`: thin MCP protocol boundary
-- `crates/b3-storage`: local persistence boundary
-- `crates/b3-indexer`: indexing pipeline boundary
+- `crates/b3-storage`: local SQLite persistence boundary
+- `crates/b3-indexer`: incremental indexing and Rust tree-sitter pipeline
+- `crates/b3-query`: hybrid query, graph traversal, ranking, and context packs
 - `crates/b3-embeddings`: offline local embedding provider boundary
-- `crates/b3-query`: hybrid query and graph retrieval boundary
 - `crates/b3-control`: localhost control server boundary
 
 The default architecture is offline-first:
@@ -38,12 +39,6 @@ The default architecture is offline-first:
 - no remote telemetry or SaaS authentication
 - external integrations must be optional plugins and disabled by default
 
-Phase 1 intentionally defines boundaries and shared metadata only. It does not
-implement the MCP runtime, indexing workers, graph traversal, storage schema, or
-web UI yet.
-
-## Phase 1.5 Contracts
-
 Stable contracts live in `crates/b3-core`:
 
 - IDs: project, file, node, edge, symbol, branch, session, and tool call IDs
@@ -53,6 +48,29 @@ Stable contracts live in `crates/b3-core`:
 
 Implementation crates should implement these contracts instead of depending on
 each other's concrete internals.
+
+## Current Capabilities
+
+Implemented through Phase 6.2:
+
+- Rust-only real parsing through tree-sitter, with unsupported languages kept on
+  the noop fallback path.
+- SQLite-backed branch-aware storage for files, file hashes, symbols, graph
+  nodes/edges, FTS content, and token savings ledger entries.
+- Incremental indexing with unchanged-file skips, changed-file replacement, and
+  deleted-file cleanup.
+- Query engine APIs for symbol lookup, FTS/BM25 lexical search, callers,
+  callees, related symbols, impact analysis, dependency paths, cycle detection,
+  and token-budgeted context packs.
+- Serializable query traces and MCP-ready DTOs.
+- Live stdio MCP runtime with thin JSON-RPC/tool routing for Cursor/Codex use.
+- Impact intelligence with deterministic risk scoring, public API heuristics,
+  related-test discovery, missing-test warnings, and explainable trace entries.
+- PageRank/centrality snapshots persisted locally in SQLite and used as bounded
+  ranking/risk signals.
+
+The MCP runtime remains protocol-only. Indexing, graph traversal, ranking,
+storage, centrality, and impact logic stay in query/storage/indexer crates.
 
 ## Commands
 
@@ -129,14 +147,15 @@ Phase 4+ work.
 - Phase 4: Real Rust Parsing + Storage Adapter
 - Phase 4.1: Project/Branch Auto Ensure + Deleted File Cleanup
 - Phase 5: Query Engine + Graph Traversal + Context Pack
-
-### Planned Phases
-
 - Phase 5.1: Query Hardening + Explainability
 - Phase 5.2: Ranking Algorithms Upgrade
 - Phase 6: MCP Tools over Query Engine
+- Phase 6.0.1: Live MCP Runtime Wiring
 - Phase 6.1: Impact Intelligence
 - Phase 6.2: PageRank / Centrality
+
+### Planned Phases
+
 - Phase 7: Control Server + Localhost API
 - Phase 7.1: Web UI Foundation
 - Phase 7.2: Graph Explorer UI
@@ -151,4 +170,3 @@ Phase 4+ work.
 - Phase 13: Duplicate / Similarity Detection
 - Phase 14: Real Plugin System
 - Phase 15: Packaging + Installers
-
