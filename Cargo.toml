@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/b3-control",
+    "crates/b3-core",
+    "crates/b3-embeddings",
+    "crates/b3-indexer",
+    "crates/b3-mcp-runtime",
+    "crates/b3-query",
+    "crates/b3-storage",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"
