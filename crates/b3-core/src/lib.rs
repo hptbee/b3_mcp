@@ -9,12 +9,14 @@ mod config;
 mod contracts;
 mod events;
 mod ids;
+mod plugin;
 mod query;
 
 pub use config::*;
 pub use contracts::*;
 pub use events::*;
 pub use ids::*;
+pub use plugin::*;
 pub use query::*;
 
 pub const PRODUCT_NAME: &str = "b3_mcp";

@@ -61,3 +61,44 @@ cargo fmt
 cargo check --workspace
 cargo test --workspace
 ```
+
+For a local pre-commit verification pass:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+## Phase 3 Indexer
+
+`crates/b3-indexer` owns the offline incremental indexing pipeline:
+
+- repository discovery and ignore filtering
+- content hashing and unchanged-file skips
+- tree-sitter parser, symbol extractor, and relationship extractor contracts
+- parser worker isolation boundary
+- bounded index job queue and worker batch planning
+- filesystem watcher contract
+- branch-aware index metadata
+- index lifecycle events and cancellation support
+
+It does not implement retrieval ranking, embedding generation, MCP request
+handling, or UI behavior.
+
+Phase 3 boundary notes:
+
+- `IndexStore` is the storage port used by the indexer. It keeps the indexer
+  storage-agnostic; storage crates should adapt to it instead of being imported
+  directly into indexing logic.
+- `ParserIsolation::SubprocessWorker` records the required crash-isolation
+  boundary. The current phase defines the boundary only; the subprocess worker
+  implementation is future work.
+- `LocalIndexJobQueue` is an in-process bounded queue for index jobs. It
+  prevents unbounded enqueue growth and stays independent of MCP request
+  handling.
+- `BoundedWorkerPool` currently plans bounded batches. It is the replacement
+  point for real parallel worker execution later.
+- `NoopTreeSitterParser`, `NoopSymbolExtractor`, and
+  `NoopRelationshipExtractor` are intentional placeholders. Phase 4 should
+  replace them with language-specific tree-sitter query packs while preserving
+  the `TreeSitterParser`, `SymbolExtractor`, and `RelationshipExtractor`
+  contracts.

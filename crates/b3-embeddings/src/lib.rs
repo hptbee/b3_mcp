@@ -6,5 +6,6 @@
 //! it re-exports the stable core contracts.
 
 pub use b3_core::{
-    EmbeddingConfig, EmbeddingProvider, EmbeddingRequest, EmbeddingResult, LocalEmbeddingProviderKind,
+    EmbeddingConfig, EmbeddingProvider, EmbeddingRequest, EmbeddingResult,
+    LocalEmbeddingProviderKind,
 };

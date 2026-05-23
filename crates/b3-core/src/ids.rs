@@ -25,3 +25,4 @@ string_id!(SymbolId);
 string_id!(BranchId);
 string_id!(SessionId);
 string_id!(ToolCallId);
+string_id!(PluginId);
