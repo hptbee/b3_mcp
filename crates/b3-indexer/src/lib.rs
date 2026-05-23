@@ -17,13 +17,19 @@ use std::{
 };
 
 use b3_core::{
-    BranchId, BranchMetadata, ContractError, ContractResult, DomainEvent, EdgeKind, EventBus,
-    FileDiscovered, FileId, FileParsed, FileRecord, FileSkipped, IndexCompleted, IndexJob,
-    IndexJobId, IndexStarted, IndexSummary, Indexer, NodeKind, ProjectId, SymbolRecord,
+    BranchId, BranchMetadata, ContractError, ContractResult, DomainEvent, EdgeConfidence, EdgeId,
+    EdgeKind, EdgeProvenance, EventBus, FileDiscovered, FileId, FileParsed, FileRecord,
+    FileSkipped, GraphEdgeMetadata, IndexCompleted, IndexJob, IndexJobId, IndexStarted, IndexStore,
+    IndexSummary, IndexedEdgeRecord, IndexedFileRecord, Indexer, NodeKind, ProjectId, SymbolId,
+    SymbolRecord,
 };
 use sha2::{Digest, Sha256};
+use tree_sitter::{Node, Parser, Point};
 
-pub use b3_core::{IndexJobQueue, IndexSummary as CoreIndexSummary, Indexer as CoreIndexer};
+pub use b3_core::{
+    IndexJobQueue, IndexStore as CoreIndexStore, IndexSummary as CoreIndexSummary,
+    Indexer as CoreIndexer,
+};
 
 const DEFAULT_MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
@@ -158,19 +164,26 @@ pub struct ParsedFile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtractedSymbol {
-    pub id: b3_core::SymbolId,
+    pub id: SymbolId,
     pub file_id: FileId,
     pub name: String,
     pub kind: NodeKind,
+    pub start_byte: usize,
+    pub end_byte: usize,
     pub start_line: usize,
+    pub start_column: usize,
     pub end_line: usize,
+    pub end_column: usize,
+    pub visibility: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtractedRelationship {
-    pub from_symbol: b3_core::SymbolId,
-    pub to_symbol: b3_core::SymbolId,
+    pub id: EdgeId,
+    pub from_symbol: SymbolId,
+    pub to_symbol: SymbolId,
     pub kind: EdgeKind,
+    pub metadata: GraphEdgeMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -192,18 +205,8 @@ pub trait RelationshipExtractor: Send + Sync {
     fn extract_relationships(
         &self,
         symbols: &[ExtractedSymbol],
+        input: &ParseInput,
     ) -> ContractResult<Vec<ExtractedRelationship>>;
-}
-
-pub trait IndexStore: Send + Sync {
-    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>>;
-    fn upsert_file(&self, branch_id: &BranchId, file: FileRecord) -> ContractResult<()>;
-    fn upsert_symbols(
-        &self,
-        project_id: &ProjectId,
-        branch_id: &BranchId,
-        symbols: Vec<SymbolRecord>,
-    ) -> ContractResult<()>;
 }
 
 pub trait FileWatcher: Send + Sync {
@@ -427,31 +430,50 @@ where
         let input = ParseInput {
             file_id: file.id.clone(),
             path: file.path,
-            source,
+            source: source.clone(),
         };
         let parsed = self.parser.parse(input)?;
-        self.store.upsert_file(
-            &self.config.branch_id,
-            FileRecord {
+        let indexed_file = IndexedFileRecord {
+            file: FileRecord {
                 id: file.id.clone(),
                 project_id: project_id.clone(),
                 path: file.relative_path.clone(),
                 content_hash: file.content_hash,
             },
-        )?;
-        self.store.upsert_symbols(
-            project_id,
-            &self.config.branch_id,
-            parsed
+            language: parsed.language.clone(),
+            size_bytes: file.size_bytes,
+            content: source,
+            symbols: parsed
                 .symbols
                 .iter()
                 .map(|symbol| SymbolRecord {
                     id: symbol.id.clone(),
                     file_id: symbol.file_id.clone(),
                     name: symbol.name.clone(),
+                    kind: symbol.kind,
+                    start_byte: symbol.start_byte,
+                    end_byte: symbol.end_byte,
+                    start_line: symbol.start_line,
+                    start_column: symbol.start_column,
+                    end_line: symbol.end_line,
+                    end_column: symbol.end_column,
+                    visibility: symbol.visibility.clone(),
                 })
                 .collect(),
-        )?;
+            edges: parsed
+                .relationships
+                .iter()
+                .map(|relationship| IndexedEdgeRecord {
+                    id: relationship.id.clone(),
+                    from_symbol: relationship.from_symbol.clone(),
+                    to_symbol: relationship.to_symbol.clone(),
+                    kind: relationship.kind,
+                    metadata: relationship.metadata.clone(),
+                })
+                .collect(),
+        };
+        self.store
+            .upsert_indexed_file(project_id, &self.config.branch_id, indexed_file)?;
         self.publish(DomainEvent::FileParsed(FileParsed {
             project_id: project_id.clone(),
             file_id: file.id,
@@ -474,14 +496,21 @@ where
     fn index(&self, job: IndexJob) -> ContractResult<IndexSummary> {
         let root = PathBuf::from(&job.root_path);
         let project_id = job.project_id;
+        let root_path = job.root_path;
 
         self.publish(DomainEvent::IndexStarted(IndexStarted {
             project_id: project_id.clone(),
             branch_id: self.config.branch_id.clone(),
-            root_path: job.root_path,
+            root_path: root_path.clone(),
         }))?;
 
+        self.store
+            .ensure_project_branch(&project_id, &self.config.branch_id, &root_path)?;
+
         let files = self.discover(&root, &project_id)?;
+        let live_file_ids: Vec<FileId> = files.iter().map(|file| file.id.clone()).collect();
+        self.store
+            .cleanup_deleted_files(&project_id, &self.config.branch_id, &live_file_ids)?;
         let files_seen = files.len();
         let mut files_parsed = 0;
         let mut symbols_indexed = 0;
@@ -530,6 +559,37 @@ impl TreeSitterParser for NoopTreeSitterParser {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct RustLanguagePack;
+
+impl TreeSitterParser for RustLanguagePack {
+    fn parse(&self, input: ParseInput) -> ContractResult<ParsedFile> {
+        if language_from_path(&input.path).as_deref() != Some("rs") {
+            return NoopTreeSitterParser.parse(input);
+        }
+
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
+            .map_err(to_contract_error)?;
+        let tree = parser
+            .parse(&input.source, None)
+            .ok_or_else(|| ContractError::new("tree-sitter rust parse failed"))?;
+
+        let root = tree.root_node();
+        let mut symbols = Vec::new();
+        collect_rust_symbols(root, &input, &mut symbols);
+        let relationships = collect_rust_relationships(root, &input, &symbols);
+
+        Ok(ParsedFile {
+            file_id: input.file_id,
+            language: Some("rust".to_string()),
+            symbols,
+            relationships,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TreeSitterPipelineParser<S, R> {
     symbol_extractor: S,
@@ -556,7 +616,7 @@ where
         let symbols = self.symbol_extractor.extract_symbols(&input)?;
         let relationships = self
             .relationship_extractor
-            .extract_relationships(&symbols)?;
+            .extract_relationships(&symbols, &input)?;
 
         Ok(ParsedFile {
             file_id: input.file_id,
@@ -583,9 +643,299 @@ impl RelationshipExtractor for NoopRelationshipExtractor {
     fn extract_relationships(
         &self,
         _symbols: &[ExtractedSymbol],
+        _input: &ParseInput,
     ) -> ContractResult<Vec<ExtractedRelationship>> {
         Ok(Vec::new())
     }
+}
+
+fn collect_rust_symbols(node: Node<'_>, input: &ParseInput, symbols: &mut Vec<ExtractedSymbol>) {
+    if let Some((name, kind)) = rust_symbol_name_and_kind(node, &input.source) {
+        let start = node.start_position();
+        let end = node.end_position();
+        symbols.push(ExtractedSymbol {
+            id: SymbolId::new(stable_id(
+                "symbol",
+                &format!(
+                    "{}:{kind:?}:{name}:{}:{}",
+                    input.file_id.as_str(),
+                    node.start_byte(),
+                    node.end_byte()
+                ),
+            )),
+            file_id: input.file_id.clone(),
+            name,
+            kind,
+            start_byte: node.start_byte(),
+            end_byte: node.end_byte(),
+            start_line: one_based_row(start),
+            start_column: start.column,
+            end_line: one_based_row(end),
+            end_column: end.column,
+            visibility: rust_visibility(node, &input.source),
+        });
+    }
+
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        collect_rust_symbols(child, input, symbols);
+    }
+}
+
+fn collect_rust_relationships(
+    root: Node<'_>,
+    input: &ParseInput,
+    symbols: &[ExtractedSymbol],
+) -> Vec<ExtractedRelationship> {
+    let mut relationships = Vec::new();
+    collect_contains_relationships(symbols, &mut relationships);
+    collect_import_relationships(symbols, &mut relationships);
+    collect_call_relationships(root, input, symbols, &mut relationships);
+    // Phase 4.1 policy: do not emit REFERENCES edges yet. Rust reference
+    // extraction needs name resolution to avoid noisy or misleading edges, so
+    // it is deferred until a later graph-analysis phase.
+    relationships
+}
+
+fn collect_contains_relationships(
+    symbols: &[ExtractedSymbol],
+    relationships: &mut Vec<ExtractedRelationship>,
+) {
+    for child in symbols {
+        let parent = symbols
+            .iter()
+            .filter(|candidate| candidate.id != child.id)
+            .filter(|candidate| {
+                candidate.start_byte <= child.start_byte && candidate.end_byte >= child.end_byte
+            })
+            .min_by_key(|candidate| candidate.end_byte - candidate.start_byte);
+
+        if let Some(parent) = parent {
+            relationships.push(index_edge(
+                &parent.id,
+                &child.id,
+                EdgeKind::Contains,
+                EdgeProvenance::Ast,
+                10_000,
+            ));
+        }
+    }
+}
+
+fn collect_import_relationships(
+    symbols: &[ExtractedSymbol],
+    relationships: &mut Vec<ExtractedRelationship>,
+) {
+    let containers: Vec<&ExtractedSymbol> = symbols
+        .iter()
+        .filter(|symbol| {
+            matches!(
+                symbol.kind,
+                NodeKind::Module
+                    | NodeKind::Function
+                    | NodeKind::Method
+                    | NodeKind::Struct
+                    | NodeKind::Enum
+                    | NodeKind::Interface
+            )
+        })
+        .collect();
+
+    for import in symbols
+        .iter()
+        .filter(|symbol| symbol.kind == NodeKind::Package)
+    {
+        let owner = containers
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                candidate.start_byte <= import.start_byte && candidate.end_byte >= import.end_byte
+            })
+            .min_by_key(|candidate| candidate.end_byte - candidate.start_byte);
+
+        if let Some(owner) = owner {
+            relationships.push(index_edge(
+                &owner.id,
+                &import.id,
+                EdgeKind::Imports,
+                EdgeProvenance::ImportAnalysis,
+                9_000,
+            ));
+        }
+    }
+}
+
+fn collect_call_relationships(
+    node: Node<'_>,
+    input: &ParseInput,
+    symbols: &[ExtractedSymbol],
+    relationships: &mut Vec<ExtractedRelationship>,
+) {
+    if node.kind() == "call_expression" {
+        if let Some(function) = node.child_by_field_name("function") {
+            let call_name = rust_call_name(function, &input.source);
+            if let Some(call_name) = call_name {
+                let caller = containing_callable(node, symbols);
+                let callee = symbols.iter().find(|symbol| {
+                    matches!(symbol.kind, NodeKind::Function | NodeKind::Method)
+                        && symbol.name == call_name
+                });
+
+                if let (Some(caller), Some(callee)) = (caller, callee) {
+                    if caller.id != callee.id {
+                        relationships.push(index_edge(
+                            &caller.id,
+                            &callee.id,
+                            EdgeKind::Calls,
+                            EdgeProvenance::Ast,
+                            8_500,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        collect_call_relationships(child, input, symbols, relationships);
+    }
+}
+
+fn rust_symbol_name_and_kind(node: Node<'_>, source: &str) -> Option<(String, NodeKind)> {
+    let kind = match node.kind() {
+        "mod_item" => NodeKind::Module,
+        "struct_item" => NodeKind::Struct,
+        "enum_item" => NodeKind::Enum,
+        "trait_item" => NodeKind::Interface,
+        "impl_item" => NodeKind::Class,
+        "function_item" => {
+            if has_parent_kind(node, "impl_item") || has_parent_kind(node, "trait_item") {
+                NodeKind::Method
+            } else if has_test_attribute(node, source) {
+                NodeKind::Test
+            } else {
+                NodeKind::Function
+            }
+        }
+        "use_declaration" => NodeKind::Package,
+        _ => return None,
+    };
+
+    let name = if node.kind() == "impl_item" {
+        rust_impl_name(node, source)
+    } else if node.kind() == "use_declaration" {
+        Some(
+            node_text(node, source)
+                .trim_end_matches(';')
+                .trim()
+                .to_string(),
+        )
+    } else {
+        node.child_by_field_name("name")
+            .map(|name| node_text(name, source).to_string())
+    }?;
+
+    Some((name, kind))
+}
+
+fn rust_impl_name(node: Node<'_>, source: &str) -> Option<String> {
+    node.child_by_field_name("type")
+        .map(|value| format!("impl {}", node_text(value, source)))
+}
+
+fn rust_visibility(node: Node<'_>, source: &str) -> Option<String> {
+    let mut cursor = node.walk();
+    let visibility = node
+        .children(&mut cursor)
+        .find(|child| child.kind() == "visibility_modifier")
+        .map(|child| node_text(child, source).to_string());
+    visibility
+}
+
+fn rust_call_name(node: Node<'_>, source: &str) -> Option<String> {
+    match node.kind() {
+        "identifier" => Some(node_text(node, source).to_string()),
+        "field_expression" => node
+            .child_by_field_name("field")
+            .map(|field| node_text(field, source).to_string()),
+        _ => None,
+    }
+}
+
+fn containing_callable<'a>(
+    node: Node<'_>,
+    symbols: &'a [ExtractedSymbol],
+) -> Option<&'a ExtractedSymbol> {
+    symbols
+        .iter()
+        .filter(|symbol| matches!(symbol.kind, NodeKind::Function | NodeKind::Method))
+        .filter(|symbol| {
+            symbol.start_byte <= node.start_byte() && symbol.end_byte >= node.end_byte()
+        })
+        .min_by_key(|symbol| symbol.end_byte - symbol.start_byte)
+}
+
+fn index_edge(
+    from_symbol: &SymbolId,
+    to_symbol: &SymbolId,
+    kind: EdgeKind,
+    provenance: EdgeProvenance,
+    confidence_bps: u16,
+) -> ExtractedRelationship {
+    ExtractedRelationship {
+        id: EdgeId::new(stable_id(
+            "edge",
+            &format!(
+                "{}:{}:{kind:?}:{}",
+                from_symbol.as_str(),
+                to_symbol.as_str(),
+                confidence_bps
+            ),
+        )),
+        from_symbol: from_symbol.clone(),
+        to_symbol: to_symbol.clone(),
+        kind,
+        metadata: GraphEdgeMetadata {
+            confidence: EdgeConfidence::from_basis_points(confidence_bps),
+            provenance,
+            created_at_unix_ms: 0,
+            updated_at_unix_ms: 0,
+        },
+    }
+}
+
+fn has_parent_kind(node: Node<'_>, kind: &str) -> bool {
+    let mut parent = node.parent();
+    while let Some(value) = parent {
+        if value.kind() == kind {
+            return true;
+        }
+        parent = value.parent();
+    }
+    false
+}
+
+fn has_test_attribute(node: Node<'_>, source: &str) -> bool {
+    let mut previous = node.prev_named_sibling();
+    while let Some(sibling) = previous {
+        if sibling.kind() != "attribute_item" {
+            return false;
+        }
+        if node_text(sibling, source).contains("#[test]") {
+            return true;
+        }
+        previous = sibling.prev_named_sibling();
+    }
+    false
+}
+
+fn node_text<'a>(node: Node<'_>, source: &'a str) -> &'a str {
+    source.get(node.byte_range()).unwrap_or_default()
+}
+
+fn one_based_row(point: Point) -> usize {
+    point.row + 1
 }
 
 fn hash_file(path: &Path) -> ContractResult<String> {
@@ -631,6 +981,15 @@ mod tests {
     }
 
     impl IndexStore for MemoryStore {
+        fn ensure_project_branch(
+            &self,
+            _project_id: &ProjectId,
+            _branch_id: &BranchId,
+            _root_path: &str,
+        ) -> ContractResult<()> {
+            Ok(())
+        }
+
         fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
             Ok(self
                 .files
@@ -640,24 +999,29 @@ mod tests {
                 .cloned())
         }
 
-        fn upsert_file(&self, _branch_id: &BranchId, file: FileRecord) -> ContractResult<()> {
-            self.files
-                .lock()
-                .map_err(|_| ContractError::new("files lock poisoned"))?
-                .insert(file.id.as_str().to_string(), file);
-            Ok(())
-        }
-
-        fn upsert_symbols(
+        fn cleanup_deleted_files(
             &self,
             _project_id: &ProjectId,
             _branch_id: &BranchId,
-            symbols: Vec<SymbolRecord>,
+            _live_file_ids: &[FileId],
         ) -> ContractResult<()> {
+            Ok(())
+        }
+
+        fn upsert_indexed_file(
+            &self,
+            _project_id: &ProjectId,
+            _branch_id: &BranchId,
+            file: IndexedFileRecord,
+        ) -> ContractResult<()> {
+            self.files
+                .lock()
+                .map_err(|_| ContractError::new("files lock poisoned"))?
+                .insert(file.file.id.as_str().to_string(), file.file);
             self.symbols
                 .lock()
                 .map_err(|_| ContractError::new("symbols lock poisoned"))?
-                .extend(symbols);
+                .extend(file.symbols);
             Ok(())
         }
     }
@@ -763,6 +1127,55 @@ mod tests {
         assert_eq!(parsed.language.as_deref(), Some("rs"));
         assert!(parsed.symbols.is_empty());
         assert!(parsed.relationships.is_empty());
+    }
+
+    #[test]
+    fn rust_language_pack_extracts_basic_symbols_and_calls() {
+        let parsed = RustLanguagePack
+            .parse(ParseInput {
+                file_id: FileId::new("file"),
+                path: PathBuf::from("lib.rs"),
+                source: r#"
+                    use std::fmt;
+
+                    pub struct Runner;
+
+                    impl Runner {
+                        pub fn run(&self) {
+                            helper();
+                        }
+                    }
+
+                    fn helper() {}
+
+                    #[test]
+                    fn helper_test() {}
+                "#
+                .to_string(),
+            })
+            .expect("parse rust");
+
+        assert_eq!(parsed.language.as_deref(), Some("rust"));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|symbol| symbol.name == "Runner" && symbol.kind == NodeKind::Struct));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|symbol| symbol.name == "run" && symbol.kind == NodeKind::Method));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|symbol| symbol.name == "helper_test" && symbol.kind == NodeKind::Test));
+        assert!(parsed
+            .relationships
+            .iter()
+            .any(|edge| edge.kind == EdgeKind::Calls));
+        assert!(!parsed
+            .relationships
+            .iter()
+            .any(|edge| edge.kind == EdgeKind::References));
     }
 
     #[test]

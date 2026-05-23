@@ -10,10 +10,10 @@ use std::path::Path;
 use b3_core::{
     BranchId, BranchMetadata, ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind,
     EdgeProvenance, FileId, FileRecord, FileRepository, GraphEdge, GraphEdgeMetadata, GraphNode,
-    GraphRepository, NodeId, NodeKind, ProjectId, StorageProvider, SymbolId, SymbolRecord,
-    SymbolRepository, TokenSavingsRecord, TokenSavingsRepository,
+    GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind, ProjectId, StorageProvider,
+    SymbolId, SymbolRecord, SymbolRepository, TokenSavingsRecord, TokenSavingsRepository,
 };
-use rusqlite::{params, Connection, OptionalExtension, Row};
+use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 
 pub use b3_core::{
     FileRepository as FileRepositoryContract, GraphRepository as GraphRepositoryContract,
@@ -64,8 +64,13 @@ CREATE TABLE IF NOT EXISTS symbols (
     documentation TEXT NOT NULL DEFAULT '',
     snippet TEXT NOT NULL DEFAULT '',
     content_hash TEXT NOT NULL DEFAULT '',
+    start_byte INTEGER NOT NULL DEFAULT 0,
+    end_byte INTEGER NOT NULL DEFAULT 0,
     start_line INTEGER NOT NULL DEFAULT 0,
+    start_column INTEGER NOT NULL DEFAULT 0,
     end_line INTEGER NOT NULL DEFAULT 0,
+    end_column INTEGER NOT NULL DEFAULT 0,
+    visibility TEXT,
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
     FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
@@ -315,6 +320,8 @@ impl SqliteStorage {
             transaction.commit().map_err(to_contract_error)?;
         }
 
+        self.ensure_phase4_columns()?;
+
         Ok(())
     }
 
@@ -392,18 +399,38 @@ impl SqliteStorage {
     ) -> ContractResult<()> {
         self.connection
             .execute(
-                "INSERT INTO symbols (id, project_id, branch_id, file_id, name)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
+                "INSERT INTO symbols (
+                    id, project_id, branch_id, file_id, name, kind, start_byte, end_byte,
+                    start_line, start_column, end_line, end_column, visibility
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                  ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
                     branch_id = excluded.branch_id,
                     file_id = excluded.file_id,
-                    name = excluded.name",
+                    name = excluded.name,
+                    kind = excluded.kind,
+                    start_byte = excluded.start_byte,
+                    end_byte = excluded.end_byte,
+                    start_line = excluded.start_line,
+                    start_column = excluded.start_column,
+                    end_line = excluded.end_line,
+                    end_column = excluded.end_column,
+                    visibility = excluded.visibility",
                 params![
                     record.id.as_str(),
                     project_id.as_str(),
                     branch_id.as_str(),
                     record.file_id.as_str(),
-                    record.name.as_str()
+                    record.name.as_str(),
+                    node_kind(record.kind),
+                    record.start_byte as i64,
+                    record.end_byte as i64,
+                    record.start_line as i64,
+                    record.start_column as i64,
+                    record.end_line as i64,
+                    record.end_column as i64,
+                    record.visibility.as_deref()
                 ],
             )
             .map_err(to_contract_error)?;
@@ -530,6 +557,60 @@ impl SqliteStorage {
             .map_err(to_contract_error)
     }
 
+    pub fn count_rows(&self, table_name: &str) -> ContractResult<i64> {
+        let sql = format!("SELECT COUNT(*) FROM {table_name}");
+        self.connection
+            .query_row(&sql, [], |row| row.get::<_, i64>(0))
+            .map_err(to_contract_error)
+    }
+
+    pub fn count_edges_by_kind(&self, kind: EdgeKind) -> ContractResult<i64> {
+        self.connection
+            .query_row(
+                "SELECT COUNT(*) FROM edges WHERE edge_type = ?1",
+                [edge_kind(kind)],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(to_contract_error)
+    }
+
+    fn ensure_phase4_columns(&self) -> ContractResult<()> {
+        for (column, definition) in [
+            ("start_byte", "INTEGER NOT NULL DEFAULT 0"),
+            ("end_byte", "INTEGER NOT NULL DEFAULT 0"),
+            ("start_column", "INTEGER NOT NULL DEFAULT 0"),
+            ("end_column", "INTEGER NOT NULL DEFAULT 0"),
+            ("visibility", "TEXT"),
+        ] {
+            if !self.column_exists("symbols", column)? {
+                self.connection
+                    .execute(
+                        &format!("ALTER TABLE symbols ADD COLUMN {column} {definition}"),
+                        [],
+                    )
+                    .map_err(to_contract_error)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn column_exists(&self, table_name: &str, column_name: &str) -> ContractResult<bool> {
+        let sql = format!("PRAGMA table_info({table_name})");
+        let mut statement = self.connection.prepare(&sql).map_err(to_contract_error)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .map_err(to_contract_error)?;
+
+        for row in rows {
+            if row.map_err(to_contract_error)? == column_name {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     fn configure_connection(&self) -> ContractResult<()> {
         self.connection
             .pragma_update(None, "journal_mode", "WAL")
@@ -551,6 +632,96 @@ impl StorageProvider for SqliteStorage {
 
     fn is_local_only(&self) -> bool {
         true
+    }
+}
+
+impl IndexStore for SqliteStorage {
+    fn ensure_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        root_path: &str,
+    ) -> ContractResult<()> {
+        self.upsert_project(project_id, project_id.as_str(), root_path)?;
+        self.upsert_branch(
+            branch_id,
+            project_id,
+            &BranchMetadata::new(branch_id.as_str()),
+        )
+    }
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
+        FileRepository::get_file(self, file_id)
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        let transaction = self
+            .connection
+            .unchecked_transaction()
+            .map_err(to_contract_error)?;
+        cleanup_deleted_files_tx(&transaction, project_id, branch_id, live_file_ids)?;
+        transaction.commit().map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()> {
+        let transaction = self
+            .connection
+            .unchecked_transaction()
+            .map_err(to_contract_error)?;
+        upsert_indexed_file_tx(&transaction, project_id, branch_id, file)?;
+        transaction.commit().map_err(to_contract_error)?;
+        Ok(())
+    }
+}
+
+impl IndexStore for &SqliteStorage {
+    fn ensure_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        root_path: &str,
+    ) -> ContractResult<()> {
+        <SqliteStorage as IndexStore>::ensure_project_branch(
+            *self, project_id, branch_id, root_path,
+        )
+    }
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
+        FileRepository::get_file(*self, file_id)
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        <SqliteStorage as IndexStore>::cleanup_deleted_files(
+            *self,
+            project_id,
+            branch_id,
+            live_file_ids,
+        )
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()> {
+        <SqliteStorage as IndexStore>::upsert_indexed_file(*self, project_id, branch_id, file)
     }
 }
 
@@ -581,7 +752,8 @@ impl SymbolRepository for SqliteStorage {
         let mut statement = self
             .connection
             .prepare_cached(
-                "SELECT id, file_id, name
+                "SELECT id, file_id, name, kind, start_byte, end_byte, start_line,
+                        start_column, end_line, end_column, visibility
                  FROM symbols
                  WHERE project_id = ?1 AND name = ?2
                  ORDER BY name, id",
@@ -594,6 +766,14 @@ impl SymbolRepository for SqliteStorage {
                     id: SymbolId::new(row.get::<_, String>(0)?),
                     file_id: FileId::new(row.get::<_, String>(1)?),
                     name: row.get(2)?,
+                    kind: parse_node_kind(&row.get::<_, String>(3)?),
+                    start_byte: row.get::<_, i64>(4)? as usize,
+                    end_byte: row.get::<_, i64>(5)? as usize,
+                    start_line: row.get::<_, i64>(6)? as usize,
+                    start_column: row.get::<_, i64>(7)? as usize,
+                    end_line: row.get::<_, i64>(8)? as usize,
+                    end_column: row.get::<_, i64>(9)? as usize,
+                    visibility: row.get(10)?,
                 })
             })
             .map_err(to_contract_error)?;
@@ -677,6 +857,312 @@ impl TokenSavingsRepository for SqliteStorage {
     }
 }
 
+fn upsert_indexed_file_tx(
+    transaction: &Transaction<'_>,
+    project_id: &ProjectId,
+    branch_id: &BranchId,
+    indexed: IndexedFileRecord,
+) -> ContractResult<()> {
+    let file = indexed.file;
+    transaction
+        .execute(
+            "INSERT INTO files (id, project_id, branch_id, path, content_hash, language, size_bytes)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(id) DO UPDATE SET
+                project_id = excluded.project_id,
+                branch_id = excluded.branch_id,
+                path = excluded.path,
+                content_hash = excluded.content_hash,
+                language = excluded.language,
+                size_bytes = excluded.size_bytes",
+            params![
+                file.id.as_str(),
+                project_id.as_str(),
+                branch_id.as_str(),
+                file.path.as_str(),
+                file.content_hash.as_str(),
+                indexed.language.as_deref(),
+                indexed.size_bytes as i64
+            ],
+        )
+        .map_err(to_contract_error)?;
+
+    delete_file_index_rows(transaction, branch_id, &file.id)?;
+
+    transaction
+        .execute(
+            "DELETE FROM file_content_fts WHERE file_id = ?1",
+            [file.id.as_str()],
+        )
+        .map_err(to_contract_error)?;
+    transaction
+        .execute(
+            "INSERT INTO file_content_fts (file_id, path, content)
+             VALUES (?1, ?2, ?3)",
+            params![
+                file.id.as_str(),
+                file.path.as_str(),
+                indexed.content.as_str()
+            ],
+        )
+        .map_err(to_contract_error)?;
+
+    let file_node_id = file_node_id(&file.id);
+    transaction
+        .execute(
+            "INSERT INTO nodes (id, project_id, branch_id, kind, label, file_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(id) DO UPDATE SET
+                project_id = excluded.project_id,
+                branch_id = excluded.branch_id,
+                kind = excluded.kind,
+                label = excluded.label,
+                file_id = excluded.file_id",
+            params![
+                file_node_id.as_str(),
+                project_id.as_str(),
+                branch_id.as_str(),
+                node_kind(NodeKind::File),
+                file.path.as_str(),
+                file.id.as_str()
+            ],
+        )
+        .map_err(to_contract_error)?;
+
+    for symbol in &indexed.symbols {
+        transaction
+            .execute(
+                "INSERT INTO symbols (
+                    id, project_id, branch_id, file_id, name, kind, snippet, content_hash,
+                    start_byte, end_byte, start_line, start_column, end_line, end_column,
+                    visibility
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                 ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
+                    branch_id = excluded.branch_id,
+                    file_id = excluded.file_id,
+                    name = excluded.name,
+                    kind = excluded.kind,
+                    snippet = excluded.snippet,
+                    content_hash = excluded.content_hash,
+                    start_byte = excluded.start_byte,
+                    end_byte = excluded.end_byte,
+                    start_line = excluded.start_line,
+                    start_column = excluded.start_column,
+                    end_line = excluded.end_line,
+                    end_column = excluded.end_column,
+                    visibility = excluded.visibility",
+                params![
+                    symbol.id.as_str(),
+                    project_id.as_str(),
+                    branch_id.as_str(),
+                    symbol.file_id.as_str(),
+                    symbol.name.as_str(),
+                    node_kind(symbol.kind),
+                    snippet(&indexed.content, symbol.start_byte, symbol.end_byte),
+                    file.content_hash.as_str(),
+                    symbol.start_byte as i64,
+                    symbol.end_byte as i64,
+                    symbol.start_line as i64,
+                    symbol.start_column as i64,
+                    symbol.end_line as i64,
+                    symbol.end_column as i64,
+                    symbol.visibility.as_deref()
+                ],
+            )
+            .map_err(to_contract_error)?;
+
+        transaction
+            .execute(
+                "INSERT INTO nodes (id, project_id, branch_id, kind, label, symbol_id, file_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                 ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
+                    branch_id = excluded.branch_id,
+                    kind = excluded.kind,
+                    label = excluded.label,
+                    symbol_id = excluded.symbol_id,
+                    file_id = excluded.file_id",
+                params![
+                    symbol_node_id(&symbol.id).as_str(),
+                    project_id.as_str(),
+                    branch_id.as_str(),
+                    node_kind(symbol.kind),
+                    symbol.name.as_str(),
+                    symbol.id.as_str(),
+                    symbol.file_id.as_str()
+                ],
+            )
+            .map_err(to_contract_error)?;
+
+        transaction
+            .execute(
+                "INSERT INTO symbol_fts (symbol_id, name, documentation, snippet)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    symbol.id.as_str(),
+                    symbol.name.as_str(),
+                    "",
+                    snippet(&indexed.content, symbol.start_byte, symbol.end_byte)
+                ],
+            )
+            .map_err(to_contract_error)?;
+
+        transaction
+            .execute(
+                "INSERT INTO edges (
+                    id, project_id, branch_id, edge_type, from_node_id, to_node_id,
+                    confidence_bps, provenance, created_at_unix_ms, updated_at_unix_ms
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 ON CONFLICT(id) DO UPDATE SET
+                    edge_type = excluded.edge_type,
+                    from_node_id = excluded.from_node_id,
+                    to_node_id = excluded.to_node_id,
+                    confidence_bps = excluded.confidence_bps,
+                    provenance = excluded.provenance,
+                    updated_at_unix_ms = excluded.updated_at_unix_ms",
+                params![
+                    file_contains_edge_id(&file.id, &symbol.id).as_str(),
+                    project_id.as_str(),
+                    branch_id.as_str(),
+                    edge_kind(EdgeKind::Contains),
+                    file_node_id.as_str(),
+                    symbol_node_id(&symbol.id).as_str(),
+                    i64::from(EdgeConfidence::MAX_BASIS_POINTS),
+                    edge_provenance(EdgeProvenance::Ast),
+                    0_i64,
+                    0_i64
+                ],
+            )
+            .map_err(to_contract_error)?;
+    }
+
+    for edge in &indexed.edges {
+        transaction
+            .execute(
+                "INSERT INTO edges (
+                    id, project_id, branch_id, edge_type, from_node_id, to_node_id,
+                    confidence_bps, provenance, created_at_unix_ms, updated_at_unix_ms
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 ON CONFLICT(id) DO UPDATE SET
+                    edge_type = excluded.edge_type,
+                    from_node_id = excluded.from_node_id,
+                    to_node_id = excluded.to_node_id,
+                    confidence_bps = excluded.confidence_bps,
+                    provenance = excluded.provenance,
+                    updated_at_unix_ms = excluded.updated_at_unix_ms",
+                params![
+                    edge.id.as_str(),
+                    project_id.as_str(),
+                    branch_id.as_str(),
+                    edge_kind(edge.kind),
+                    symbol_node_id(&edge.from_symbol).as_str(),
+                    symbol_node_id(&edge.to_symbol).as_str(),
+                    i64::from(edge.metadata.confidence.basis_points()),
+                    edge_provenance(edge.metadata.provenance),
+                    edge.metadata.created_at_unix_ms as i64,
+                    edge.metadata.updated_at_unix_ms as i64
+                ],
+            )
+            .map_err(to_contract_error)?;
+    }
+
+    Ok(())
+}
+
+fn delete_file_index_rows(
+    transaction: &Transaction<'_>,
+    branch_id: &BranchId,
+    file_id: &FileId,
+) -> ContractResult<()> {
+    transaction
+        .execute(
+            "DELETE FROM edges
+             WHERE branch_id = ?1
+               AND (
+                    from_node_id IN (SELECT id FROM nodes WHERE file_id = ?2 AND branch_id = ?1)
+                 OR to_node_id IN (SELECT id FROM nodes WHERE file_id = ?2 AND branch_id = ?1)
+               )",
+            params![branch_id.as_str(), file_id.as_str()],
+        )
+        .map_err(to_contract_error)?;
+    transaction
+        .execute(
+            "DELETE FROM nodes WHERE file_id = ?1 AND branch_id = ?2",
+            params![file_id.as_str(), branch_id.as_str()],
+        )
+        .map_err(to_contract_error)?;
+    transaction
+        .execute(
+            "DELETE FROM symbol_fts
+             WHERE symbol_id IN (
+                SELECT id FROM symbols WHERE file_id = ?1 AND branch_id = ?2
+             )",
+            params![file_id.as_str(), branch_id.as_str()],
+        )
+        .map_err(to_contract_error)?;
+    transaction
+        .execute(
+            "DELETE FROM symbols WHERE file_id = ?1 AND branch_id = ?2",
+            params![file_id.as_str(), branch_id.as_str()],
+        )
+        .map_err(to_contract_error)?;
+    Ok(())
+}
+
+fn cleanup_deleted_files_tx(
+    transaction: &Transaction<'_>,
+    project_id: &ProjectId,
+    branch_id: &BranchId,
+    live_file_ids: &[FileId],
+) -> ContractResult<()> {
+    let mut statement = transaction
+        .prepare(
+            "SELECT id FROM files
+             WHERE project_id = ?1 AND branch_id = ?2
+             ORDER BY id",
+        )
+        .map_err(to_contract_error)?;
+    let rows = statement
+        .query_map(params![project_id.as_str(), branch_id.as_str()], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(to_contract_error)?;
+    let existing_file_ids = collect_rows(rows)?;
+    drop(statement);
+
+    for existing_file_id in existing_file_ids {
+        let should_keep = live_file_ids
+            .iter()
+            .any(|live_file_id| live_file_id.as_str() == existing_file_id);
+
+        if should_keep {
+            continue;
+        }
+
+        let file_id = FileId::new(existing_file_id);
+        delete_file_index_rows(transaction, branch_id, &file_id)?;
+        transaction
+            .execute(
+                "DELETE FROM file_content_fts WHERE file_id = ?1",
+                [file_id.as_str()],
+            )
+            .map_err(to_contract_error)?;
+        transaction
+            .execute(
+                "DELETE FROM files
+                 WHERE id = ?1 AND project_id = ?2 AND branch_id = ?3",
+                params![file_id.as_str(), project_id.as_str(), branch_id.as_str()],
+            )
+            .map_err(to_contract_error)?;
+    }
+
+    Ok(())
+}
+
 fn collect_rows<T, F>(rows: rusqlite::MappedRows<'_, F>) -> ContractResult<Vec<T>>
 where
     F: FnMut(&Row<'_>) -> rusqlite::Result<T>,
@@ -694,6 +1180,26 @@ fn bool_to_i64(value: bool) -> i64 {
     } else {
         0
     }
+}
+
+fn file_node_id(file_id: &FileId) -> NodeId {
+    NodeId::new(format!("node-file-{}", file_id.as_str()))
+}
+
+fn symbol_node_id(symbol_id: &SymbolId) -> NodeId {
+    NodeId::new(format!("node-symbol-{}", symbol_id.as_str()))
+}
+
+fn file_contains_edge_id(file_id: &FileId, symbol_id: &SymbolId) -> EdgeId {
+    EdgeId::new(format!(
+        "edge-file-contains-{}-{}",
+        file_id.as_str(),
+        symbol_id.as_str()
+    ))
+}
+
+fn snippet(source: &str, start_byte: usize, end_byte: usize) -> &str {
+    source.get(start_byte..end_byte).unwrap_or_default()
 }
 
 fn node_kind(kind: NodeKind) -> &'static str {
@@ -716,6 +1222,30 @@ fn node_kind(kind: NodeKind) -> &'static str {
         NodeKind::Package => "package",
         NodeKind::Decision => "decision",
         NodeKind::CodeArea => "code_area",
+    }
+}
+
+fn parse_node_kind(value: &str) -> NodeKind {
+    match value {
+        "project" => NodeKind::Project,
+        "file" => NodeKind::File,
+        "module" => NodeKind::Module,
+        "namespace" => NodeKind::Namespace,
+        "class" => NodeKind::Class,
+        "struct" => NodeKind::Struct,
+        "interface" => NodeKind::Interface,
+        "enum" => NodeKind::Enum,
+        "function" => NodeKind::Function,
+        "method" => NodeKind::Method,
+        "variable" => NodeKind::Variable,
+        "route" => NodeKind::Route,
+        "endpoint" => NodeKind::Endpoint,
+        "config_key" => NodeKind::ConfigKey,
+        "test" => NodeKind::Test,
+        "package" => NodeKind::Package,
+        "decision" => NodeKind::Decision,
+        "code_area" => NodeKind::CodeArea,
+        _ => NodeKind::Variable,
     }
 }
 
@@ -810,11 +1340,12 @@ mod tests {
         };
         storage.upsert_file(&file, &branch_id).expect("file");
 
-        let symbol = SymbolRecord {
-            id: SymbolId::new("symbol"),
-            file_id: file.id.clone(),
-            name: "run".to_string(),
-        };
+        let symbol = SymbolRecord::new(
+            SymbolId::new("symbol"),
+            file.id.clone(),
+            "run",
+            NodeKind::Function,
+        );
         storage
             .upsert_symbol(&project_id, &branch_id, &symbol)
             .expect("symbol");

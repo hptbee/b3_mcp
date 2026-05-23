@@ -63,6 +63,18 @@ Preferred local providers:
 - Candle
 - fastembed
 
+## Plugin Readiness Contracts
+
+Pre-Phase-4 plugin work is limited to contracts:
+- stable plugin identifiers
+- plugin metadata
+- capability discovery
+- lifecycle boundaries
+- timeout and cancellation expectations
+
+Plugins must not make external services required. Any cloud or hosted provider
+must remain optional, plugin-based, and disabled by default.
+
 ## Core Capabilities
 
 Must provide, over the implementation phases:

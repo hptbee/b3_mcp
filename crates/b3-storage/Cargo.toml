@@ -12,6 +12,7 @@ b3-core = { path = "../b3-core" }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 [dev-dependencies]
+b3-indexer = { path = "../b3-indexer" }
 tempfile = "3"
 
 [lints]

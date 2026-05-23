@@ -102,3 +102,16 @@ Phase 3 boundary notes:
   replace them with language-specific tree-sitter query packs while preserving
   the `TreeSitterParser`, `SymbolExtractor`, and `RelationshipExtractor`
   contracts.
+
+## Pre-Phase-4 Stabilization
+
+`crates/b3-core` includes minimal plugin readiness contracts:
+
+- `PluginId`, `PluginCapability`, `PluginMetadata`, and `PluginRegistry`
+- capability discovery descriptors for offline-first feature negotiation
+- lifecycle boundary traits for load, activate, pause, and unload behavior
+- execution policy expectations for timeout-bound and cancellable plugins
+
+These are contracts only. Real language packs, storage adapters, embedding
+providers, retrieval ranking, MCP tools, graph traversal, and UI features are
+Phase 4+ work.

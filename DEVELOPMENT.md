@@ -11,6 +11,10 @@ Future phases may also require:
 - local Qdrant for vector search
 - local embedding providers such as Ollama, GGUF models, sentence-transformers, Candle, or fastembed
 
+All required dependencies should be available locally for normal development.
+Do not make verification depend on live network access, hosted databases,
+cloud authentication, or external telemetry endpoints.
+
 ## Rust Installation
 
 Install Rust from:
@@ -41,6 +45,12 @@ For a stricter local pre-commit pass:
 ```powershell
 .\scripts\verify.ps1
 ```
+
+The CI skeleton mirrors these commands with:
+
+- `cargo fmt --check`
+- `cargo check --workspace`
+- `cargo test --workspace`
 
 ## Offline-First Expectations
 

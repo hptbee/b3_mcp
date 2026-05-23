@@ -4,8 +4,8 @@
 //! modules from depending on concrete implementations too early.
 
 use crate::{
-    AppConfig, DomainEvent, EdgeId, EmbeddingConfig, FileId, GraphEdgeMetadata, NodeId, ProjectId,
-    QueryRequest, QueryResult, SymbolId, ToolCallId,
+    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, EmbeddingConfig, FileId, GraphEdgeMetadata,
+    NodeId, NodeKind, ProjectId, QueryRequest, QueryResult, SymbolId, ToolCallId,
 };
 
 pub type ContractResult<T> = Result<T, ContractError>;
@@ -53,6 +53,31 @@ pub trait Indexer {
     fn index(&self, job: IndexJob) -> ContractResult<IndexSummary>;
 }
 
+pub trait IndexStore {
+    fn ensure_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        root_path: &str,
+    ) -> ContractResult<()>;
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>>;
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()>;
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()>;
+}
+
 pub trait QueryEngine {
     fn execute(&self, request: QueryRequest) -> ContractResult<QueryResult>;
 }
@@ -95,6 +120,32 @@ pub struct SymbolRecord {
     pub id: SymbolId,
     pub file_id: FileId,
     pub name: String,
+    pub kind: NodeKind,
+    pub start_byte: usize,
+    pub end_byte: usize,
+    pub start_line: usize,
+    pub start_column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+    pub visibility: Option<String>,
+}
+
+impl SymbolRecord {
+    pub fn new(id: SymbolId, file_id: FileId, name: impl Into<String>, kind: NodeKind) -> Self {
+        Self {
+            id,
+            file_id,
+            name: name.into(),
+            kind,
+            start_byte: 0,
+            end_byte: 0,
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 0,
+            visibility: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -103,6 +154,25 @@ pub struct FileRecord {
     pub project_id: ProjectId,
     pub path: String,
     pub content_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedFileRecord {
+    pub file: FileRecord,
+    pub language: Option<String>,
+    pub size_bytes: u64,
+    pub content: String,
+    pub symbols: Vec<SymbolRecord>,
+    pub edges: Vec<IndexedEdgeRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedEdgeRecord {
+    pub id: EdgeId,
+    pub from_symbol: SymbolId,
+    pub to_symbol: SymbolId,
+    pub kind: EdgeKind,
+    pub metadata: GraphEdgeMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

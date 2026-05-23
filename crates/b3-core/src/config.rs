@@ -17,6 +17,13 @@ pub struct ExternalIntegrationPolicy {
 }
 
 impl ExternalIntegrationPolicy {
+    pub const fn local_only() -> Self {
+        Self {
+            plugin_supported: false,
+            enabled_by_default: false,
+        }
+    }
+
     pub const fn optional_plugin_disabled() -> Self {
         Self {
             plugin_supported: true,
