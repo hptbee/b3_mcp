@@ -10,7 +10,7 @@ use std::{
     convert::Infallible,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::{Arc, Mutex as StdMutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -25,9 +25,8 @@ use axum::{
     Router,
 };
 use b3_core::{
-    AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, FileId,
-    FileRecord, IndexStore, ParseFailureRecord, ParserIsolationMode, ProjectId, QueryRequest,
-    QueryResult, SymbolRepository, PRODUCT_NAME,
+    AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus,
+    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, ParserIsolation,
@@ -35,8 +34,8 @@ use b3_indexer::{
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
-    SavingsSummary, SqliteStorage, StorageStats, StoredCentralityRecord, StoredGraphEdge,
-    StoredGraphNode, StoredParseFailure,
+    SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
+    StoredGraphEdge, StoredGraphNode, StoredParseFailure,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -764,9 +763,7 @@ fn start_watch_daemon(options: &ServeOptions, events: EventHub) -> Result<(), Co
 
             let indexer = LocalIndexer::new(
                 NoopTreeSitterParser,
-                SqliteIndexStore {
-                    storage: StdMutex::new(storage),
-                },
+                SharedSqliteIndexStore::new(storage),
                 EventForwarder {
                     events: events.clone(),
                 },
@@ -1836,77 +1833,6 @@ impl From<SavingsSummary> for SavingsSummaryResponse {
     }
 }
 
-struct SqliteIndexStore {
-    storage: StdMutex<SqliteStorage>,
-}
-
-impl IndexStore for SqliteIndexStore {
-    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
-        let storage = self
-            .storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
-        b3_core::FileRepository::get_file(&*storage, file_id)
-    }
-    fn ensure_project_branch(
-        &self,
-        project_id: &ProjectId,
-        branch_id: &BranchId,
-        root_path: &str,
-    ) -> ContractResult<()> {
-        let storage = self
-            .storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
-        storage.ensure_project_branch(project_id, branch_id, root_path)
-    }
-
-    fn cleanup_deleted_files(
-        &self,
-        project_id: &ProjectId,
-        branch_id: &BranchId,
-        live_file_ids: &[FileId],
-    ) -> ContractResult<()> {
-        let storage = self
-            .storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
-        storage.cleanup_deleted_files(project_id, branch_id, live_file_ids)
-    }
-
-    fn upsert_indexed_file(
-        &self,
-        project_id: &ProjectId,
-        branch_id: &BranchId,
-        file: b3_core::IndexedFileRecord,
-    ) -> ContractResult<()> {
-        let storage = self
-            .storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
-        storage.upsert_indexed_file(project_id, branch_id, file)
-    }
-
-    fn remove_file(
-        &self,
-        project_id: &ProjectId,
-        branch_id: &BranchId,
-        path: &str,
-    ) -> ContractResult<()> {
-        self.storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?
-            .remove_file_by_path(project_id, branch_id, path)
-    }
-
-    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
-        self.storage
-            .lock()
-            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?
-            .record_parse_failure(&failure)
-    }
-}
-
 #[derive(Clone)]
 struct EventForwarder {
     events: EventHub,
@@ -1971,8 +1897,8 @@ mod tests {
     use axum::body::{to_bytes, Body};
     use b3_core::{
         BranchId, BranchMetadata, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance, FileId,
-        FileRecord, GraphEdge, GraphEdgeMetadata, GraphNode, NodeId, NodeKind, SymbolId,
-        SymbolRecord,
+        FileRecord, GraphEdge, GraphEdgeMetadata, GraphNode, NodeId, NodeKind, ParseFailureRecord,
+        SymbolId, SymbolRecord,
     };
     use b3_storage::NewCentralityRecord;
     use http::{Request, StatusCode};

@@ -74,6 +74,10 @@ watcher debounce behavior, SQLite graph summary queries, and parser worker
 request handling. The `memory_kb` field may be `null` on platforms where a
 rough process-memory snapshot is not available yet.
 
+The watcher debounce benchmark measures event coalescing overhead. It does not
+include an intentional sleep for the configured debounce wait, because that
+would benchmark the configured delay rather than processing cost.
+
 Regression thresholds live in:
 
 ```text
@@ -104,8 +108,21 @@ External integrations must remain:
 - MCP runtime remains protocol-only.
 - Indexing runs outside the MCP hot path.
 - Storage exposes repository contracts instead of leaking SQLite details across crates.
+- Thread-safe SQLite index-store adapters belong in `b3-storage`, not HTTP or MCP adapters.
+- Command output compaction only transforms provided stdout/stderr; it must not execute commands.
 - Embeddings run in background workers in later phases.
 - UI/control plane stays separate from MCP runtime.
+
+## Command Output Compaction
+
+Phase 8.5 adds deterministic local compaction for noisy command output. Use the
+MCP tool `compact_command_output` when a client already has stdout/stderr and
+wants a smaller summary.
+
+The compactor supports conservative string-based detection for `git`, `cargo`,
+`dotnet`, `npm`, `pnpm`, `yarn`, `ng`, `tsc`, `eslint`, `docker`,
+`docker compose`, `rg`, `grep`, `cat`, `tree`, and unknown commands. It does not
+run commands, open shells, call an LLM, upload output, or emit telemetry.
 
 ## Parser Worker Development
 

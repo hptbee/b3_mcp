@@ -106,6 +106,7 @@ name = "b3-bench"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "b3-compaction",
  "b3-control",
  "b3-core",
  "b3-indexer",
@@ -117,6 +118,13 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "b3-compaction"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -169,6 +177,7 @@ dependencies = [
 name = "b3-mcp-runtime"
 version = "0.1.0"
 dependencies = [
+ "b3-compaction",
  "b3-core",
  "b3-query",
  "b3-storage",

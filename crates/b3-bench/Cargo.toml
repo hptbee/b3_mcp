@@ -12,6 +12,7 @@ name = "b3-bench"
 path = "src/main.rs"
 
 [dependencies]
+b3-compaction = { path = "../b3-compaction" }
 b3-control = { path = "../b3-control" }
 b3-core = { path = "../b3-core" }
 b3-indexer = { path = "../b3-indexer" }

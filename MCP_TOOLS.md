@@ -1,9 +1,10 @@
 # MCP Query Tools
 
-Phase 6 exposes query-engine capabilities through thin MCP tool adapters. The
-runtime validates requests, maps DTOs, calls the query layer, and returns stable
-serializable responses. It does not perform indexing, storage operations,
-ranking, traversal, embeddings, or UI work.
+Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
+Phase 8.5 adds a local command-output compaction adapter. The runtime validates
+requests, maps DTOs, calls the owning layer, and returns stable serializable
+responses. It does not perform indexing, storage operations, ranking,
+traversal, embeddings, command execution, or UI work.
 
 ## Local Stdio Server
 
@@ -53,6 +54,9 @@ Codex-style generic MCP config:
 ```
 
 All tools require `scope.project_id` and `scope.branch_id`.
+
+The exception is `compact_command_output`, which operates only on command text
+and stdout/stderr supplied by the caller. It does not execute commands.
 
 ## Tools
 
@@ -151,8 +155,22 @@ without error.
 - Token saving: reports savings counters when aggregation is available.
 - Trace: response marks trace inclusion.
 
+### `compact_command_output`
+- Purpose: compact provided stdout/stderr into a smaller local summary.
+- Input: `CompactCommandOutputRequest`
+- Output: `CommandOutputSummary`
+- Example: `{"command":"cargo test","stdout":"test result: ok","stderr":"","exit_code":0,"max_bytes":4000}`
+- Supported families: `git`, `cargo`, `dotnet`, `npm`, `pnpm`, `yarn`, `ng`,
+  `tsc`, `eslint`, `docker`, `docker compose`, `rg`, `grep`, `cat`, `tree`,
+  and unknown commands.
+- Token saving: estimates savings from byte reduction and preserves key errors,
+  warnings, exit status, stderr, and truncation metadata.
+- Safety: does not execute commands, shell out, call external APIs, call an LLM,
+  upload output, or emit telemetry.
+
 ## Validation
 
 The runtime rejects empty queries/symbol IDs, missing scope, zero or excessive
 limits, invalid depth, invalid token budgets, invalid confidence values, and
-unknown edge filters with structured `McpToolError` responses.
+unknown edge filters with structured `McpToolError` responses. The compaction
+tool rejects empty commands, missing stdout/stderr, and invalid byte budgets.

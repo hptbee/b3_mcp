@@ -8,6 +8,7 @@ license.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+b3-compaction = { path = "../b3-compaction" }
 b3-core = { path = "../b3-core" }
 b3-query = { path = "../b3-query" }
 b3-storage = { path = "../b3-storage" }

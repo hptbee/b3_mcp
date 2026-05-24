@@ -5,7 +5,7 @@
 //! repository implementations. It does not index files, generate embeddings,
 //! rank retrieval results, or serve UI/MCP requests.
 
-use std::path::Path;
+use std::{path::Path, sync::Mutex};
 
 use b3_core::ParseFailureRecord;
 use b3_core::{
@@ -336,6 +336,34 @@ impl TokenSavingsLedgerPath {
 
 pub struct SqliteStorage {
     connection: Connection,
+}
+
+/// Thread-safe SQLite-backed index-store adapter for worker/daemon boundaries.
+///
+/// `rusqlite::Connection` is not shared directly across threads. This wrapper
+/// keeps the locking policy inside the storage crate so adapters such as the
+/// control server do not need to know storage internals.
+pub struct SharedSqliteIndexStore {
+    storage: Mutex<SqliteStorage>,
+}
+
+impl SharedSqliteIndexStore {
+    pub fn new(storage: SqliteStorage) -> Self {
+        Self {
+            storage: Mutex::new(storage),
+        }
+    }
+
+    fn with_storage<T>(
+        &self,
+        operation: impl FnOnce(&SqliteStorage) -> ContractResult<T>,
+    ) -> ContractResult<T> {
+        let storage = self
+            .storage
+            .lock()
+            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?;
+        operation(&storage)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1459,6 +1487,54 @@ impl IndexStore for &SqliteStorage {
 
     fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
         SqliteStorage::record_parse_failure(self, &failure)
+    }
+}
+
+impl IndexStore for SharedSqliteIndexStore {
+    fn ensure_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        root_path: &str,
+    ) -> ContractResult<()> {
+        self.with_storage(|storage| storage.ensure_project_branch(project_id, branch_id, root_path))
+    }
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
+        self.with_storage(|storage| FileRepository::get_file(storage, file_id))
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        self.with_storage(|storage| {
+            storage.cleanup_deleted_files(project_id, branch_id, live_file_ids)
+        })
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()> {
+        self.with_storage(|storage| storage.upsert_indexed_file(project_id, branch_id, file))
+    }
+
+    fn remove_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        path: &str,
+    ) -> ContractResult<()> {
+        self.with_storage(|storage| storage.remove_file_by_path(project_id, branch_id, path))
+    }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        self.with_storage(|storage| SqliteStorage::record_parse_failure(storage, &failure))
     }
 }
 
@@ -2736,5 +2812,54 @@ mod tests {
         let failures = storage.recent_parse_failures(5).expect("recent");
         assert_eq!(failures[0].file_path, "src/lib.rs");
         assert_eq!(failures[0].retry_count, 1);
+    }
+
+    #[test]
+    fn shared_index_store_wraps_sqlite_index_contract() {
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        let file_id = FileId::new("file");
+        let store = SharedSqliteIndexStore::new(
+            SqliteStorage::open_in_memory().expect("open sqlite storage"),
+        );
+
+        store
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("ensure branch");
+        store
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: file_id.clone(),
+                        project_id: project_id.clone(),
+                        path: "src/lib.rs".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("rust".to_string()),
+                    size_bytes: 16,
+                    content: "pub fn run() {}\n".to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("upsert indexed file");
+
+        assert_eq!(
+            store
+                .existing_file(&file_id)
+                .expect("existing file")
+                .expect("file")
+                .path,
+            "src/lib.rs"
+        );
+        store
+            .remove_file(&project_id, &branch_id, "src/lib.rs")
+            .expect("remove file");
+        assert!(store
+            .existing_file(&file_id)
+            .expect("existing file after delete")
+            .is_none());
     }
 }

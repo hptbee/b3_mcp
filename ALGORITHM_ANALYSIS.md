@@ -324,3 +324,24 @@ Benchmark data is local-only and written as JSON under `target/benchmarks`.
 Results are not uploaded, and regression thresholds are advisory unless
 explicitly enabled. The `memory_kb` field is best-effort and may be `null`
 until platform-specific memory collection is added.
+
+Phase 8.4 refined the watcher debounce benchmark after the baseline showed the
+largest value was dominated by an intentional sleep. The benchmark now measures
+coalescing overhead while preserving the JSON output shape; configured debounce
+wait time remains a policy setting, not an optimization target.
+
+## Command Output Compaction
+
+Phase 8.5 adds rule-based local compaction for token-heavy command output. The
+algorithm is intentionally deterministic:
+
+- detect command family from command text or argv
+- apply a family-specific string compactor when available
+- preserve non-zero exit status, stderr, compiler errors, failed tests, conflict
+  indicators, and concise summaries
+- enforce a byte budget with explicit truncation metadata
+- estimate token savings from byte reduction only
+
+No commands are executed by the compactor, and no LLM/cloud summarization is
+used. The first benchmark entry measures compaction latency against static local
+fixture text.

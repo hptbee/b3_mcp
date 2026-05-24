@@ -5,6 +5,7 @@
 //! graph traversal, ranking, storage, embeddings, and UI logic stay behind this
 //! boundary.
 
+use b3_compaction::{compact_command_output, CommandOutputInput, CommandOutputSummary};
 use b3_core::{
     BranchId, ContextPackResponse, ContractError, EdgeKind, FindCalleesResponse,
     FindCallersResponse, FindSymbolResponse, ImpactAnalysisResponse, ProjectId, QueryScope,
@@ -167,6 +168,21 @@ pub enum QueryToolName {
     TraceDependency,
     DetectCycles,
     SavingsReport,
+    CompactCommandOutput,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompactCommandOutputRequest {
+    pub command: String,
+    #[serde(default)]
+    pub argv: Vec<String>,
+    #[serde(default)]
+    pub stdout: String,
+    #[serde(default)]
+    pub stderr: String,
+    pub exit_code: Option<i32>,
+    pub working_directory: Option<String>,
+    pub max_bytes: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -332,6 +348,10 @@ pub trait QueryToolExecutor {
     fn detect_cycles(&self, request: DetectCyclesRequest) -> McpToolResult<DetectCyclesResponse>;
     fn savings_report(&self, request: SavingsReportRequest)
         -> McpToolResult<SavingsReportResponse>;
+    fn compact_command_output(
+        &self,
+        request: CompactCommandOutputRequest,
+    ) -> McpToolResult<CommandOutputSummary>;
 }
 
 pub struct McpQueryToolRouter<E> {
@@ -433,6 +453,22 @@ where
     ) -> McpToolResult<SavingsReportResponse> {
         validate_scope(&request.scope)?;
         self.executor.savings_report(request)
+    }
+
+    pub fn compact_command_output(
+        &self,
+        request: CompactCommandOutputRequest,
+    ) -> McpToolResult<CommandOutputSummary> {
+        validate_text("command", &request.command)?;
+        if request.stdout.is_empty() && request.stderr.is_empty() {
+            return Err(validation_error("stdout or stderr must be provided"));
+        }
+        if let Some(max_bytes) = request.max_bytes {
+            if !(256..=128_000).contains(&max_bytes) {
+                return Err(validation_error("max_bytes must be between 256 and 128000"));
+            }
+        }
+        self.executor.compact_command_output(request)
     }
 }
 
@@ -555,6 +591,21 @@ where
             trace_included: request.include_trace,
         })
     }
+
+    fn compact_command_output(
+        &self,
+        request: CompactCommandOutputRequest,
+    ) -> McpToolResult<CommandOutputSummary> {
+        Ok(compact_command_output(CommandOutputInput {
+            command: request.command,
+            argv: request.argv,
+            stdout: request.stdout,
+            stderr: request.stderr,
+            exit_code: request.exit_code,
+            working_directory: request.working_directory,
+            max_bytes: request.max_bytes,
+        }))
+    }
 }
 
 pub fn registered_tools() -> Vec<ToolDefinition> {
@@ -629,6 +680,13 @@ pub fn registered_tools() -> Vec<ToolDefinition> {
             "SavingsReportResponse",
             r#"{"scope":{"project_id":"p","branch_id":"main"},"include_trace":false}"#,
         ),
+        tool_doc(
+            "compact_command_output",
+            "Compact provided shell output without executing commands.",
+            "CompactCommandOutputRequest",
+            "CommandOutputSummary",
+            r#"{"command":"cargo test","stdout":"test result: ok","stderr":"","exit_code":0,"max_bytes":4000}"#,
+        ),
     ]
 }
 
@@ -690,6 +748,9 @@ where
         "trace_dependency" => serde_json::to_value(router.trace_dependency(decode(arguments)?)?),
         "detect_cycles" => serde_json::to_value(router.detect_cycles(decode(arguments)?)?),
         "savings_report" => serde_json::to_value(router.savings_report(decode(arguments)?)?),
+        "compact_command_output" => {
+            serde_json::to_value(router.compact_command_output(decode(arguments)?)?)
+        }
         _ => return Err(validation_error("unknown tool name")),
     }
     .map_err(|error| McpToolError {
@@ -1060,6 +1121,21 @@ mod tests {
                 trace_included: request.include_trace,
             })
         }
+
+        fn compact_command_output(
+            &self,
+            request: CompactCommandOutputRequest,
+        ) -> McpToolResult<CommandOutputSummary> {
+            Ok(compact_command_output(CommandOutputInput {
+                command: request.command,
+                argv: request.argv,
+                stdout: request.stdout,
+                stderr: request.stderr,
+                exit_code: request.exit_code,
+                working_directory: request.working_directory,
+                max_bytes: request.max_bytes,
+            }))
+        }
     }
 
     #[test]
@@ -1181,8 +1257,11 @@ mod tests {
     #[test]
     fn documents_all_tools() {
         let docs = registered_tools();
-        assert_eq!(docs.len(), 10);
+        assert_eq!(docs.len(), 11);
         assert!(docs.iter().any(|tool| tool.name == "get_context_pack"));
+        assert!(docs
+            .iter()
+            .any(|tool| tool.name == "compact_command_output"));
         assert!(docs
             .iter()
             .all(|tool| !tool.token_saving_behavior.is_empty()));
@@ -1210,6 +1289,26 @@ mod tests {
             .expect("call response")
             .to_string()
             .contains("trace-find"));
+    }
+
+    #[test]
+    fn compact_command_output_tool_is_local_transform_only() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let response = router
+            .compact_command_output(CompactCommandOutputRequest {
+                command: "cargo test".to_string(),
+                argv: Vec::new(),
+                stdout: "error[E0425]: missing\n".to_string(),
+                stderr: "thread panicked\n".to_string(),
+                exit_code: Some(101),
+                working_directory: None,
+                max_bytes: Some(1_000),
+            })
+            .expect("compact");
+
+        assert_eq!(response.command_family, b3_compaction::CommandFamily::Cargo);
+        assert!(response.compacted_output.contains("status: failed"));
+        assert!(response.estimated_token_savings <= response.original_byte_estimate / 4);
     }
 
     #[test]

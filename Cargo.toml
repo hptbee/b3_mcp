@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/b3-compaction",
     "crates/b3-control",
     "crates/b3-bench",
     "crates/b3-core",

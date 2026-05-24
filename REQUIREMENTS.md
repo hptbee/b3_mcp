@@ -328,11 +328,13 @@ Avoid:
 - Phase 8: File Watcher + Daemon Mode
 - Phase 8.1: Parser Isolation
 - Phase 8.2: Benchmark Harness + Performance Baseline
+- Phase 8.3: Refactor Checkpoint A
+- Phase 8.4: Performance Optimization Pass A
+- Phase 8.5: Command Output Compaction
 
 ### Planned Phases
 
-- Phase 8.3: Refactor Checkpoint A
-- Phase 8.4: Performance Optimization Pass A
+- Phase 8.6: MCP Tool Profiles + Manifest Slimming
 - Phase 9: Local Embeddings + Vector Search
 - Phase 9.1: Semantic Context Upgrade
 - Phase 10: Multi-language Packs

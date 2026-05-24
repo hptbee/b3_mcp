@@ -12,6 +12,7 @@ use std::{
 };
 
 use axum::{body::Body, Router};
+use b3_compaction::{compact_command_output, CommandOutputInput};
 use b3_control::{app as control_app, ControlState};
 use b3_core::{
     BranchId, ContractError, ContractResult, EventBus, IndexJob, Indexer, ProjectId, QueryScope,
@@ -198,6 +199,7 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     results.push(bench_watcher_debounce()?);
     results.push(bench_sqlite_query_latency(&medium_state.storage)?);
     results.push(bench_parser_worker_latency()?);
+    results.push(bench_command_compaction_latency()?);
 
     let run = BenchmarkRun {
         timestamp_unix_ms: now_unix_ms(),
@@ -432,7 +434,7 @@ fn bench_changed_file_reindex(fixture: &BenchmarkFixture) -> ContractResult<Benc
 }
 
 fn bench_watcher_debounce() -> ContractResult<BenchmarkResult> {
-    let mut debouncer = WatchDebouncer::new(Duration::from_millis(20), 100);
+    let mut debouncer = WatchDebouncer::new(Duration::ZERO, 100);
     let started = Instant::now();
     let path = PathBuf::from("src/lib.rs");
     let _ = debouncer.push(WatchEvent {
@@ -445,12 +447,14 @@ fn bench_watcher_debounce() -> ContractResult<BenchmarkResult> {
         path,
         new_path: None,
     });
-    std::thread::sleep(Duration::from_millis(25));
     let batch = debouncer
         .flush_if_ready()
         .unwrap_or(DebouncedBatch { events: Vec::new() });
     let mut result = BenchmarkResult::new("watcher_debounce_latency", started.elapsed());
     result.query_result_count = batch.events.len();
+    result
+        .metadata
+        .insert("measures".to_string(), "coalescing_overhead".to_string());
     Ok(result)
 }
 
@@ -481,6 +485,34 @@ fn bench_parser_worker_latency() -> ContractResult<BenchmarkResult> {
         b3_indexer::ParserWorkerOutput::Parsed(response) => response.symbols.len(),
         b3_indexer::ParserWorkerOutput::Failed(_) => 0,
     };
+    Ok(result)
+}
+
+fn bench_command_compaction_latency() -> ContractResult<BenchmarkResult> {
+    let stdout = "error[E0425]: cannot find value `missing` in this scope\nwarning: unused variable: `x`\ntest result: FAILED. 1 failed; 2 passed\n".repeat(20);
+    let input = CommandOutputInput {
+        command: "cargo test".to_string(),
+        argv: Vec::new(),
+        stdout,
+        stderr: "thread 'tests::fails' panicked at src/lib.rs:10:5\n".to_string(),
+        exit_code: Some(101),
+        working_directory: None,
+        max_bytes: Some(2_000),
+    };
+    let original_bytes = input.stdout.len() + input.stderr.len();
+    let started = Instant::now();
+    let summary = compact_command_output(input);
+    let mut result = BenchmarkResult::new("command_compaction_latency", started.elapsed());
+    result.input_size = original_bytes;
+    result.query_result_count = summary.key_findings.len();
+    result.metadata.insert(
+        "estimated_token_savings".to_string(),
+        summary.estimated_token_savings.to_string(),
+    );
+    result.metadata.insert(
+        "command_family".to_string(),
+        format!("{:?}", summary.command_family),
+    );
     Ok(result)
 }
 

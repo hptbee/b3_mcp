@@ -72,38 +72,16 @@ External providers are allowed only as optional plugins, disabled by default.
 - Phase 8 - File Watcher + Daemon Mode
 - Phase 8.1 - Parser Isolation
 - Phase 8.2 - Benchmark Harness + Performance Baseline
+- Phase 8.3 - Refactor Checkpoint A
+- Phase 8.4 - Performance Optimization Pass A
+- Phase 8.5 - Command Output Compaction
 
 ## Current / Next Phase
 
-- **Current**: Phase 8.2 - Benchmark Harness + Performance Baseline (complete)
-- **Next**: Phase 8.3 - Refactor Checkpoint A
+- **Current**: Phase 8.5 - Command Output Compaction (complete)
+- **Next**: Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 
 ## Upcoming Roadmap
-
-### Phase 8.3 - Refactor Checkpoint A
-
-Focus:
-
-- crate boundary cleanup
-- duplicated validation cleanup
-- error type normalization
-- DTO consistency
-- config consistency
-- test helper cleanup
-- no architecture rewrite
-
-### Phase 8.4 - Performance Optimization Pass A
-
-Rules:
-
-- optimize only measured bottlenecks
-- batch writes if indexing is slow
-- prepared statements/indexes if queries are slow
-- graph adjacency cache if traversal is slow
-- lazy loading if startup is slow
-- no speculative optimization
-
-### Phase 8.5 - Command Output Compaction
 
 ### Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 
