@@ -110,28 +110,61 @@ Open `http://127.0.0.1:3000`.
 
 See [WEB_UI.md](WEB_UI.md).
 
-## Offline-First
+## Offline & Free Hard Requirement
 
-B3 is local-only by default:
+B3 core **must not require** any of the following:
+- External APIs
+- Cloud services
+- Hosted vector databases
+- SaaS authentication providers
+- Remote telemetry
+- Paid UI kits
+- Paid backend services
+- Paid or proprietary plugins
+- OpenAI / Anthropic / Gemini / cloud embedding APIs
+- JetBrains paid plugin
+- Internet access
 
-- no required external APIs
-- no cloud database
-- no remote telemetry
-- no SaaS authentication
-- no hosted vector database requirement
-- external integrations must be optional plugins and disabled by default
+All external/cloud/paid integrations are allowed **only as optional plugins**, which are **disabled by default**.
 
 ## Current Status
 
-- Runtime verified
-- Control server verified
-- Web UI verified
-- Graph explorer available
-- Query trace UI available
-- File watcher available
-- Parser isolation available
-- Benchmark harness available
-- Next phase: Phase 8.3 - Refactor Checkpoint A
+- **Completed**: Phase 8.4 - Performance Optimization Pass A
+- **Current**: Phase 8.5 - Command Output Compaction
+- **Next**: Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+
+## What Works Today
+
+- MCP runtime
+- SQLite graph storage
+- Rust indexing and query flow
+- Query / context-pack tools
+- Control server
+- Web UI
+- Graph explorer
+- Query trace UI
+- File watcher
+- Parser isolation
+- Benchmark baseline harness
+
+## Current Limitations
+
+- Rust has the most complete language support right now.
+- C#, TypeScript, React, Angular, Node, Docker, Kafka, RabbitMQ, SignalR, and WPF are planned for Phase 9.x.
+- Embeddings and semantic search are not yet implemented.
+- Command output compaction starts in Phase 8.5.
+
+## Repository Layout
+
+- `crates/b3-core`
+- `crates/b3-storage`
+- `crates/b3-indexer`
+- `crates/b3-query`
+- `crates/b3-mcp-runtime`
+- `crates/b3-control`
+- `crates/b3-bench`
+- `apps/web-ui`
+- `benchmarks/fixtures`
 
 ## Roadmap
 
@@ -152,3 +185,5 @@ See [DEVELOPMENT.md](DEVELOPMENT.md).
 - [DEVELOPMENT.md](DEVELOPMENT.md)
 - [OFFLINE_REQUIREMENTS_PATCH.md](OFFLINE_REQUIREMENTS_PATCH.md)
 - [AGENTS.md](AGENTS.md)
+
+*Optional example MCP configuration for Codex:* see [MCP_TOOLS.md](MCP_TOOLS.md) for a minimal JSON configuration snippet.
