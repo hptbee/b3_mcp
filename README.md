@@ -12,6 +12,9 @@ The long-term goal is to become a local code intelligence layer for AI agents:
 - query trace
 - graph explorer
 - local control UI
+- future project init/index workflow
+- future multi-repo registry
+- future project groups
 - future multi-language support
 - future LSP-backed semantic operations
 - future symbolic editing
@@ -116,21 +119,44 @@ Completed:
 Phase 8.5 — Command Output Compaction
 ```
 
-Current:
+Recommended next:
+
+```text
+Phase 8.5.1 — Project Init + Manual Index Command
+```
+
+Then:
 
 ```text
 Phase 8.6 — MCP Tool Profiles + Manifest Slimming
 ```
 
-Next:
-
-```text
-Phase 8.7 — Agent Install Helper + Hook Integration
-```
-
 B3 can run today as a local MCP/runtime/control/UI platform.
 
 Rust currently has the best language support. Broader real-world app-stack intelligence for C#, TypeScript, React, Angular, Node.js, Docker, Kafka, RabbitMQ, SignalR, and WPF is planned for Phase 9.x.
+
+---
+
+## Why Phase 8.5.1 Exists
+
+B3 already has the indexing engine, storage, query engine, watcher, and UI.
+
+However, it still needs a simple user workflow for:
+
+```text
+init project -> index project -> open UI -> see files/symbols/edges
+```
+
+Phase 8.5.1 turns the existing indexing capability into an easy workflow:
+
+- CLI init command
+- CLI index command
+- CLI reindex command
+- control API index trigger
+- UI Run Index button
+- indexing status/events
+
+Without this phase, B3 can index internally, but users do not yet have a clean `b3 init` / `b3 index` style experience.
 
 ---
 
@@ -168,8 +194,9 @@ Best current use cases:
 ## Current Limitations
 
 - Rust has the best current language support.
+- Manual project init/index workflow is planned for Phase 8.5.1.
 - MCP tool profiles start in Phase 8.6.
-- Multi-repo registry is planned for Phase 8.8.
+- Multi-repo registry and project groups are planned for Phase 8.8.
 - C#, TypeScript, React, Angular, Node.js, Docker, Kafka, ksqlDB, RabbitMQ, SignalR, and WPF support are planned for Phase 9.x.
 - Semantic search and embeddings are not implemented yet.
 - Symbolic editing and rename/refactor tools are not implemented yet.
@@ -224,6 +251,53 @@ B3 keeps strict crate boundaries:
 - Web UI talks only to the local control server.
 - Benchmark harness measures local behavior only.
 - Command compaction compacts provided output only; it does not execute commands.
+
+---
+
+## Project Model
+
+B3 is designed to support both standalone projects and project groups.
+
+### Standalone Project
+
+A standalone project is an independent repo with its own local `.b3` database.
+
+Example:
+
+```text
+D:\Project\ThreeDemo\.b3\b3.db
+D:\Project\WpfTool\.b3\b3.db
+D:\Project\b3_mcp\.b3\b3.db
+```
+
+### Project Group
+
+A project group is a set of related local projects.
+
+Example:
+
+```text
+F&B System
+├── F&B Backend       C# Web API
+├── F&B Frontend      React / Angular
+├── Order Worker      Node.js / Kafka / RabbitMQ
+├── WPF POS           C# WPF
+└── Runtime Infra     Docker / docker-compose
+```
+
+Project groups are planned for Phase 8.8.
+
+The default storage model remains:
+
+```text
+1 project = 1 repo-local .b3/b3.db
+```
+
+A future global registry will track projects and groups:
+
+```text
+~/.b3/registry.json
+```
 
 ---
 
@@ -543,6 +617,8 @@ POST /api/graph/cycles
 GET  /api/graph/summary
 ```
 
+Manual project init/index APIs are planned for Phase 8.5.1.
+
 ---
 
 ## Run Web UI
@@ -680,23 +756,25 @@ Recently completed:
 Phase 8.5 — Command Output Compaction
 ```
 
-Current:
+Recommended next:
+
+```text
+Phase 8.5.1 — Project Init + Manual Index Command
+```
+
+Then:
 
 ```text
 Phase 8.6 — MCP Tool Profiles + Manifest Slimming
 ```
 
-Next:
-
-```text
-Phase 8.7 — Agent Install Helper + Hook Integration
-```
-
 Upcoming roadmap highlights:
 
+- project init/index workflow
 - MCP tool profiles
 - agent install helper
 - multi-repo registry
+- project groups
 - language backend architecture
 - LSP backend
 - C# / TypeScript / React / Angular support
@@ -726,7 +804,10 @@ For the full plan, see `PLAN.md`.
 | Test MCP runtime with Codex/Cursor | Usable now |
 | Rust repositories | Usable now |
 | Command output compaction | Usable now |
+| Project init/index workflow | Phase 8.5.1 |
+| MCP tool profiles | Phase 8.6 |
 | Multi-project local workflow | Phase 8.8 |
+| Project groups | Phase 8.8 |
 | C# Web API / F&B backend | Phase 9.1 / 9.2 |
 | React / Angular / TypeScript / JavaScript | Phase 9.2 |
 | Node.js REST API | Phase 9.2.1 |
