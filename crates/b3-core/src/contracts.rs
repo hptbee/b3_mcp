@@ -93,6 +93,10 @@ pub trait IndexStore {
     ) -> ContractResult<()> {
         Ok(())
     }
+
+    fn record_parse_failure(&self, _failure: ParseFailureRecord) -> ContractResult<()> {
+        Ok(())
+    }
 }
 
 pub trait QueryEngine {
@@ -229,6 +233,22 @@ pub struct IndexedEdgeRecord {
     pub to_symbol: SymbolId,
     pub kind: EdgeKind,
     pub metadata: GraphEdgeMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseFailureRecord {
+    pub failure_id: String,
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub file_path: String,
+    pub file_hash: String,
+    pub language: Option<String>,
+    pub error_kind: String,
+    pub error_message: String,
+    pub stderr_excerpt: Option<String>,
+    pub failed_at_unix_ms: u64,
+    pub retry_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

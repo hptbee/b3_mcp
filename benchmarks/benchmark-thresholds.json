@@ -1,0 +1,6 @@
+{
+  "allowed_latency_regression_percent": 25.0,
+  "allowed_indexing_regression_percent": 25.0,
+  "memory_warning_kb": null,
+  "fail_on_regression": false
+}

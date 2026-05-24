@@ -36,6 +36,7 @@ Run from the repository root:
 
 ```powershell
 cargo fmt
+cargo fmt --check
 cargo check --workspace
 cargo test --workspace
 ```
@@ -51,6 +52,36 @@ The CI skeleton mirrors these commands with:
 - `cargo fmt --check`
 - `cargo check --workspace`
 - `cargo test --workspace`
+
+## Benchmark Commands
+
+Run the local benchmark baseline from the repository root:
+
+```powershell
+cargo run -p b3-bench -- baseline
+```
+
+The runner uses deterministic local fixtures from `benchmarks/fixtures` and
+writes JSON output to:
+
+```text
+target/benchmarks/baseline.json
+```
+
+The baseline includes local timings for MCP tool listing, simple MCP tool calls,
+control-server handlers, query operations, indexing, changed-file reindexing,
+watcher debounce behavior, SQLite graph summary queries, and parser worker
+request handling. The `memory_kb` field may be `null` on platforms where a
+rough process-memory snapshot is not available yet.
+
+Regression thresholds live in:
+
+```text
+benchmarks/benchmark-thresholds.json
+```
+
+Thresholds are advisory by default. They do not fail CI unless
+`fail_on_regression` is explicitly enabled.
 
 ## Offline-First Expectations
 
@@ -75,3 +106,23 @@ External integrations must remain:
 - Storage exposes repository contracts instead of leaking SQLite details across crates.
 - Embeddings run in background workers in later phases.
 - UI/control plane stays separate from MCP runtime.
+
+## Parser Worker Development
+
+Phase 8.1 adds a local parser isolation worker binary:
+
+```powershell
+cargo build -p b3-indexer --bin b3-parser-worker
+```
+
+The worker uses stdin/stdout JSON lines, parses locally, never opens network
+sockets, and never emits telemetry. `ParserIsolation::InProcess` remains the
+default compatibility mode; `ParserIsolation::SubprocessWorker` is available for
+crash/timeout isolation. Defaults are:
+
+- `parser_timeout_ms = 10000`
+- `parser_max_retries = 1`
+- `parser_worker_path = None` (resolved next to the current executable when subprocess mode is used)
+
+Parse failures are stored locally in SQLite table `parse_failures` and surfaced
+through `GET /api/diagnostics`.

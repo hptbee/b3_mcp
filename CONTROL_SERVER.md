@@ -67,7 +67,7 @@ Diagnostics and config:
 - `POST /api/config/validate`
 - `GET /api/events`
 
-The event stream emits server, watcher, debounce, and indexing lifecycle events when watch mode is enabled.
+The event stream emits server, watcher, debounce, indexing, and parser worker lifecycle events when watch mode is enabled.
 
 ## Examples
 
@@ -109,8 +109,36 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
 
 ## Known Limitations
 
-- Query ranking is not implemented in this phase.
-- Graph traversal algorithms are not implemented in this phase.
-- Parser subprocess isolation is not implemented yet.
+- Some query endpoints still return adapter placeholders while deeper query
+  engine integration remains staged.
+- Graph endpoints are bounded and backed by local SQLite graph data, but they
+  intentionally avoid whole-repo unbounded dumps.
+- Parser subprocess isolation is implemented as a local JSONL worker boundary,
+  but in-process parsing remains the default compatibility mode.
 - Embeddings and Qdrant integration are not implemented in this phase.
-- The frontend UI is not implemented in this phase.
+- Advanced parser diagnostics UI is deferred.
+
+## Parser Diagnostics
+
+`GET /api/diagnostics` includes parser isolation state:
+
+- `parser.isolation_mode`
+- `parser.timeout_ms`
+- `parser.max_retries`
+- `parser.worker_path`
+- `parser.parse_failure_count`
+- `parser.recent_parse_failures`
+
+Parser failures are read from local SQLite table `parse_failures`. The control
+server does not parse files itself; it only exposes diagnostics recorded by the
+indexing boundary.
+
+Parser-related SSE event names:
+
+- `parser_worker_started`
+- `parser_worker_completed`
+- `parser_worker_timeout`
+- `parser_worker_crashed`
+- `parse_failed`
+- `parse_retried`
+- `parse_failure_recorded`

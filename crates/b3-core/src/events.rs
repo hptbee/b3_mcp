@@ -10,6 +10,13 @@ pub enum DomainEvent {
     FileParsed(FileParsed),
     FileSkipped(FileSkipped),
     ParserCrashed(ParserCrashed),
+    ParserWorkerStarted(ParserWorkerStarted),
+    ParserWorkerCompleted(ParserWorkerCompleted),
+    ParserWorkerTimeout(ParserWorkerTimeout),
+    ParserWorkerCrashed(ParserWorkerCrashed),
+    ParseFailed(ParseFailed),
+    ParseRetried(ParseRetried),
+    ParseFailureRecorded(ParseFailureRecorded),
     GraphUpdated(GraphUpdated),
     QueryExecuted(QueryExecuted),
     ToolCalled(ToolCalled),
@@ -53,6 +60,75 @@ pub struct ParserCrashed {
     pub file_id: Option<FileId>,
     pub path: String,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserWorkerStarted {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub attempt: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserWorkerCompleted {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserWorkerTimeout {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub timeout_ms: u64,
+    pub attempt: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserWorkerCrashed {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub exit_code: Option<i32>,
+    pub stderr_excerpt: String,
+    pub attempt: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseFailed {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub error_kind: String,
+    pub error_message: String,
+    pub retry_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseRetried {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub attempt: usize,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseFailureRecorded {
+    pub project_id: ProjectId,
+    pub branch_id: BranchId,
+    pub file_id: FileId,
+    pub path: String,
+    pub error_kind: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

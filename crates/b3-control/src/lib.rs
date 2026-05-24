@@ -26,16 +26,17 @@ use axum::{
 };
 use b3_core::{
     AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, FileId,
-    FileRecord, IndexStore, ProjectId, QueryRequest, QueryResult, SymbolRepository, PRODUCT_NAME,
+    FileRecord, IndexStore, ParseFailureRecord, ParserIsolationMode, ProjectId, QueryRequest,
+    QueryResult, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
-    IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, WatchConfig,
-    WatchEventKind,
+    IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, ParserIsolation,
+    WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SqliteStorage, StorageStats, StoredCentralityRecord, StoredGraphEdge,
-    StoredGraphNode,
+    StoredGraphNode, StoredParseFailure,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -636,6 +637,14 @@ async fn savings_summary(
 }
 
 async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
+    let (parse_failure_count, recent_parse_failures) = {
+        let storage = state.storage.lock().await;
+        (
+            storage.parse_failure_count(None, None).unwrap_or(0),
+            storage.recent_parse_failures(10).unwrap_or_default(),
+        )
+    };
+    let config = &state.app_config.indexing;
     Json(json!({
         "status": "ok",
         "project_path": path_string(&state.project_path),
@@ -643,10 +652,18 @@ async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
         "offline_mode": true,
         "telemetry_enabled": false,
         "source_upload_enabled": false,
+        "parser": {
+            "isolation_mode": parser_isolation_mode(config.parser_isolation_mode.clone()),
+            "timeout_ms": config.parser_timeout_ms,
+            "max_retries": config.parser_max_retries,
+            "worker_path": config.parser_worker_path,
+            "parse_failure_count": parse_failure_count,
+            "recent_parse_failures": recent_parse_failures.into_iter().map(ParseFailureDto::from).collect::<Vec<_>>()
+        },
         "known_limitations": [
             "query ranking integration is deferred",
-            "file watcher events are deferred",
-            "frontend UI is deferred"
+            "parser subprocess mode is available but in-process mode remains the default",
+            "frontend parse-failure dashboard is deferred"
         ]
     }))
 }
@@ -685,6 +702,10 @@ async fn config(State(state): State<ControlState>) -> Json<Value> {
         "indexing": {
             "enabled": config.indexing.enabled,
             "parser_subprocess_isolation": config.indexing.parser_subprocess_isolation,
+            "parser_isolation_mode": parser_isolation_mode(config.indexing.parser_isolation_mode.clone()),
+            "parser_timeout_ms": config.indexing.parser_timeout_ms,
+            "parser_max_retries": config.indexing.parser_max_retries,
+            "parser_worker_path": config.indexing.parser_worker_path,
             "watch_files": config.indexing.watch_files,
             "max_parallel_workers": config.indexing.max_parallel_workers,
             "debounce_ms": config.indexing.debounce_ms,
@@ -751,6 +772,7 @@ fn start_watch_daemon(options: &ServeOptions, events: EventHub) -> Result<(), Co
                 },
                 IndexerConfig {
                     branch_id,
+                    parser_isolation: ParserIsolation::InProcess,
                     ..IndexerConfig::default()
                 },
             );
@@ -987,6 +1009,48 @@ fn responsibility(value: RuntimeResponsibility) -> &'static str {
         RuntimeResponsibility::Streaming => "streaming",
         RuntimeResponsibility::Cancellation => "cancellation",
         RuntimeResponsibility::SessionLifecycle => "session_lifecycle",
+    }
+}
+
+fn parser_isolation_mode(value: ParserIsolationMode) -> &'static str {
+    match value {
+        ParserIsolationMode::InProcess => "in_process",
+        ParserIsolationMode::SubprocessWorker => "subprocess_worker",
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ParseFailureDto {
+    failure_id: String,
+    project_id: String,
+    branch_id: String,
+    file_id: String,
+    file_path: String,
+    file_hash: String,
+    language: Option<String>,
+    error_kind: String,
+    error_message: String,
+    stderr_excerpt: Option<String>,
+    failed_at_unix_ms: u64,
+    retry_count: usize,
+}
+
+impl From<StoredParseFailure> for ParseFailureDto {
+    fn from(value: StoredParseFailure) -> Self {
+        Self {
+            failure_id: value.failure_id,
+            project_id: value.project_id,
+            branch_id: value.branch_id,
+            file_id: value.file_id,
+            file_path: value.file_path,
+            file_hash: value.file_hash,
+            language: value.language,
+            error_kind: value.error_kind,
+            error_message: value.error_message,
+            stderr_excerpt: value.stderr_excerpt,
+            failed_at_unix_ms: value.failed_at_unix_ms,
+            retry_count: value.retry_count,
+        }
     }
 }
 
@@ -1834,6 +1898,13 @@ impl IndexStore for SqliteIndexStore {
             .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?
             .remove_file_by_path(project_id, branch_id, path)
     }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        self.storage
+            .lock()
+            .map_err(|_| ContractError::new("sqlite index store lock poisoned"))?
+            .record_parse_failure(&failure)
+    }
 }
 
 #[derive(Clone)]
@@ -1855,6 +1926,34 @@ impl EventBus for EventForwarder {
             DomainEvent::FileSkipped(event) => self.events.emit(
                 "file_skipped",
                 json!({"project_id": event.project_id.as_str(), "path": event.path, "reason": event.reason}),
+            ),
+            DomainEvent::ParserWorkerStarted(event) => self.events.emit(
+                "parser_worker_started",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "attempt": event.attempt}),
+            ),
+            DomainEvent::ParserWorkerCompleted(event) => self.events.emit(
+                "parser_worker_completed",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "elapsed_ms": event.elapsed_ms}),
+            ),
+            DomainEvent::ParserWorkerTimeout(event) => self.events.emit(
+                "parser_worker_timeout",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "timeout_ms": event.timeout_ms, "attempt": event.attempt}),
+            ),
+            DomainEvent::ParserWorkerCrashed(event) => self.events.emit(
+                "parser_worker_crashed",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "exit_code": event.exit_code, "stderr_excerpt": event.stderr_excerpt, "attempt": event.attempt}),
+            ),
+            DomainEvent::ParseFailed(event) => self.events.emit(
+                "parse_failed",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "error_kind": event.error_kind, "error_message": event.error_message, "retry_count": event.retry_count}),
+            ),
+            DomainEvent::ParseRetried(event) => self.events.emit(
+                "parse_retried",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "attempt": event.attempt, "reason": event.reason}),
+            ),
+            DomainEvent::ParseFailureRecorded(event) => self.events.emit(
+                "parse_failure_recorded",
+                json!({"project_id": event.project_id.as_str(), "branch_id": event.branch_id.as_str(), "file_id": event.file_id.as_str(), "path": event.path, "error_kind": event.error_kind}),
             ),
             DomainEvent::IndexCompleted(event) => self.events.emit(
                 "indexing_completed",
@@ -2080,6 +2179,55 @@ mod tests {
         let body = response_json(response).await;
         assert_eq!(body["status"], "ok");
         assert_eq!(body["offline_mode"], true);
+    }
+
+    #[tokio::test]
+    async fn diagnostics_include_parser_failure_state() {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .upsert_project(&project_id, "Project", ".")
+            .expect("project");
+        storage
+            .upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"))
+            .expect("branch");
+        storage
+            .record_parse_failure(&ParseFailureRecord {
+                failure_id: "failure".to_string(),
+                project_id,
+                branch_id,
+                file_id: FileId::new("file"),
+                file_path: "src/lib.rs".to_string(),
+                file_hash: "hash".to_string(),
+                language: Some("rs".to_string()),
+                error_kind: "timeout".to_string(),
+                error_message: "parser timed out".to_string(),
+                stderr_excerpt: None,
+                failed_at_unix_ms: 7,
+                retry_count: 1,
+            })
+            .expect("failure");
+
+        let response = app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+        .oneshot(
+            Request::builder()
+                .uri("/api/diagnostics")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["parser"]["parse_failure_count"], 1);
+        assert_eq!(body["parser"]["isolation_mode"], "in_process");
+        assert_eq!(body["parser"]["timeout_ms"], 10_000);
     }
 
     #[tokio::test]

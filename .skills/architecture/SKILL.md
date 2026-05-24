@@ -30,3 +30,8 @@ Use hybrid monolith:
 
 Hard boundary:
 MCP runtime is protocol only. Heavy work belongs to core services.
+
+Parser isolation:
+- risky parser execution belongs to the indexer boundary
+- subprocess workers must use local IPC only
+- parser failures must not kill MCP, control server, watcher, or parent indexer

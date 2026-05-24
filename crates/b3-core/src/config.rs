@@ -86,9 +86,25 @@ impl Default for ProjectConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParserIsolationMode {
+    InProcess,
+    SubprocessWorker,
+}
+
+impl Default for ParserIsolationMode {
+    fn default() -> Self {
+        Self::InProcess
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexingConfig {
     pub enabled: bool,
     pub parser_subprocess_isolation: bool,
+    pub parser_isolation_mode: ParserIsolationMode,
+    pub parser_timeout_ms: u64,
+    pub parser_max_retries: usize,
+    pub parser_worker_path: Option<String>,
     pub watch_files: bool,
     pub max_parallel_workers: usize,
     pub debounce_ms: u64,
@@ -100,7 +116,11 @@ impl Default for IndexingConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            parser_subprocess_isolation: true,
+            parser_subprocess_isolation: false,
+            parser_isolation_mode: ParserIsolationMode::InProcess,
+            parser_timeout_ms: 10_000,
+            parser_max_retries: 1,
+            parser_worker_path: None,
             watch_files: false,
             max_parallel_workers: 1,
             debounce_ms: 500,

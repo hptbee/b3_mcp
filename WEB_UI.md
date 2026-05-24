@@ -75,6 +75,13 @@ Watch mode can emit:
 - `file_skipped`
 - `indexing_completed`
 - `indexing_failed`
+- `parser_worker_started`
+- `parser_worker_completed`
+- `parser_worker_timeout`
+- `parser_worker_crashed`
+- `parse_failed`
+- `parse_retried`
+- `parse_failure_recorded`
 
 Events are local-only and are not sent to any remote service.
 
@@ -178,6 +185,6 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Centrality requires a cached snapshot; it is not computed automatically by the UI.
 - Query trace quality depends on trace fields returned by the control server query endpoints.
 - Embeddings and semantic search are deferred.
-- Parser subprocess isolation is deferred.
+- Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - Config mutation/save is deferred.
 - SSE currently reflects the minimal control-server event stream.

@@ -102,6 +102,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "b3-bench"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "b3-control",
+ "b3-core",
+ "b3-indexer",
+ "b3-mcp-runtime",
+ "b3-query",
+ "b3-storage",
+ "http",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "b3-control"
 version = "0.1.0"
 dependencies = [
@@ -140,6 +158,8 @@ version = "0.1.0"
 dependencies = [
  "b3-core",
  "notify",
+ "serde",
+ "serde_json",
  "sha2",
  "tree-sitter",
  "tree-sitter-rust",

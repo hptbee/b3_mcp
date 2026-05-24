@@ -185,6 +185,8 @@ Must support:
 - git-aware change detection
 - branch-aware database namespace
 - subprocess-isolated parser workers
+- parser timeout/retry policy
+- branch-aware parse failure registry
 - parallel worker pools
 - debounced filesystem watcher
 - generated/vendor file skipping
@@ -314,9 +316,6 @@ Avoid:
 - Phase 4: Real Rust Parsing + Storage Adapter
 - Phase 4.1: Project/Branch Auto Ensure + Deleted File Cleanup
 - Phase 5: Query Engine + Graph Traversal + Context Pack
-
-### Planned Phases
-
 - Phase 5.1: Query Hardening + Explainability
 - Phase 5.2: Ranking Algorithms Upgrade
 - Phase 6: MCP Tools over Query Engine
@@ -328,6 +327,12 @@ Avoid:
 - Phase 7.3: Query Trace UI
 - Phase 8: File Watcher + Daemon Mode
 - Phase 8.1: Parser Isolation
+- Phase 8.2: Benchmark Harness + Performance Baseline
+
+### Planned Phases
+
+- Phase 8.3: Refactor Checkpoint A
+- Phase 8.4: Performance Optimization Pass A
 - Phase 9: Local Embeddings + Vector Search
 - Phase 9.1: Semantic Context Upgrade
 - Phase 10: Multi-language Packs

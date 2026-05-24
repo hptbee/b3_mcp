@@ -7,6 +7,7 @@
 
 use std::path::Path;
 
+use b3_core::ParseFailureRecord;
 use b3_core::{
     BranchId, BranchMetadata, CentralityMetric, CentralityRepository, CentralitySnapshot,
     ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance, FileId,
@@ -249,6 +250,31 @@ CREATE INDEX IF NOT EXISTS idx_centrality_scope_score
 ON centrality_snapshots(project_id, branch_id, pagerank_score DESC);
 "#;
 
+const MIGRATION_003: &str = r#"
+CREATE TABLE IF NOT EXISTS parse_failures (
+    failure_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_hash TEXT NOT NULL,
+    language TEXT,
+    error_kind TEXT NOT NULL,
+    error_message TEXT NOT NULL,
+    stderr_excerpt TEXT,
+    failed_at_unix_ms INTEGER NOT NULL DEFAULT 0,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_parse_failures_scope
+ON parse_failures(project_id, branch_id, failed_at_unix_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_parse_failures_file
+ON parse_failures(file_id);
+"#;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StorageConfig {
     pub project_id: ProjectId,
@@ -391,6 +417,22 @@ pub struct StoredCentralityRecord {
     pub algorithm_version: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredParseFailure {
+    pub failure_id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub file_id: String,
+    pub file_path: String,
+    pub file_hash: String,
+    pub language: Option<String>,
+    pub error_kind: String,
+    pub error_message: String,
+    pub stderr_excerpt: Option<String>,
+    pub failed_at_unix_ms: u64,
+    pub retry_count: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewCentralityRecord {
     pub project_id: String,
@@ -449,6 +491,7 @@ impl SqliteStorage {
 
         self.apply_migration(1, "initial_storage_schema", MIGRATION_001)?;
         self.apply_migration(2, "centrality_snapshot_schema", MIGRATION_002)?;
+        self.apply_migration(3, "parse_failure_registry", MIGRATION_003)?;
 
         Ok(())
     }
@@ -768,6 +811,84 @@ impl SqliteStorage {
             symbols: self.count_table("symbols")?,
             edges: self.count_table("edges")?,
         })
+    }
+
+    pub fn record_parse_failure(&self, failure: &ParseFailureRecord) -> ContractResult<()> {
+        self.connection
+            .execute(
+                "INSERT INTO parse_failures (
+                    failure_id, project_id, branch_id, file_id, file_path, file_hash,
+                    language, error_kind, error_message, stderr_excerpt,
+                    failed_at_unix_ms, retry_count
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                 ON CONFLICT(failure_id) DO UPDATE SET
+                    error_kind = excluded.error_kind,
+                    error_message = excluded.error_message,
+                    stderr_excerpt = excluded.stderr_excerpt,
+                    failed_at_unix_ms = excluded.failed_at_unix_ms,
+                    retry_count = excluded.retry_count",
+                params![
+                    failure.failure_id.as_str(),
+                    failure.project_id.as_str(),
+                    failure.branch_id.as_str(),
+                    failure.file_id.as_str(),
+                    failure.file_path.as_str(),
+                    failure.file_hash.as_str(),
+                    failure.language.as_deref(),
+                    failure.error_kind.as_str(),
+                    failure.error_message.as_str(),
+                    failure.stderr_excerpt.as_deref(),
+                    failure.failed_at_unix_ms as i64,
+                    failure.retry_count as i64
+                ],
+            )
+            .map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    pub fn parse_failure_count(
+        &self,
+        project_id: Option<&str>,
+        branch_id: Option<&str>,
+    ) -> ContractResult<usize> {
+        match (project_id, branch_id) {
+            (Some(project_id), Some(branch_id)) => self
+                .connection
+                .query_row(
+                    "SELECT COUNT(*) FROM parse_failures
+                     WHERE project_id = ?1 AND branch_id = ?2",
+                    params![project_id, branch_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .map(|count| count as usize)
+                .map_err(to_contract_error),
+            _ => self
+                .connection
+                .query_row("SELECT COUNT(*) FROM parse_failures", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .map(|count| count as usize)
+                .map_err(to_contract_error),
+        }
+    }
+
+    pub fn recent_parse_failures(&self, limit: usize) -> ContractResult<Vec<StoredParseFailure>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT failure_id, project_id, branch_id, file_id, file_path, file_hash,
+                        language, error_kind, error_message, stderr_excerpt,
+                        failed_at_unix_ms, retry_count
+                 FROM parse_failures
+                 ORDER BY failed_at_unix_ms DESC
+                 LIMIT ?1",
+            )
+            .map_err(to_contract_error)?;
+        let rows = statement
+            .query_map([limit as i64], parse_failure_from_row)
+            .map_err(to_contract_error)?;
+        collect_rows(rows)
     }
 
     pub fn current_branch_name(&self) -> ContractResult<Option<String>> {
@@ -1291,6 +1412,10 @@ impl IndexStore for SqliteStorage {
         transaction.commit().map_err(to_contract_error)?;
         Ok(())
     }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        SqliteStorage::record_parse_failure(self, &failure)
+    }
 }
 
 impl IndexStore for &SqliteStorage {
@@ -1330,6 +1455,10 @@ impl IndexStore for &SqliteStorage {
         file: IndexedFileRecord,
     ) -> ContractResult<()> {
         <SqliteStorage as IndexStore>::upsert_indexed_file(*self, project_id, branch_id, file)
+    }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        SqliteStorage::record_parse_failure(self, &failure)
     }
 }
 
@@ -2253,6 +2382,23 @@ fn centrality_metric_from_row(row: &Row<'_>) -> rusqlite::Result<CentralityMetri
     })
 }
 
+fn parse_failure_from_row(row: &Row<'_>) -> rusqlite::Result<StoredParseFailure> {
+    Ok(StoredParseFailure {
+        failure_id: row.get(0)?,
+        project_id: row.get(1)?,
+        branch_id: row.get(2)?,
+        file_id: row.get(3)?,
+        file_path: row.get(4)?,
+        file_hash: row.get(5)?,
+        language: row.get(6)?,
+        error_kind: row.get(7)?,
+        error_message: row.get(8)?,
+        stderr_excerpt: row.get(9)?,
+        failed_at_unix_ms: row.get::<_, i64>(10)? as u64,
+        retry_count: row.get::<_, i64>(11)? as usize,
+    })
+}
+
 fn query_symbol_from_row(row: &Row<'_>) -> rusqlite::Result<QuerySymbol> {
     Ok(QuerySymbol {
         id: SymbolId::new(row.get::<_, String>(0)?),
@@ -2430,8 +2576,15 @@ mod tests {
         assert!(storage.table_exists("projects").expect("projects table"));
         assert!(storage.table_exists("file_content_fts").expect("file fts"));
         assert!(storage.table_exists("symbol_fts").expect("symbol fts"));
+        assert!(storage
+            .table_exists("parse_failures")
+            .expect("parse failures"));
         assert!(storage.migration_applied(1).expect("migration"));
+        assert!(storage.migration_applied(3).expect("parse migration"));
         assert!(storage.index_exists("idx_edges_from").expect("edge index"));
+        assert!(storage
+            .index_exists("idx_parse_failures_scope")
+            .expect("parse failure scope index"));
         assert!(storage
             .index_exists("idx_files_branch_id")
             .expect("branch index"));
@@ -2543,5 +2696,45 @@ mod tests {
                 avoided_search_calls: 1,
             })
             .expect("record savings");
+    }
+
+    #[test]
+    fn parse_failures_round_trip_records() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .upsert_project(&project_id, "Project", ".")
+            .expect("project");
+        storage
+            .upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"))
+            .expect("branch");
+
+        storage
+            .record_parse_failure(&ParseFailureRecord {
+                failure_id: "failure".to_string(),
+                project_id: project_id.clone(),
+                branch_id: branch_id.clone(),
+                file_id: FileId::new("file"),
+                file_path: "src/lib.rs".to_string(),
+                file_hash: "hash".to_string(),
+                language: Some("rs".to_string()),
+                error_kind: "timeout".to_string(),
+                error_message: "parser timed out".to_string(),
+                stderr_excerpt: Some("stderr".to_string()),
+                failed_at_unix_ms: 7,
+                retry_count: 1,
+            })
+            .expect("record failure");
+
+        assert_eq!(
+            storage
+                .parse_failure_count(Some("project"), Some("main"))
+                .expect("count"),
+            1
+        );
+        let failures = storage.recent_parse_failures(5).expect("recent");
+        assert_eq!(failures[0].file_path, "src/lib.rs");
+        assert_eq!(failures[0].retry_count, 1);
     }
 }

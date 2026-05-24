@@ -200,13 +200,14 @@ Tree-sitter grammars may fail or panic.
 
 Use subprocess workers:
 - parent process queues file jobs
-- worker parses one file or batch
-- if worker crashes, parent logs file and respawns
+- worker receives JSONL parser jobs over stdin and returns structured JSON over stdout
+- if worker crashes or times out, parent records the failure and continues
 - sync continues
 
 Improvement:
 - mark file as parse_failed with reason
-- retry after grammar/version changes
+- retry retryable worker failures up to a bounded retry count
+- store branch-aware parse failure diagnostics for later UI and control-server inspection
 
 ### Branch-Aware Indexing
 
@@ -258,9 +259,6 @@ Added requirements:
 - Phase 4: Real Rust Parsing + Storage Adapter
 - Phase 4.1: Project/Branch Auto Ensure + Deleted File Cleanup
 - Phase 5: Query Engine + Graph Traversal + Context Pack
-
-### Planned Phases
-
 - Phase 5.1: Query Hardening + Explainability
 - Phase 5.2: Ranking Algorithms Upgrade
 - Phase 6: MCP Tools over Query Engine
@@ -272,6 +270,9 @@ Added requirements:
 - Phase 7.3: Query Trace UI
 - Phase 8: File Watcher + Daemon Mode
 - Phase 8.1: Parser Isolation
+
+### Planned Phases
+
 - Phase 9: Local Embeddings + Vector Search
 - Phase 9.1: Semantic Context Upgrade
 - Phase 10: Multi-language Packs
@@ -299,3 +300,27 @@ The following algorithms and techniques are planned for future phases:
 - **Git churn ranking**: Boosting relevance of frequently modified files.
 - **AST fingerprinting**: Identifying structural patterns independent of names.
 - **MinHash / SimHash duplicate detection**: Locating duplicated or highly similar code blocks.
+
+## Benchmark Methodology
+
+Optimization must be data-driven. Phase 8.2 establishes a local benchmark
+baseline before refactor and optimization work.
+
+The baseline runner measures:
+
+- cold startup
+- MCP tools/list and simple tools/call latency
+- control-server health/status handler latency
+- find_symbol and search_code latency
+- graph neighbors and graph path latency
+- context_pack and impact_analysis latency
+- full indexing speed
+- changed-file reindex latency
+- watcher debounce latency
+- SQLite graph summary query latency
+- parser worker request latency
+
+Benchmark data is local-only and written as JSON under `target/benchmarks`.
+Results are not uploaded, and regression thresholds are advisory unless
+explicitly enabled. The `memory_kb` field is best-effort and may be `null`
+until platform-specific memory collection is added.
