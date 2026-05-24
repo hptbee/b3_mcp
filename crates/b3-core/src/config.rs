@@ -4,6 +4,8 @@
 //! external APIs, no hosted vector database, no remote telemetry, and no SaaS
 //! authentication.
 
+use crate::BackendSelectionPolicy;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExternalIntegrationMode {
     DisabledByDefault,
@@ -211,6 +213,23 @@ impl Default for UiConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanguageBackendConfig {
+    pub selection_policy: BackendSelectionPolicy,
+    pub enable_lsp: bool,
+    pub enable_experimental_languages: bool,
+}
+
+impl Default for LanguageBackendConfig {
+    fn default() -> Self {
+        Self {
+            selection_policy: BackendSelectionPolicy::PreferTreeSitter,
+            enable_lsp: false,
+            enable_experimental_languages: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AppConfig {
     pub offline: OfflineConfig,
@@ -220,4 +239,5 @@ pub struct AppConfig {
     pub embedding: EmbeddingConfig,
     pub graph: GraphConfig,
     pub ui: UiConfig,
+    pub language_backends: LanguageBackendConfig,
 }

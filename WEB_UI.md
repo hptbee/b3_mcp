@@ -70,6 +70,20 @@ indexed file/symbol/edge counts, last index status, parse failures, and local
 duration. It also includes `Run Index` and `Reindex Project` buttons. Reindex is
 safe incremental reindexing in this phase and skips unchanged files.
 
+## Registry Visibility
+
+Phase 8.8 registry and project group support is CLI-only for now. Web UI
+registry visibility is deferred until control server registry APIs are added.
+The current UI remains single-project and continues to use the configured local
+control server.
+
+## Language Capabilities
+
+The control server now exposes language backend metadata at `/api/languages`,
+but the Web UI does not render a dedicated language support table yet. This is
+deferred to a later UI pass. Current capability truth is Rust implemented,
+planned languages detected only, and LSP disabled.
+
 ## Logs / Events
 
 The Logs / Events section connects to `GET /api/events` with SSE and displays whatever local server events are emitted.

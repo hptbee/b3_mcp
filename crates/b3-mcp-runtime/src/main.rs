@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use b3_mcp_runtime::{serve_local_stdio, RuntimeBootstrapConfig};
+use b3_mcp_runtime::{serve_local_stdio, RuntimeBootstrapConfig, ToolProfileName};
 
 fn main() {
     if let Err(error) = run() {
@@ -19,6 +19,7 @@ fn run() -> Result<(), String> {
         "serve" => {
             let mut project = PathBuf::from(".");
             let mut database = None;
+            let mut profile = ToolProfileName::default();
             while let Some(arg) = args.next() {
                 match arg.as_str() {
                     "--project" => {
@@ -34,6 +35,12 @@ fn run() -> Result<(), String> {
                                 .ok_or_else(|| "--database requires a path".to_string())?,
                         );
                     }
+                    "--profile" | "--tool-profile" => {
+                        profile = args
+                            .next()
+                            .ok_or_else(|| format!("{arg} requires a profile name"))?
+                            .parse()?;
+                    }
                     _ => return Err(format!("unknown argument: {arg}\n{}", usage())),
                 }
             }
@@ -42,6 +49,7 @@ fn run() -> Result<(), String> {
             if let Some(database) = database {
                 config.database_path = database;
             }
+            config.tool_profile = profile;
             serve_local_stdio(config)
         }
         _ => Err(usage()),
@@ -49,5 +57,5 @@ fn run() -> Result<(), String> {
 }
 
 fn usage() -> String {
-    "usage: b3-mcp-runtime serve --project <path> [--database <path>]".to_string()
+    "usage: b3-mcp-runtime serve --project <path> [--database <path>] [--profile <tiny|optimized|full|debug|readonly|editing|web-app|enterprise>]".to_string()
 }

@@ -121,6 +121,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "b3-cli"
+version = "0.1.0"
+dependencies = [
+ "b3-mcp-runtime",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "b3-compaction"
 version = "0.1.0"
 dependencies = [

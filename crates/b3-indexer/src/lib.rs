@@ -40,7 +40,7 @@ use tree_sitter::{Node, Parser, Point};
 
 pub use b3_core::{
     IndexJobQueue, IndexStore as CoreIndexStore, IndexSummary as CoreIndexSummary,
-    Indexer as CoreIndexer,
+    Indexer as CoreIndexer, LanguageBackendMetadata,
 };
 
 const DEFAULT_MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
@@ -1428,6 +1428,12 @@ impl TreeSitterParser for NoopTreeSitterParser {
 #[derive(Debug, Clone, Default)]
 pub struct RustLanguagePack;
 
+impl RustLanguagePack {
+    pub fn backend_metadata() -> LanguageBackendMetadata {
+        b3_core::rust_tree_sitter_backend_metadata()
+    }
+}
+
 impl TreeSitterParser for RustLanguagePack {
     fn parse(&self, input: ParseInput) -> ContractResult<ParsedFile> {
         if language_from_path(&input.path).as_deref() != Some("rs") {
@@ -2199,6 +2205,18 @@ mod tests {
             .relationships
             .iter()
             .any(|edge| edge.kind == EdgeKind::References));
+    }
+
+    #[test]
+    fn rust_language_pack_reports_backend_metadata() {
+        let metadata = RustLanguagePack::backend_metadata();
+
+        assert_eq!(metadata.backend_id.0, "tree-sitter-rust");
+        assert_eq!(metadata.language_id.as_str(), "rust");
+        assert!(metadata.available);
+        assert!(metadata
+            .capabilities
+            .contains(&b3_core::LanguageBackendCapability::ExtractSymbols));
     }
 
     #[test]

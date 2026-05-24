@@ -9,7 +9,11 @@ Current roadmap status:
 - Completed: Phase 8.5 - Command Output Compaction
 - Completed: Phase 8.5.1 - Project Init + Manual Index Command
 - Completed: Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
-- Next: Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Completed: Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Completed: Phase 8.7 - Agent Install Helper + Hook Integration Foundation
+- Completed: Phase 8.8 - Multi-repo Registry + Project Groups
+- Completed: Phase 9.0 - Language Backend Architecture
+- Next: Phase 9.1 - LSP Backend MVP
 
 ---
 
@@ -36,11 +40,11 @@ B3 combines:
 - benchmark baseline
 - command output compaction
 - project init/index workflow
-- future MCP tool profiles
-- future agent install helper
-- future multi-repo registry
-- future project groups
-- future language backend architecture
+- MCP tool profiles
+- agent install helper
+- multi-repo registry
+- project groups
+- language backend architecture
 - future LSP backend
 - future symbolic editing
 - future messaging/runtime infrastructure intelligence
@@ -119,12 +123,16 @@ Completed:
 Phase 8.5 - Command Output Compaction
 Phase 8.5.1 - Project Init + Manual Index Command
 Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+Phase 8.7 - Agent Install Helper + Hook Integration Foundation
+Phase 8.8 - Multi-repo Registry + Project Groups
+Phase 9.0 - Language Backend Architecture
 ```
 
 Next:
 
 ```text
-Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+Phase 9.1 - LSP Backend MVP
 ```
 ---
 
@@ -159,12 +167,17 @@ Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 - Phase 8.5 — Command Output Compaction
 - Phase 8.5.1 - Project Init + Manual Index Command
 - Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+- Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Phase 8.7 - Agent Install Helper + Hook Integration Foundation
+- Phase 8.8 - Multi-repo Registry + Project Groups
+- Phase 9.0 - Language Backend Architecture
 
 ---
 
 ## Current Tool State
 
-B3 currently exposes 11 MCP tools:
+B3 has 11 current MCP tools. The default `optimized` MCP profile exposes 7
+tools in `tools/list`; `full` and `debug` expose all 11.
 
 - `find_symbol`
 - `search_code`
@@ -479,13 +492,31 @@ b3-mcp-runtime serve --tool-profile optimized
 ### Rules
 
 - Existing tools stay compatible.
-- Hidden tools should return a structured profile-aware error.
-- `tools/list` should return only enabled tools.
-- Manifest descriptions should be concise.
-- Do not remove required validation details.
-- Preserve nested scope compatibility:
+- Hidden tools return a structured profile-aware error.
+- `tools/list` returns only enabled tools and includes the selected profile in
+  the result metadata.
+- Manifest descriptions and input schemas are concise but still preserve
+  required validation details.
+- Nested scope compatibility is preserved:
   - `scope.project_id`
   - `scope.branch_id`
+
+### Implementation Status
+
+- Completed in `b3-mcp-runtime`.
+- `optimized` is the default profile.
+- CLI supports `--profile` and `--tool-profile`.
+- Invalid profile names fail with a clear structured CLI error string.
+- `tools/list` counts: `optimized` 7, `tiny` 5, `full` 11, `debug` 11,
+  `enterprise` 9.
+- `readonly` exposes all current readonly tools; future mutation tools must be
+  hidden there.
+- `editing` is reserved for future symbolic editing and currently uses the
+  lower-risk optimized set.
+- Benchmarks record selected profile and tool count metadata.
+- No installer, hooks, registry, project group runtime, language packs, LSP,
+  embeddings, session memory, symbolic editing, command execution, telemetry,
+  or cloud dependency were added.
 
 ---
 
@@ -505,11 +536,31 @@ Inspired by:
 
 - `b3 install --agent cursor`
 - `b3 install --agent codex`
-- `b3 install --agent claude`
 - `b3 install --dry-run`
 - `b3 install --backup`
 - `b3 doctor`
 - `b3 uninstall`
+
+### Implementation Status
+
+- Completed as a small `b3-cli` crate with binary name `b3`.
+- Supports `codex` and `cursor`.
+- `claude` remains docs/future only.
+- Install defaults to dry-run. Writing requires `--apply` or `--write`.
+- Applies create backups by default unless `--no-backup` is passed.
+- Codex config target defaults to `%USERPROFILE%\.codex\config.toml`.
+- Cursor config target defaults to `<project>/.cursor/mcp.json`.
+- `--config` can override the target config path for safe manual tests.
+- Existing unrelated Codex TOML text and Cursor `mcpServers` entries are
+  preserved.
+- Repeated install updates the same server entry and does not duplicate it.
+- Invalid Cursor JSON and malformed Codex section headers are not overwritten.
+- `doctor` performs local path/profile/port checks only.
+- `uninstall` removes only the named B3 server entry, preserves unrelated
+  config, supports dry-run, and backs up before apply.
+- Hook integration is foundation only: docs/output state `hooks_enabled=false`;
+  no shell interception, command execution, telemetry, or shell profile edits
+  are implemented.
 
 ### Rules
 
@@ -556,13 +607,26 @@ Add:
 ~/.b3/registry.json
 ```
 
+Implementation status:
+
+- Completed as local JSON registry support in `b3-cli`.
+- `B3_HOME` can override the registry home for tests/smoke runs.
+- `--registry <path>` can target an explicit registry file.
+- Registry schema version is `1`.
+- Registry is metadata only; each project keeps its repo-local `.b3/b3.db`.
+- Registry file is created only by explicit registry write commands.
+- Invalid registry JSON fails clearly.
+- Writes use deterministic pretty JSON and a temp-file rename.
+- Destructive updates create backups by default where applicable.
+- No filesystem scan, cloud sync, telemetry, hosted DB, or global SQLite DB is
+  used.
+
 ### Project Commands
 
 - `b3 register <project-path>`
 - `b3 unregister <project-id>`
 - `b3 list`
 - `b3 status <project-id>`
-- `b3 clean <project-id>`
 
 ### Group Commands
 
@@ -571,6 +635,15 @@ Add:
 - `b3 group remove <group-id> <project-id>`
 - `b3 group list`
 - `b3 group status <group-id>`
+
+Deferred:
+
+- `b3 open`
+- `b3 clean`
+- `b3 group delete`
+- control server registry write APIs
+- web UI registry visibility
+- installer `--project-id` lookup
 
 ### Registry Example
 
@@ -645,6 +718,9 @@ Add:
 - Registry is metadata only.
 - Cross-project intelligence is not required in Phase 8.8.
 - Group-level deep analysis is deferred to Phase 11.
+- Existing single-project commands do not require the registry.
+- Groups are metadata only and do not merge graphs or execute cross-project
+  queries.
 
 ---
 
@@ -673,6 +749,24 @@ Support both:
   - Basic
   - Good
   - Advanced
+
+### Implementation Status
+
+- Completed shared contracts in `b3-core`.
+- Added local language detection by extension and selected filenames.
+- Added backend capability registry with support levels.
+- Rust is represented as available `tree-sitter-rust` with `Good` support.
+- Planned languages report detect-file capability only and are not available as
+  parser/LSP backends yet.
+- Added `LanguageBackendConfig` defaults:
+  - `selection_policy = PreferTreeSitter`
+  - `enable_lsp = false`
+  - `enable_experimental_languages = false`
+- Added control capability reporting through `/api/capabilities` and
+  `/api/languages`.
+- Existing Rust indexing behavior remains unchanged.
+- No LSP runtime, non-Rust parser, embeddings, semantic search, symbolic
+  editing, or domain intelligence was added.
 
 ### Tree-sitter Responsibilities
 
@@ -1109,9 +1203,11 @@ Add MCP install command, Cursor config helper, Codex config helper, Claude confi
 | Rust repositories | Usable now |
 | Command output compaction | Usable now |
 | Project init/index workflow | Usable now |
-| MCP tool profiles | Phase 8.6 |
-| Multi-project local workflow | Phase 8.8 |
-| Project groups | Phase 8.8 |
+| MCP tool profiles | Usable now |
+| Codex/Cursor install helper | Usable now |
+| Multi-project local workflow | Usable now, metadata only |
+| Project groups | Usable now, metadata only |
+| Language backend contracts | Usable now |
 | C# Web API / backend services | Phase 9.1 / 9.2 |
 | React / Angular / TypeScript / JavaScript | Phase 9.2 |
 | Node.js REST API | Phase 9.2.1 |

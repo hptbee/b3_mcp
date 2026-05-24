@@ -16,8 +16,10 @@ use b3_storage::SqliteStorage;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
+    fmt,
     io::{BufRead, Write},
     path::PathBuf,
+    str::FromStr,
 };
 
 pub use b3_core::PRODUCT_NAME;
@@ -48,6 +50,7 @@ pub fn runtime_info() -> RuntimeInfo {
 pub struct RuntimeBootstrapConfig {
     pub project_path: PathBuf,
     pub database_path: PathBuf,
+    pub tool_profile: ToolProfileName,
 }
 
 impl RuntimeBootstrapConfig {
@@ -57,6 +60,7 @@ impl RuntimeBootstrapConfig {
         Self {
             project_path,
             database_path,
+            tool_profile: ToolProfileName::default(),
         }
     }
 }
@@ -64,7 +68,7 @@ impl RuntimeBootstrapConfig {
 pub fn serve_local_stdio(config: RuntimeBootstrapConfig) -> Result<(), String> {
     let storage = SqliteStorage::open(&config.database_path).map_err(|error| error.message)?;
     let engine = LocalQueryEngine::new(storage, QueryEngineConfig::default());
-    let router = McpQueryToolRouter::new(engine);
+    let router = McpQueryToolRouter::with_profile(engine, config.tool_profile);
     serve_stdio(router, std::io::stdin().lock(), std::io::stdout())
 }
 
@@ -126,7 +130,7 @@ where
     let response = match request.method.as_str() {
         "initialize" => Some(json_rpc_result(id, initialize_result())),
         "ping" => Some(json_rpc_result(id, json!({}))),
-        "tools/list" => Some(json_rpc_result(id, tools_list_result())),
+        "tools/list" => Some(json_rpc_result(id, tools_list_result(router.profile()))),
         "tools/call" => Some(match dispatch_tool_call(router, request.params) {
             Ok(result) => json_rpc_result(id, result),
             Err(error) => json_rpc_tool_error(id, -32602, error),
@@ -169,6 +173,176 @@ pub enum QueryToolName {
     DetectCycles,
     SavingsReport,
     CompactCommandOutput,
+}
+
+impl QueryToolName {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::FindSymbol => "find_symbol",
+            Self::SearchCode => "search_code",
+            Self::FindCallers => "find_callers",
+            Self::FindCallees => "find_callees",
+            Self::RelatedSymbols => "related_symbols",
+            Self::ImpactAnalysis => "impact_analysis",
+            Self::GetContextPack => "get_context_pack",
+            Self::TraceDependency => "trace_dependency",
+            Self::DetectCycles => "detect_cycles",
+            Self::SavingsReport => "savings_report",
+            Self::CompactCommandOutput => "compact_command_output",
+        }
+    }
+
+    pub fn from_tool_name(value: &str) -> Option<Self> {
+        match value {
+            "find_symbol" => Some(Self::FindSymbol),
+            "search_code" => Some(Self::SearchCode),
+            "find_callers" => Some(Self::FindCallers),
+            "find_callees" => Some(Self::FindCallees),
+            "related_symbols" => Some(Self::RelatedSymbols),
+            "impact_analysis" => Some(Self::ImpactAnalysis),
+            "get_context_pack" => Some(Self::GetContextPack),
+            "trace_dependency" => Some(Self::TraceDependency),
+            "detect_cycles" => Some(Self::DetectCycles),
+            "savings_report" => Some(Self::SavingsReport),
+            "compact_command_output" => Some(Self::CompactCommandOutput),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ToolProfileName {
+    Tiny,
+    Optimized,
+    Full,
+    Debug,
+    Readonly,
+    Editing,
+    WebApp,
+    Enterprise,
+}
+
+impl Default for ToolProfileName {
+    fn default() -> Self {
+        Self::Optimized
+    }
+}
+
+impl fmt::Display for ToolProfileName {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Tiny => "tiny",
+            Self::Optimized => "optimized",
+            Self::Full => "full",
+            Self::Debug => "debug",
+            Self::Readonly => "readonly",
+            Self::Editing => "editing",
+            Self::WebApp => "web-app",
+            Self::Enterprise => "enterprise",
+        })
+    }
+}
+
+impl FromStr for ToolProfileName {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "tiny" => Ok(Self::Tiny),
+            "optimized" => Ok(Self::Optimized),
+            "full" => Ok(Self::Full),
+            "debug" => Ok(Self::Debug),
+            "readonly" => Ok(Self::Readonly),
+            "editing" => Ok(Self::Editing),
+            "web-app" => Ok(Self::WebApp),
+            "enterprise" => Ok(Self::Enterprise),
+            _ => Err(format!(
+                "invalid tool profile: {value}; supported profiles: tiny, optimized, full, debug, readonly, editing, web-app, enterprise"
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolExposurePolicy {
+    ProfileFiltered,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolManifestMode {
+    Slim,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolProfileConfig {
+    pub name: ToolProfileName,
+    pub exposure_policy: ToolExposurePolicy,
+    pub manifest_mode: ToolManifestMode,
+}
+
+impl Default for ToolProfileConfig {
+    fn default() -> Self {
+        Self::new(ToolProfileName::default())
+    }
+}
+
+impl ToolProfileConfig {
+    pub fn new(name: ToolProfileName) -> Self {
+        Self {
+            name,
+            exposure_policy: ToolExposurePolicy::ProfileFiltered,
+            manifest_mode: ToolManifestMode::Slim,
+        }
+    }
+
+    pub fn enabled_tools(&self) -> &'static [QueryToolName] {
+        match self.name {
+            ToolProfileName::Tiny => &[
+                QueryToolName::SearchCode,
+                QueryToolName::FindSymbol,
+                QueryToolName::GetContextPack,
+                QueryToolName::CompactCommandOutput,
+                QueryToolName::SavingsReport,
+            ],
+            ToolProfileName::Optimized | ToolProfileName::Editing | ToolProfileName::WebApp => &[
+                QueryToolName::FindSymbol,
+                QueryToolName::SearchCode,
+                QueryToolName::RelatedSymbols,
+                QueryToolName::ImpactAnalysis,
+                QueryToolName::GetContextPack,
+                QueryToolName::CompactCommandOutput,
+                QueryToolName::SavingsReport,
+            ],
+            ToolProfileName::Full | ToolProfileName::Debug | ToolProfileName::Readonly => &[
+                QueryToolName::FindSymbol,
+                QueryToolName::SearchCode,
+                QueryToolName::FindCallers,
+                QueryToolName::FindCallees,
+                QueryToolName::RelatedSymbols,
+                QueryToolName::ImpactAnalysis,
+                QueryToolName::GetContextPack,
+                QueryToolName::TraceDependency,
+                QueryToolName::DetectCycles,
+                QueryToolName::SavingsReport,
+                QueryToolName::CompactCommandOutput,
+            ],
+            ToolProfileName::Enterprise => &[
+                QueryToolName::FindSymbol,
+                QueryToolName::SearchCode,
+                QueryToolName::RelatedSymbols,
+                QueryToolName::ImpactAnalysis,
+                QueryToolName::GetContextPack,
+                QueryToolName::TraceDependency,
+                QueryToolName::DetectCycles,
+                QueryToolName::CompactCommandOutput,
+                QueryToolName::SavingsReport,
+            ],
+        }
+    }
+
+    pub fn is_enabled(&self, tool: QueryToolName) -> bool {
+        self.enabled_tools().contains(&tool)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -356,6 +530,7 @@ pub trait QueryToolExecutor {
 
 pub struct McpQueryToolRouter<E> {
     executor: E,
+    profile: ToolProfileConfig,
 }
 
 impl<E> McpQueryToolRouter<E>
@@ -363,7 +538,18 @@ where
     E: QueryToolExecutor,
 {
     pub fn new(executor: E) -> Self {
-        Self { executor }
+        Self::with_profile(executor, ToolProfileName::default())
+    }
+
+    pub fn with_profile(executor: E, profile: ToolProfileName) -> Self {
+        Self {
+            executor,
+            profile: ToolProfileConfig::new(profile),
+        }
+    }
+
+    pub fn profile(&self) -> &ToolProfileConfig {
+        &self.profile
     }
 
     pub fn find_symbol(&self, request: FindSymbolRequest) -> McpToolResult<FindSymbolResponse> {
@@ -690,6 +876,17 @@ pub fn registered_tools() -> Vec<ToolDefinition> {
     ]
 }
 
+pub fn registered_tools_for_profile(profile: &ToolProfileConfig) -> Vec<ToolDefinition> {
+    registered_tools()
+        .into_iter()
+        .filter(|tool| {
+            QueryToolName::from_tool_name(&tool.name)
+                .map(|name| profile.is_enabled(name))
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
 fn initialize_result() -> Value {
     json!({
         "protocolVersion": MCP_PROTOCOL_VERSION,
@@ -703,22 +900,21 @@ fn initialize_result() -> Value {
     })
 }
 
-fn tools_list_result() -> Value {
-    let tools = registered_tools()
+fn tools_list_result(profile: &ToolProfileConfig) -> Value {
+    let tools = registered_tools_for_profile(profile)
         .into_iter()
         .map(|tool| {
             json!({
                 "name": tool.name,
                 "description": tool.purpose,
-                "inputSchema": {
-                    "type": "object",
-                    "title": tool.input_schema,
-                    "description": tool.example
-                }
+                "inputSchema": input_schema_for_tool(&tool.name, &tool.input_schema)
             })
         })
         .collect::<Vec<_>>();
-    json!({ "tools": tools })
+    json!({
+        "tools": tools,
+        "profile": profile.name.to_string()
+    })
 }
 
 fn dispatch_tool_call<E>(
@@ -733,6 +929,11 @@ where
         .get("name")
         .and_then(Value::as_str)
         .ok_or_else(|| validation_error("tools/call name is required"))?;
+    let tool_name =
+        QueryToolName::from_tool_name(name).ok_or_else(|| validation_error("unknown tool name"))?;
+    if !router.profile().is_enabled(tool_name) {
+        return Err(tool_disabled_error(name, router.profile().name));
+    }
     let arguments = params
         .get("arguments")
         .cloned()
@@ -767,6 +968,132 @@ where
         ],
         "isError": false
     }))
+}
+
+fn input_schema_for_tool(name: &str, title: &str) -> Value {
+    let scope = json!({
+        "type": "object",
+        "required": ["project_id", "branch_id"],
+        "properties": {
+            "project_id": { "type": "string" },
+            "branch_id": { "type": "string" }
+        }
+    });
+    let mut properties = serde_json::Map::new();
+    let mut required = Vec::new();
+
+    if name != "compact_command_output" {
+        properties.insert("scope".to_string(), scope);
+        required.push("scope");
+    }
+
+    match name {
+        "find_symbol" | "search_code" => {
+            properties.insert("query".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "limit".to_string(),
+                json!({ "type": "integer", "minimum": 1 }),
+            );
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend(["query", "include_trace"]);
+        }
+        "find_callers" | "find_callees" | "related_symbols" => {
+            properties.insert("symbol_id".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "max_depth".to_string(),
+                json!({ "type": "integer", "minimum": 1 }),
+            );
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend(["symbol_id", "include_trace"]);
+        }
+        "impact_analysis" => {
+            properties.insert("symbol_id".to_string(), json!({ "type": "string" }));
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend(["symbol_id", "include_trace"]);
+        }
+        "get_context_pack" => {
+            properties.insert("query".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "token_budget".to_string(),
+                json!({ "type": "integer", "minimum": 1 }),
+            );
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend(["query", "token_budget", "include_trace"]);
+        }
+        "trace_dependency" => {
+            properties.insert("source_symbol_id".to_string(), json!({ "type": "string" }));
+            properties.insert("target_symbol_id".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "edge_filters".to_string(),
+                json!({ "type": "array", "items": { "type": "string" } }),
+            );
+            properties.insert(
+                "max_depth".to_string(),
+                json!({ "type": "integer", "minimum": 1 }),
+            );
+            properties.insert(
+                "min_confidence".to_string(),
+                json!({ "type": "integer", "minimum": 0, "maximum": 10000 }),
+            );
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend([
+                "source_symbol_id",
+                "target_symbol_id",
+                "edge_filters",
+                "include_trace",
+            ]);
+        }
+        "detect_cycles" => {
+            properties.insert(
+                "edge_filters".to_string(),
+                json!({ "type": "array", "items": { "type": "string" } }),
+            );
+            properties.insert(
+                "max_nodes".to_string(),
+                json!({ "type": "integer", "minimum": 1 }),
+            );
+            properties.insert(
+                "min_confidence".to_string(),
+                json!({ "type": "integer", "minimum": 0, "maximum": 10000 }),
+            );
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.extend(["edge_filters", "include_trace"]);
+        }
+        "savings_report" => {
+            properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
+            required.push("include_trace");
+        }
+        "compact_command_output" => {
+            properties.insert("command".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "argv".to_string(),
+                json!({ "type": "array", "items": { "type": "string" } }),
+            );
+            properties.insert("stdout".to_string(), json!({ "type": "string" }));
+            properties.insert("stderr".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "exit_code".to_string(),
+                json!({ "type": ["integer", "null"] }),
+            );
+            properties.insert(
+                "working_directory".to_string(),
+                json!({ "type": ["string", "null"] }),
+            );
+            properties.insert(
+                "max_bytes".to_string(),
+                json!({ "type": ["integer", "null"], "minimum": 256, "maximum": 128000 }),
+            );
+            required.extend(["command", "exit_code"]);
+        }
+        _ => {}
+    }
+
+    json!({
+        "type": "object",
+        "title": title,
+        "required": required,
+        "properties": properties
+    })
 }
 
 fn decode<T>(value: Value) -> McpToolResult<T>
@@ -988,6 +1315,15 @@ fn validation_error(message: &str) -> McpToolError {
     McpToolError {
         code: "invalid_request".to_string(),
         message: message.to_string(),
+    }
+}
+
+fn tool_disabled_error(tool_name: &str, profile: ToolProfileName) -> McpToolError {
+    McpToolError {
+        code: "tool_not_enabled".to_string(),
+        message: format!(
+            "tool '{tool_name}' is not enabled in current profile '{profile}'; use full or debug profile if this tool is required"
+        ),
     }
 }
 
@@ -1268,6 +1604,67 @@ mod tests {
     }
 
     #[test]
+    fn parses_tool_profiles_and_rejects_invalid_values() {
+        assert_eq!("tiny".parse::<ToolProfileName>(), Ok(ToolProfileName::Tiny));
+        assert_eq!(
+            "web-app".parse::<ToolProfileName>(),
+            Ok(ToolProfileName::WebApp)
+        );
+        assert!("business-app".parse::<ToolProfileName>().is_err());
+    }
+
+    #[test]
+    fn default_profile_is_optimized() {
+        assert_eq!(ToolProfileName::default(), ToolProfileName::Optimized);
+        assert_eq!(ToolProfileConfig::default().enabled_tools().len(), 7);
+    }
+
+    #[test]
+    fn profiles_expose_expected_tool_counts() {
+        let expected = [
+            (ToolProfileName::Tiny, 5),
+            (ToolProfileName::Optimized, 7),
+            (ToolProfileName::Full, 11),
+            (ToolProfileName::Debug, 11),
+            (ToolProfileName::Readonly, 11),
+            (ToolProfileName::Editing, 7),
+            (ToolProfileName::WebApp, 7),
+            (ToolProfileName::Enterprise, 9),
+        ];
+
+        for (profile, count) in expected {
+            let config = ToolProfileConfig::new(profile);
+            assert_eq!(config.enabled_tools().len(), count, "{profile}");
+            assert!(config.is_enabled(QueryToolName::CompactCommandOutput));
+        }
+    }
+
+    #[test]
+    fn readonly_profile_currently_exposes_only_readonly_tools() {
+        let config = ToolProfileConfig::new(ToolProfileName::Readonly);
+        assert_eq!(config.enabled_tools().len(), 11);
+        assert!(config
+            .enabled_tools()
+            .iter()
+            .all(|tool| QueryToolName::from_tool_name(tool.as_str()).is_some()));
+    }
+
+    #[test]
+    fn registered_tools_are_filtered_by_profile() {
+        let tiny = registered_tools_for_profile(&ToolProfileConfig::new(ToolProfileName::Tiny));
+        let enterprise =
+            registered_tools_for_profile(&ToolProfileConfig::new(ToolProfileName::Enterprise));
+
+        assert_eq!(tiny.len(), 5);
+        assert!(tiny.iter().any(|tool| tool.name == "search_code"));
+        assert!(!tiny.iter().any(|tool| tool.name == "impact_analysis"));
+        assert_eq!(enterprise.len(), 9);
+        assert!(enterprise
+            .iter()
+            .any(|tool| tool.name == "trace_dependency"));
+    }
+
+    #[test]
     fn json_rpc_lists_and_calls_tools() {
         let router = McpQueryToolRouter::new(MockExecutor);
         let list =
@@ -1279,16 +1676,152 @@ mod tests {
         )
         .expect("call");
 
-        assert!(list
-            .response
-            .expect("list response")
-            .to_string()
-            .contains("find_symbol"));
+        let list_response = list.response.expect("list response");
+        assert_eq!(
+            list_response["result"]["tools"]
+                .as_array()
+                .expect("tools")
+                .len(),
+            7
+        );
+        assert_eq!(list_response["result"]["profile"], "optimized");
         assert!(call
             .response
             .expect("call response")
             .to_string()
             .contains("trace-find"));
+    }
+
+    #[test]
+    fn tools_list_respects_full_and_tiny_profiles() {
+        let full = McpQueryToolRouter::with_profile(MockExecutor, ToolProfileName::Full);
+        let tiny = McpQueryToolRouter::with_profile(MockExecutor, ToolProfileName::Tiny);
+
+        let full_response =
+            handle_json_rpc_line(&full, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
+                .expect("full")
+                .response
+                .expect("response");
+        let tiny_response =
+            handle_json_rpc_line(&tiny, r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#)
+                .expect("tiny")
+                .response
+                .expect("response");
+
+        assert_eq!(
+            full_response["result"]["tools"].as_array().unwrap().len(),
+            11
+        );
+        assert_eq!(
+            tiny_response["result"]["tools"].as_array().unwrap().len(),
+            5
+        );
+    }
+
+    #[test]
+    fn hidden_tool_call_returns_profile_aware_error() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let response = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_callers","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+
+        assert_eq!(response["error"]["data"]["code"], "tool_not_enabled");
+        assert!(response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("optimized"));
+    }
+
+    #[test]
+    fn full_profile_keeps_trace_tools_callable() {
+        let router = McpQueryToolRouter::with_profile(MockExecutor, ToolProfileName::Full);
+        let response = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"trace_dependency","arguments":{"scope":{"project_id":"project","branch_id":"main"},"source_symbol_id":"a","target_symbol_id":"b","edge_filters":["calls"],"max_depth":2,"min_confidence":0,"include_trace":false}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("\"found\":true"));
+    }
+
+    #[test]
+    fn full_profile_keeps_all_current_tools_callable() {
+        let router = McpQueryToolRouter::with_profile(MockExecutor, ToolProfileName::Full);
+        let calls = [
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_symbol","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","limit":10,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_code","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","limit":10,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"find_callers","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"find_callees","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"related_symbols","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"impact_analysis","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_context_pack","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","token_budget":100,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"trace_dependency","arguments":{"scope":{"project_id":"project","branch_id":"main"},"source_symbol_id":"a","target_symbol_id":"b","edge_filters":["calls"],"max_depth":2,"min_confidence":0,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"detect_cycles","arguments":{"scope":{"project_id":"project","branch_id":"main"},"edge_filters":["calls"],"max_nodes":10,"min_confidence":0,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"savings_report","arguments":{"scope":{"project_id":"project","branch_id":"main"},"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"compact_command_output","arguments":{"command":"cargo test","stdout":"test result: ok","stderr":"done","exit_code":0,"max_bytes":1000}}}"#,
+        ];
+
+        for call in calls {
+            let response = handle_json_rpc_line(&router, call)
+                .expect("call")
+                .response
+                .expect("response");
+            assert!(response.get("error").is_none(), "{response}");
+            assert_eq!(response["result"]["isError"], false);
+        }
+    }
+
+    #[test]
+    fn compact_command_output_is_available_in_optimized_profile() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let response = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"compact_command_output","arguments":{"command":"cargo test","stdout":"error[E0425]: missing","stderr":"thread panicked","exit_code":101,"max_bytes":1000}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("compacted_output"));
+    }
+
+    #[test]
+    fn slim_manifest_keeps_required_nested_scope_schema() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let response =
+            handle_json_rpc_line(&router, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
+                .expect("list")
+                .response
+                .expect("response");
+        let tools = response["result"]["tools"].as_array().expect("tools");
+        let find_symbol = tools
+            .iter()
+            .find(|tool| tool["name"] == "find_symbol")
+            .expect("find_symbol");
+        let schema = &find_symbol["inputSchema"];
+
+        assert_eq!(schema["type"], "object");
+        assert!(schema["required"].to_string().contains("scope"));
+        assert_eq!(
+            schema["properties"]["scope"]["properties"]["project_id"]["type"],
+            "string"
+        );
+        assert_eq!(
+            schema["properties"]["scope"]["properties"]["branch_id"]["type"],
+            "string"
+        );
     }
 
     #[test]

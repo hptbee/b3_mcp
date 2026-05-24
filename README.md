@@ -39,10 +39,14 @@ Completed:
 - Phase 8.5 - Command Output Compaction
 - Phase 8.5.1 - Project Init + Manual Index Command
 - Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+- Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Phase 8.7 - Agent Install Helper + Hook Integration Foundation
+- Phase 8.8 - Multi-repo Registry + Project Groups
+- Phase 9.0 - Language Backend Architecture
 
 Next:
 
-- Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Phase 9.1 - LSP Backend MVP
 
 Rust has the best current language support. Multi-language and domain-specific
 application intelligence is planned for later phases.
@@ -52,6 +56,9 @@ application intelligence is planned for later phases.
 - Index this Rust repo into `.b3/b3.db`.
 - Query indexed symbols, graph relationships, context packs, and impact data.
 - Run the MCP runtime from an MCP client.
+- Choose an MCP tool profile to reduce `tools/list` manifest noise.
+- Generate or apply local Codex/Cursor MCP config with the `b3` helper.
+- Register local projects and metadata-only project groups in a local registry.
 - Start the control server at `http://127.0.0.1:7777`.
 - Start the web UI at `http://127.0.0.1:8888`.
 - Trigger indexing from CLI, control API, or the web UI.
@@ -59,10 +66,12 @@ application intelligence is planned for later phases.
 
 ## Current Limitations
 
-- The workflow is single-project only; multi-repo registry and project groups
-  are deferred to Phase 8.8.
-- Rust is the only real language pack right now.
-- Embeddings, semantic search, Qdrant, LSP, session memory, symbolic editing,
+- Cross-project query execution, graph merging, and architecture intelligence
+  are deferred.
+- Rust is the only implemented parser backend right now.
+- C#, TypeScript, JavaScript, TSX/JSX, Dockerfile, XAML, Python, Java, Go, and
+  other languages are detected for capability reporting only.
+- Embeddings, semantic search, Qdrant, LSP runtime, session memory, symbolic editing,
   installer tooling, and domain-specific intelligence are deferred.
 - Reindex is currently safe incremental reindexing, not a separate force-delete
   full rebuild.
@@ -116,7 +125,8 @@ Business Application
 └── Runtime Infrastructure
 ```
 
-Project groups and the multi-repo registry are deferred to Phase 8.8.
+Project groups are metadata only in Phase 8.8. Each project keeps its own
+repo-local `.b3/b3.db`.
 
 ## Repository Layout
 
@@ -131,23 +141,23 @@ Project groups and the multi-repo registry are deferred to Phase 8.8.
 
 ## MCP Tools
 
-B3 currently exposes these MCP tools:
+B3 has 11 current MCP tools. The default `optimized` profile exposes 7 of
+them to reduce manifest tokens:
 
 ```text
 find_symbol
 search_code
-find_callers
-find_callees
 related_symbols
 impact_analysis
 get_context_pack
-trace_dependency
-detect_cycles
-savings_report
 compact_command_output
+savings_report
 ```
 
-See `MCP_TOOLS.md` for request/response details.
+Use `--profile full` for all 11 tools, `--profile tiny` for the smallest
+5-tool set, or `--profile enterprise` for 9 graph/impact-oriented tools. Hidden
+tools are rejected with a structured profile-aware error. See `MCP_TOOLS.md` for
+profile tables and request/response details.
 
 ## Command Output Compaction
 
@@ -185,7 +195,61 @@ cargo run -p b3-control --bin b3-control-server -- reindex --project "." --datab
 cargo run -p b3-mcp-runtime -- serve --project "." --database ".b3/b3.db"
 ```
 
+Equivalent explicit optimized profile:
+
+```powershell
+cargo run -p b3-mcp-runtime -- serve --project "." --database ".b3/b3.db" --profile optimized
+```
+
 MCP clients should launch this process over stdio.
+
+## Agent Install Helper
+
+Generate Codex or Cursor MCP config without writing:
+
+```powershell
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --dry-run
+cargo run -p b3-cli -- install --agent cursor --project "." --database ".b3/b3.db" --profile optimized --dry-run
+```
+
+Apply with backup:
+
+```powershell
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --apply --backup
+```
+
+Run local diagnostics:
+
+```powershell
+cargo run -p b3-cli -- doctor --project "." --database ".b3/b3.db" --profile optimized
+```
+
+The helper only edits local config files. Hooks are documented as future
+foundation and remain disabled by default.
+
+## Registry And Groups
+
+The optional registry is local JSON at `~/.b3/registry.json` unless `B3_HOME`
+or `--registry` points elsewhere.
+
+```powershell
+cargo run -p b3-cli -- register "." --name "B3 MCP" --tag rust --tag mcp
+cargo run -p b3-cli -- list
+cargo run -p b3-cli -- status b3-mcp
+cargo run -p b3-cli -- group create "Business Application" --id business-app
+cargo run -p b3-cli -- group add business-app b3-mcp
+cargo run -p b3-cli -- group status business-app
+```
+
+Registry use is optional. Existing single-project commands still work without
+`~/.b3/registry.json`.
+
+## Language Backends
+
+Phase 9.0 adds shared language backend contracts, local detection, support
+levels, and capability discovery. Rust reports an available tree-sitter backend
+with symbol/import/relationship extraction. Planned languages are detected where
+possible but only report detect-file support until later phases.
 
 ## Control Server Usage
 
@@ -255,11 +319,11 @@ Benchmark data stays local.
 
 Recently completed:
 
-- Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+- Phase 9.0 - Language Backend Architecture
 
 Next:
 
-- Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+- Phase 9.1 - LSP Backend MVP
 
 See `PLAN.md` for the full roadmap.
 

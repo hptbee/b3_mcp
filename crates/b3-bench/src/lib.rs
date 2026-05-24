@@ -22,7 +22,7 @@ use b3_indexer::{
     parse_worker_json_line, DebouncedBatch, IndexerConfig, LocalIndexer, ParserJobRequest,
     RustLanguagePack, WatchDebouncer, WatchEvent, WatchEventKind,
 };
-use b3_mcp_runtime::{handle_json_rpc_line, McpQueryToolRouter};
+use b3_mcp_runtime::{handle_json_rpc_line, McpQueryToolRouter, ToolProfileName};
 use b3_query::{LocalQueryEngine, QueryEngineConfig};
 use b3_storage::SqliteStorage;
 use http::Request;
@@ -168,7 +168,26 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     let cycle_state = index_fixture(&cycle)?;
     let call_graph_state = index_fixture(&call_graph)?;
 
-    results.push(bench_mcp_tools_list(&medium_state.storage)?);
+    results.push(bench_mcp_tools_list(
+        &medium_state.storage,
+        ToolProfileName::Optimized,
+        "mcp_tools_list_latency",
+    )?);
+    results.push(bench_mcp_tools_list(
+        &medium_state.storage,
+        ToolProfileName::Full,
+        "mcp_tools_list_latency_full",
+    )?);
+    results.push(bench_mcp_tools_list(
+        &medium_state.storage,
+        ToolProfileName::Tiny,
+        "mcp_tools_list_latency_tiny",
+    )?);
+    results.push(bench_mcp_tools_list(
+        &medium_state.storage,
+        ToolProfileName::Enterprise,
+        "mcp_tools_list_latency_enterprise",
+    )?);
     results.push(bench_mcp_simple_tool_call(&medium_state.storage)?);
     results.push(bench_control_endpoint(
         "control_health_latency",
@@ -270,18 +289,29 @@ fn bench_cold_startup() -> ContractResult<BenchmarkResult> {
     Ok(result)
 }
 
-fn bench_mcp_tools_list(storage: &SqliteStorage) -> ContractResult<BenchmarkResult> {
+fn bench_mcp_tools_list(
+    storage: &SqliteStorage,
+    profile: ToolProfileName,
+    name: &str,
+) -> ContractResult<BenchmarkResult> {
     let engine = LocalQueryEngine::new(storage, QueryEngineConfig::default());
-    let router = McpQueryToolRouter::new(engine);
+    let router = McpQueryToolRouter::with_profile(engine, profile);
     let started = Instant::now();
     let outcome =
         handle_json_rpc_line(&router, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
             .map_err(ContractError::new)?;
-    let mut result = BenchmarkResult::new("mcp_tools_list_latency", started.elapsed());
+    let mut result = BenchmarkResult::new(name, started.elapsed());
     result.query_result_count = outcome
         .response
         .and_then(|value| value["result"]["tools"].as_array().map(Vec::len))
         .unwrap_or_default();
+    result
+        .metadata
+        .insert("profile".to_string(), profile.to_string());
+    result.metadata.insert(
+        "tool_count".to_string(),
+        result.query_result_count.to_string(),
+    );
     Ok(result)
 }
 

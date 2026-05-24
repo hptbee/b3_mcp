@@ -9,6 +9,7 @@ mod config;
 mod contracts;
 mod events;
 mod ids;
+mod language;
 mod plugin;
 mod query;
 
@@ -16,6 +17,7 @@ pub use config::*;
 pub use contracts::*;
 pub use events::*;
 pub use ids::*;
+pub use language::*;
 pub use plugin::*;
 pub use query::*;
 

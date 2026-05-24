@@ -79,6 +79,10 @@ must remain optional, plugin-based, and disabled by default.
 
 Must provide, over the implementation phases:
 - MCP server for Cursor/Codex
+- local Codex/Cursor MCP config helper
+- optional local multi-repo registry
+- metadata-only project groups/workspaces
+- language backend contracts and capability discovery
 - persistent code graph
 - semantic search with local embeddings
 - FTS/BM25 keyword search
@@ -140,6 +144,27 @@ Edit:
 - `atomic_multi_replace`
 - `insert_at_anchor`
 
+## MCP Tool Profiles
+
+The MCP runtime must support static local tool profiles to reduce `tools/list`
+manifest noise and token overhead. The default profile is `optimized`, not
+`full`.
+
+Supported profiles:
+
+- `tiny`
+- `optimized`
+- `full`
+- `debug`
+- `readonly`
+- `editing`
+- `web-app`
+- `enterprise`
+
+Hidden tools must not execute. They should return a structured profile-aware
+error when practical. Future mutation tools must be hidden from `readonly` and
+reserved for `editing`, `full`, or `debug` only when explicitly allowed.
+
 ## Architecture
 
 Use a hybrid monolith:
@@ -153,9 +178,34 @@ MCP runtime responsibilities:
 - stdio transport
 - JSON-RPC
 - tool routing
+- local tool profile filtering
+- concise tools/list manifest generation
 - streaming
 - cancellation
 - session lifecycle
+
+Installer/helper responsibilities:
+- local MCP config snippet generation
+- dry-run install plans
+- safe local config updates when explicitly applied
+- backups before config writes
+- local doctor diagnostics
+- hook placeholders disabled by default
+
+Registry responsibilities:
+- local JSON project registry
+- project registration/list/status
+- metadata-only project groups
+- repo-local database paths per project
+- no automatic filesystem scanning
+
+Language backend architecture responsibilities:
+- local file/language detection
+- backend metadata and capability discovery
+- support level reporting
+- tree-sitter backend contract for indexing
+- future LSP backend contract for semantic operations
+- unsupported language fallback without fake symbols
 
 Never put these in the MCP hot path:
 - full indexing
@@ -163,6 +213,27 @@ Never put these in the MCP hot path:
 - unbounded graph traversal
 - blocking IO
 - large filesystem scans
+
+Installer/helper must not:
+- execute user commands
+- intercept shells
+- modify shell profiles
+- start telemetry
+- call external APIs
+- require agent installation to generate config
+
+Registry must not:
+- require the registry for single-project mode
+- merge project graphs
+- run cross-project queries
+- own architecture intelligence
+- use cloud sync, telemetry, hosted DBs, or external APIs
+
+Language backend architecture must not:
+- claim unimplemented parser/LSP capabilities
+- require LSP until the local LSP backend phase implements it
+- call external tools or network services for detection
+- add cloud or paid language services
 
 ## Indexing Pipeline
 
@@ -333,10 +404,13 @@ Avoid:
 - Phase 8.5: Command Output Compaction
 - Phase 8.5.1: Project Init + Manual Index Command
 - Phase 8.5.1.1: Repository Structure Audit + Folder/File Cleanup
+- Phase 8.6: MCP Tool Profiles + Manifest Slimming
+- Phase 8.7: Agent Install Helper + Hook Integration Foundation
+- Phase 8.8: Multi-repo Registry + Project Groups
+- Phase 9.0: Language Backend Architecture
 
 ### Planned Phases
 
-- Phase 8.6: MCP Tool Profiles + Manifest Slimming
 - Phase 9: Local Embeddings + Vector Search
 - Phase 9.1: Semantic Context Upgrade
 - Phase 10: Multi-language Packs

@@ -56,6 +56,19 @@ cargo run -p b3-control --bin b3-control-server -- reindex --project "." --datab
 This phase is single-project only. Multi-repo registry and project groups are
 deferred to Phase 8.8.
 
+The `b3` install helper prints these init/index/serve commands as local next
+steps after generating Codex or Cursor MCP config. It does not run init,
+indexing, or the control server automatically.
+
+## Registry And Groups
+
+Phase 8.8 adds local registry and project group commands to the `b3` CLI. The
+registry is metadata-only JSON at `~/.b3/registry.json` by default, and each
+registered project still uses its own repo-local `.b3/b3.db`.
+
+Control server registry APIs are deferred. Existing single-project control
+server commands and endpoints do not require the registry.
+
 ## Endpoints
 
 Health and project status:
@@ -96,11 +109,26 @@ Diagnostics and config:
 - `GET /api/savings/summary`
 - `GET /api/diagnostics`
 - `GET /api/capabilities`
+- `GET /api/languages`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
 
 The event stream emits server, watcher, debounce, indexing, and parser worker lifecycle events. Manual index requests can emit `indexing_started`, `file_indexed`, `file_skipped`, `indexing_completed`, `indexing_failed`, and `parse_failed`.
+
+## Language Capabilities
+
+`GET /api/capabilities` includes language backend metadata. `GET
+/api/languages` returns the language registry directly.
+
+Current truth:
+
+- Rust has an available `tree-sitter-rust` backend with `Good` support.
+- Planned languages may be detected by extension or filename, but only report
+  detect-file capability.
+- LSP is disabled until Phase 9.1.
+- No non-Rust parser, LSP runtime, semantic search, or framework intelligence is
+  exposed by these endpoints.
 
 ## Examples
 

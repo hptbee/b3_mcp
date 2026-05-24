@@ -61,6 +61,8 @@ MCP runtime must only handle:
 - stdio transport
 - JSON-RPC
 - tool routing
+- static local tool profile filtering
+- concise tools/list manifest generation
 - streaming
 - cancellation
 - session lifecycle
@@ -80,6 +82,65 @@ Never put these in MCP hot path:
 4. preserve memory across sessions
 5. support Cursor and Codex
 6. expose localhost UI for control/config/graph
+7. make local agent setup explicit, dry-run-first, and reversible
+
+## MCP Tool Profiles
+
+Default MCP runtime profile is `optimized`.
+
+Use:
+- `tiny` for the smallest high-value manifest
+- `optimized` for normal agent work
+- `full` or `debug` when trace-heavy tools are needed
+- `readonly` when future mutation tools must be hidden
+- `editing` only for future symbolic editing tools
+- `web-app` for common web application workflows
+- `enterprise` for future graph/impact/multi-service workflows
+
+Profiles are static local configuration only. Do not add installer hooks,
+command execution, registry behavior, cloud services, telemetry, embeddings,
+LSP, language packs, session memory, or symbolic editing as part of profile
+filtering.
+
+## Agent Install Helper
+
+The `b3` helper may generate or update local Codex/Cursor MCP config files.
+Install behavior must be dry-run-first, preserve unrelated config, avoid
+duplicate server entries, and create backups before writes.
+
+It also owns local registry commands for project and group metadata. Registry
+behavior must stay metadata-only:
+
+- default path `~/.b3/registry.json`
+- `B3_HOME` or `--registry` can redirect tests/smoke runs
+- one project keeps one repo-local `.b3/b3.db`
+- no automatic filesystem scans
+- no cross-project query execution
+- no graph merging
+- no architecture intelligence
+
+## Language Backend Architecture
+
+Language backend contracts live in `b3-core`. Indexer implementations or
+adapters live in `b3-indexer`; control may report capabilities but must not own
+parser logic.
+
+Phase 9.0 support must stay honest:
+
+- Rust is available through tree-sitter metadata and the existing parser path.
+- Planned languages can be detected locally but must not claim parser, LSP,
+  framework, route, or semantic capabilities.
+- LSP remains disabled until a later local/free LSP backend is implemented.
+- Detection must not shell out, call external APIs, or require internet access.
+
+Hook integration is foundation only. Hooks must stay disabled by default:
+
+- no automatic command interception
+- no shell proxy
+- no terminal capture
+- no telemetry
+- no shell profile modification
+- no background daemon watching user commands
 
 ## Apply These Algorithms
 

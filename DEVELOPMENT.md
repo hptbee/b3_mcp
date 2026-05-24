@@ -93,11 +93,13 @@ writes JSON output to:
 target/benchmarks/baseline.json
 ```
 
-The baseline includes local timings for MCP tool listing, simple MCP tool calls,
-control-server handlers, query operations, indexing, changed-file reindexing,
-watcher debounce behavior, SQLite graph summary queries, and parser worker
-request handling. The `memory_kb` field may be `null` on platforms where a
-rough process-memory snapshot is not available yet.
+The baseline includes local timings for MCP tool listing by profile, simple MCP
+tool calls, control-server handlers, query operations, indexing, changed-file
+reindexing, watcher debounce behavior, SQLite graph summary queries, and parser
+worker request handling. MCP tools/list benchmark entries record `profile` and
+`tool_count` metadata without removing existing JSON fields. The `memory_kb`
+field may be `null` on platforms where a rough process-memory snapshot is not
+available yet.
 
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
@@ -111,6 +113,73 @@ benchmarks/benchmark-thresholds.json
 
 Thresholds are advisory by default. They do not fail CI unless
 `fail_on_regression` is explicitly enabled.
+
+## Agent Install Helper
+
+The `b3` helper lives in `crates/b3-cli` and only reads/writes local agent
+configuration files.
+
+Dry-run is the default:
+
+```powershell
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --dry-run
+cargo run -p b3-cli -- install --agent cursor --project "." --database ".b3/b3.db" --profile optimized --dry-run
+```
+
+Writing requires `--apply` or `--write`. Backups are enabled by default for
+apply mode:
+
+```powershell
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --apply --backup
+```
+
+Use `--config <path>` for tests and smoke checks so real user Codex/Cursor
+config files are not touched. Uninstall is also dry-run by default and removes
+only the named server entry.
+
+Doctor is local-only:
+
+```powershell
+cargo run -p b3-cli -- doctor --project "." --database ".b3/b3.db" --profile optimized
+```
+
+## Registry And Groups
+
+The optional registry is local JSON. Default path:
+
+```text
+~/.b3/registry.json
+```
+
+Use `B3_HOME` or `--registry <path>` for tests and smoke runs so real user
+registry files are not touched.
+
+```powershell
+cargo run -p b3-cli -- register "." --name "B3 MCP" --tag rust --tag mcp --registry "target/smoke-registry/registry.json"
+cargo run -p b3-cli -- list --registry "target/smoke-registry/registry.json"
+cargo run -p b3-cli -- status b3-mcp --registry "target/smoke-registry/registry.json"
+cargo run -p b3-cli -- group create "Business Application" --id business-app --registry "target/smoke-registry/registry.json"
+cargo run -p b3-cli -- group add business-app b3-mcp --registry "target/smoke-registry/registry.json"
+cargo run -p b3-cli -- group status business-app --registry "target/smoke-registry/registry.json"
+```
+
+`b3 unregister <project-id>` is dry-run by default and requires `--apply` to
+modify the registry. It never deletes project files or repo-local `.b3` DBs.
+
+## Language Backends
+
+Phase 9.0 adds shared language backend contracts in `b3-core`, Rust tree-sitter
+backend metadata in `b3-indexer`, and control capability reporting at:
+
+```text
+GET /api/capabilities
+GET /api/languages
+```
+
+Detection is local and rule-based: extensions, selected filenames such as
+`Dockerfile`, and compose filenames. Detection does not mean parser support.
+Rust is currently implemented through `tree-sitter-rust`; planned languages
+report detect-file support only. LSP is disabled by default until Phase 9.1.
 
 ## Offline-First Expectations
 
@@ -131,12 +200,23 @@ External integrations must remain:
 ## Boundary Expectations
 
 - MCP runtime remains protocol-only.
+- MCP tool profiles are static local runtime configuration; default profile is
+  `optimized`.
+- Agent install helper logic lives outside query/index/storage internals and
+  must not execute commands or install automatic hooks.
+- Registry and project groups are metadata only; they must not trigger
+  cross-project queries, graph merging, filesystem scans, or indexing.
+- Language backend contracts must report support honestly. Do not claim
+  C#/TypeScript/JavaScript/LSP/framework support until the implementation
+  exists.
 - Indexing runs outside the MCP hot path.
 - Storage exposes repository contracts instead of leaking SQLite details across crates.
 - Thread-safe SQLite index-store adapters belong in `b3-storage`, not HTTP or MCP adapters.
 - Command output compaction only transforms provided stdout/stderr; it must not execute commands.
 - Embeddings run in background workers in later phases.
 - UI/control plane stays separate from MCP runtime.
+- Hook integration foundation is disabled by default and must not intercept
+  shells or modify shell profiles.
 
 ## Command Output Compaction
 

@@ -11,19 +11,21 @@ traversal, embeddings, command execution, or UI work.
 Run the local stdio server with:
 
 ```powershell
-b3-mcp-runtime serve --project .
+b3-mcp-runtime serve --project . --profile optimized
 ```
 
-By default, the runtime opens `.b3/b3.db` under the project directory. A local
+`optimized` is the default, so omitting `--profile` is equivalent. A local
 database path can be supplied explicitly:
 
 ```powershell
-b3-mcp-runtime serve --project . --database .b3/b3.db
+b3-mcp-runtime serve --project . --database .b3/b3.db --profile full
 ```
 
 The bootstrap is local-only: it opens SQLite storage, initializes the query
 engine, and starts the JSON-RPC stdio loop. It does not call external APIs,
 start telemetry, index files, or run embeddings.
+
+The runtime also accepts `--tool-profile` as an alias for `--profile`.
 
 ## Client Config Examples
 
@@ -53,10 +55,49 @@ Codex-style generic MCP config:
 }
 ```
 
+The `b3` helper can generate or apply these snippets locally:
+
+```powershell
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --dry-run
+cargo run -p b3-cli -- install --agent cursor --project "." --database ".b3/b3.db" --profile optimized --dry-run
+```
+
 All tools require `scope.project_id` and `scope.branch_id`.
 
 The exception is `compact_command_output`, which operates only on command text
 and stdout/stderr supplied by the caller. It does not execute commands.
+
+## Tool Profiles
+
+Profiles slim `tools/list` to the tools most useful for the current workflow.
+Hidden tools are not callable. A hidden tool call returns a structured MCP error
+with code `tool_not_enabled`, the tool name, the current profile, and a
+suggestion to use `full` or `debug` when appropriate.
+
+| Profile | Tools | Count |
+|---|---|---:|
+| `tiny` | `search_code`, `find_symbol`, `get_context_pack`, `compact_command_output`, `savings_report` | 5 |
+| `optimized` | `find_symbol`, `search_code`, `related_symbols`, `impact_analysis`, `get_context_pack`, `compact_command_output`, `savings_report` | 7 |
+| `full` | all current tools | 11 |
+| `debug` | all current tools | 11 |
+| `readonly` | all current tools for now; future mutation tools must be hidden | 11 |
+| `editing` | same as `optimized` for now; reserved for future symbolic editing tools | 7 |
+| `web-app` | same as `optimized` for now; future web workflow tools may prioritize C#, TypeScript, JavaScript, React, Angular, Node.js, REST APIs, routes, and components | 7 |
+| `enterprise` | `find_symbol`, `search_code`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 9 |
+
+Future mutation tools such as `preview_edit`, `apply_edit`, and `rename_symbol`
+must remain hidden from `readonly` and appear only in `editing`, `full`, or
+`debug` when explicitly allowed.
+
+## Manifest Slimming
+
+`tools/list` returns only enabled tools for the selected profile. Tool
+descriptions are concise, and input schemas preserve required fields without
+long examples or roadmap text. Existing request DTOs remain compatible,
+including nested scope fields:
+
+- `scope.project_id`
+- `scope.branch_id`
 
 ## Tools
 

@@ -309,7 +309,7 @@ baseline before refactor and optimization work.
 The baseline runner measures:
 
 - cold startup
-- MCP tools/list and simple tools/call latency
+- MCP tools/list latency by selected profile and simple tools/call latency
 - control-server health/status handler latency
 - find_symbol and search_code latency
 - graph neighbors and graph path latency
@@ -324,6 +324,12 @@ Benchmark data is local-only and written as JSON under `target/benchmarks`.
 Results are not uploaded, and regression thresholds are advisory unless
 explicitly enabled. The `memory_kb` field is best-effort and may be `null`
 until platform-specific memory collection is added.
+
+Phase 8.6 adds profile metadata to MCP tools/list benchmark entries. The default
+`mcp_tools_list_latency` entry measures the `optimized` profile, and additional
+entries measure `full`, `tiny`, and `enterprise`. Existing JSON fields are
+preserved; `metadata.profile` and `metadata.tool_count` record the selected
+profile and returned tool count.
 
 Phase 8.4 refined the watcher debounce benchmark after the baseline showed the
 largest value was dominated by an intentional sleep. The benchmark now measures
@@ -345,3 +351,17 @@ algorithm is intentionally deterministic:
 No commands are executed by the compactor, and no LLM/cloud summarization is
 used. The first benchmark entry measures compaction latency against static local
 fixture text.
+
+## Language Backend Architecture
+
+Phase 9.0 introduces capability discovery before broad language implementation.
+Language detection is deterministic and local, based on file extensions and
+selected filenames. Detection is separated from support level:
+
+- `Good`: Rust through the existing tree-sitter parser path.
+- `Basic`: planned languages with detect-file rules only.
+- `Unsupported`: unknown files with no local detection rule.
+
+No LSP process, semantic search, embeddings, framework intelligence, or
+cross-project architecture analysis is part of this phase. Benchmark semantics
+remain focused on existing Rust fixtures and current query/index behavior.

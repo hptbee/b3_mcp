@@ -3,6 +3,7 @@ members = [
     "crates/b3-compaction",
     "crates/b3-control",
     "crates/b3-bench",
+    "crates/b3-cli",
     "crates/b3-core",
     "crates/b3-embeddings",
     "crates/b3-indexer",

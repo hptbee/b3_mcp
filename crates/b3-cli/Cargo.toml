@@ -1,0 +1,20 @@
+[package]
+name = "b3-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "b3"
+path = "src/main.rs"
+
+[dependencies]
+b3-mcp-runtime = { path = "../b3-mcp-runtime" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

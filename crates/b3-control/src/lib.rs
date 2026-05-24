@@ -25,9 +25,9 @@ use axum::{
     Router,
 };
 use b3_core::{
-    AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, IndexSummary,
-    Indexer, ParserIsolationMode, ProjectId, QueryRequest, QueryResult, SymbolRepository,
-    PRODUCT_NAME,
+    default_language_backend_registry, AppConfig, BranchId, BranchMetadata, ContractError,
+    ContractResult, EventBus, IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest,
+    QueryResult, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     IndexerConfig, LocalIndexer, NotifyFileWatcher, ParserIsolation, RustLanguagePack, WatchConfig,
@@ -260,6 +260,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/savings/summary", get(savings_summary))
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
+        .route("/api/languages", get(languages))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -968,6 +969,7 @@ async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
 }
 
 async fn capabilities() -> Json<Value> {
+    let language_registry = default_language_backend_registry();
     Json(json!({
         "product": PRODUCT_NAME,
         "offline_first": true,
@@ -982,8 +984,13 @@ async fn capabilities() -> Json<Value> {
             "config_read": true,
             "config_mutation": false,
             "events": "sse"
-        }
+        },
+        "language_backends": language_registry
     }))
+}
+
+async fn languages() -> Json<Value> {
+    Json(json!(default_language_backend_registry()))
 }
 
 async fn config(State(state): State<ControlState>) -> Json<Value> {
@@ -1022,6 +1029,11 @@ async fn config(State(state): State<ControlState>) -> Json<Value> {
             "control_server_enabled": config.ui.control_server_enabled,
             "websocket_enabled": config.ui.websocket_enabled,
             "bind_address": config.ui.bind_address
+        },
+        "language_backends": {
+            "selection_policy": config.language_backends.selection_policy,
+            "enable_lsp": config.language_backends.enable_lsp,
+            "enable_experimental_languages": config.language_backends.enable_experimental_languages
         }
     }))
 }
@@ -2422,6 +2434,58 @@ mod tests {
         let body = response_json(response).await;
         assert_eq!(body["status"], "ok");
         assert_eq!(body["offline_mode"], true);
+    }
+
+    #[tokio::test]
+    async fn capabilities_include_language_backend_truth() {
+        let response = empty_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/capabilities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        let backends = body["language_backends"]["backends"]
+            .as_array()
+            .expect("backends");
+        let rust = backends
+            .iter()
+            .find(|backend| backend["backend_id"] == "tree-sitter-rust")
+            .expect("rust backend");
+        let csharp = backends
+            .iter()
+            .find(|backend| backend["language_id"] == "csharp")
+            .expect("csharp backend");
+
+        assert_eq!(rust["support_level"], "Good");
+        assert_eq!(rust["available"], true);
+        assert_eq!(csharp["available"], false);
+        assert_eq!(body["language_backends"]["lsp_enabled"], false);
+    }
+
+    #[tokio::test]
+    async fn languages_endpoint_reports_known_languages() {
+        let response = empty_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/languages")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["lsp_enabled"], false);
+        assert!(body["known_languages"]
+            .to_string()
+            .contains("docker-compose"));
     }
 
     #[tokio::test]
