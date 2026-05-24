@@ -1,5 +1,8 @@
 # Offline-First Patch
 
+Archived historical document. Not the current roadmap source of truth; the
+offline/free requirement is maintained in the active root documentation.
+
 ## Hard Requirement
 
 The MCP platform must function fully offline.

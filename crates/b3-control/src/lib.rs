@@ -11,7 +11,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -25,12 +25,13 @@ use axum::{
     Router,
 };
 use b3_core::{
-    AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus,
-    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, SymbolRepository, PRODUCT_NAME,
+    AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, IndexSummary,
+    Indexer, ParserIsolationMode, ProjectId, QueryRequest, QueryResult, SymbolRepository,
+    PRODUCT_NAME,
 };
 use b3_indexer::{
-    IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, ParserIsolation,
-    WatchConfig, WatchEventKind,
+    IndexerConfig, LocalIndexer, NotifyFileWatcher, ParserIsolation, RustLanguagePack, WatchConfig,
+    WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
@@ -83,6 +84,69 @@ pub struct ServeOptions {
     pub debounce_ms: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectCommandOptions {
+    pub project_path: PathBuf,
+    pub database_path: PathBuf,
+}
+
+impl Default for ProjectCommandOptions {
+    fn default() -> Self {
+        Self {
+            project_path: PathBuf::from("."),
+            database_path: PathBuf::from(".b3").join("b3.db"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ManualIndexSummary {
+    pub project_path: String,
+    pub database_path: String,
+    pub files_discovered: usize,
+    pub files_indexed: usize,
+    pub files_skipped: usize,
+    pub symbols_indexed: usize,
+    pub edges_indexed: usize,
+    pub parse_failures: usize,
+    pub duration_ms: u128,
+    pub reindex: bool,
+    pub behavior: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct IndexStatusResponse {
+    pub status: String,
+    pub started_at: Option<u64>,
+    pub completed_at: Option<u64>,
+    pub duration_ms: Option<u128>,
+    pub files_discovered: usize,
+    pub files_indexed: usize,
+    pub files_skipped: usize,
+    pub symbols_indexed: usize,
+    pub edges_indexed: usize,
+    pub parse_failures: usize,
+    pub last_error: Option<String>,
+}
+
+impl Default for IndexStatusResponse {
+    fn default() -> Self {
+        Self {
+            status: "idle".to_string(),
+            started_at: None,
+            completed_at: None,
+            duration_ms: None,
+            files_discovered: 0,
+            files_indexed: 0,
+            files_skipped: 0,
+            symbols_indexed: 0,
+            edges_indexed: 0,
+            parse_failures: 0,
+            last_error: None,
+        }
+    }
+}
+
 impl Default for ServeOptions {
     fn default() -> Self {
         Self {
@@ -115,6 +179,7 @@ pub struct ControlState {
     storage: Arc<Mutex<SqliteStorage>>,
     app_config: Arc<AppConfig>,
     events: EventHub,
+    index_status: Arc<Mutex<IndexStatusResponse>>,
 }
 
 impl ControlState {
@@ -128,6 +193,7 @@ impl ControlState {
             storage: Arc::new(Mutex::new(storage)),
             app_config: Arc::new(AppConfig::default()),
             events: EventHub::new(256),
+            index_status: Arc::new(Mutex::new(IndexStatusResponse::default())),
         })
     }
 
@@ -142,6 +208,7 @@ impl ControlState {
             storage: Arc::new(Mutex::new(storage)),
             app_config: Arc::new(AppConfig::default()),
             events: EventHub::new(256),
+            index_status: Arc::new(Mutex::new(IndexStatusResponse::default())),
         }
     }
 }
@@ -181,6 +248,9 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/status", get(status))
         .route("/api/projects", get(projects))
         .route("/api/project", get(project))
+        .route("/api/index/run", post(index_run))
+        .route("/api/index/reindex", post(index_reindex))
+        .route("/api/index/status", get(index_status))
         .route("/api/query/:operation", post(query_operation))
         .route("/api/graph/summary", get(graph_summary))
         .route("/api/graph/neighbors", post(graph_neighbors))
@@ -282,6 +352,24 @@ async fn project(State(state): State<ControlState>) -> Result<Json<ProjectDetail
         edge_count: stats.edges,
         offline_mode: true,
     }))
+}
+
+async fn index_run(
+    State(state): State<ControlState>,
+) -> Result<Json<ManualIndexSummary>, ControlError> {
+    run_index_for_state(state, false).await.map(Json)
+}
+
+async fn index_reindex(
+    State(state): State<ControlState>,
+) -> Result<Json<ManualIndexSummary>, ControlError> {
+    run_index_for_state(state, true).await.map(Json)
+}
+
+async fn index_status(
+    State(state): State<ControlState>,
+) -> Result<Json<IndexStatusResponse>, ControlError> {
+    Ok(Json(state.index_status.lock().await.clone()))
 }
 
 async fn query_operation(
@@ -407,6 +495,218 @@ fn context_pack_placeholder(
             request_token_budget: request.token_budget,
         }),
     }))
+}
+
+pub fn init_project(options: &ProjectCommandOptions) -> Result<(), ControlError> {
+    if let Some(parent) = options.database_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(ControlError::internal)?;
+        }
+    }
+    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let project_id = ProjectId::new("default");
+    let branch_id = BranchId::new("main");
+    storage
+        .upsert_project(
+            &project_id,
+            "default",
+            &options.project_path.to_string_lossy(),
+        )
+        .map_err(ControlError::internal)?;
+    storage
+        .upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"))
+        .map_err(ControlError::internal)?;
+    Ok(())
+}
+
+pub fn index_project(
+    options: &ProjectCommandOptions,
+    reindex: bool,
+) -> Result<ManualIndexSummary, ControlError> {
+    init_project(options)?;
+    let started = Instant::now();
+    let project_id = ProjectId::new("default");
+    let branch_id = BranchId::new("main");
+    let before_failures = SqliteStorage::open(&options.database_path)
+        .map_err(ControlError::internal)?
+        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?;
+    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let indexer = LocalIndexer::new(
+        RustLanguagePack,
+        SharedSqliteIndexStore::new(storage),
+        NoopEventBus,
+        IndexerConfig {
+            branch_id: branch_id.clone(),
+            parser_isolation: ParserIsolation::InProcess,
+            ..IndexerConfig::default()
+        },
+    );
+    let summary = indexer
+        .index(b3_core::IndexJob {
+            project_id: project_id.clone(),
+            root_path: options.project_path.to_string_lossy().to_string(),
+        })
+        .map_err(ControlError::internal)?;
+    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let graph = storage
+        .graph_summary(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?;
+    let parse_failures = storage
+        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?
+        .saturating_sub(before_failures);
+
+    Ok(index_summary_response(
+        options,
+        summary,
+        graph.edge_count,
+        parse_failures,
+        started.elapsed(),
+        reindex,
+    ))
+}
+
+async fn run_index_for_state(
+    state: ControlState,
+    reindex: bool,
+) -> Result<ManualIndexSummary, ControlError> {
+    let started_at = now_unix_ms();
+    {
+        let mut status = state.index_status.lock().await;
+        *status = IndexStatusResponse {
+            status: "running".to_string(),
+            started_at: Some(started_at),
+            completed_at: None,
+            duration_ms: None,
+            ..IndexStatusResponse::default()
+        };
+    }
+    state.events.emit(
+        "indexing_started",
+        json!({"project_path": path_string(&state.project_path), "reindex": reindex}),
+    );
+
+    let options = ProjectCommandOptions {
+        project_path: (*state.project_path).clone(),
+        database_path: (*state.database_path).clone(),
+    };
+    let started = Instant::now();
+    let result = run_index_with_events(&options, reindex, state.events.clone());
+    match result {
+        Ok(summary) => {
+            let completed_at = now_unix_ms();
+            let mut status = state.index_status.lock().await;
+            *status = IndexStatusResponse {
+                status: "completed".to_string(),
+                started_at: Some(started_at),
+                completed_at: Some(completed_at),
+                duration_ms: Some(started.elapsed().as_millis()),
+                files_discovered: summary.files_discovered,
+                files_indexed: summary.files_indexed,
+                files_skipped: summary.files_skipped,
+                symbols_indexed: summary.symbols_indexed,
+                edges_indexed: summary.edges_indexed,
+                parse_failures: summary.parse_failures,
+                last_error: None,
+            };
+            state.events.emit("indexing_completed", json!(summary));
+            Ok(summary)
+        }
+        Err(error) => {
+            let message = error.message.clone();
+            let mut status = state.index_status.lock().await;
+            *status = IndexStatusResponse {
+                status: "failed".to_string(),
+                started_at: Some(started_at),
+                completed_at: Some(now_unix_ms()),
+                duration_ms: Some(started.elapsed().as_millis()),
+                last_error: Some(message.clone()),
+                ..IndexStatusResponse::default()
+            };
+            state
+                .events
+                .emit("indexing_failed", json!({"error": message}));
+            Err(error)
+        }
+    }
+}
+
+fn run_index_with_events(
+    options: &ProjectCommandOptions,
+    reindex: bool,
+    events: EventHub,
+) -> Result<ManualIndexSummary, ControlError> {
+    init_project(options)?;
+    let started = Instant::now();
+    let project_id = ProjectId::new("default");
+    let branch_id = BranchId::new("main");
+    let before_failures = SqliteStorage::open(&options.database_path)
+        .map_err(ControlError::internal)?
+        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?;
+    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let indexer = LocalIndexer::new(
+        RustLanguagePack,
+        SharedSqliteIndexStore::new(storage),
+        EventForwarder {
+            events: events.clone(),
+        },
+        IndexerConfig {
+            branch_id: branch_id.clone(),
+            parser_isolation: ParserIsolation::InProcess,
+            ..IndexerConfig::default()
+        },
+    );
+    let summary = indexer
+        .index(b3_core::IndexJob {
+            project_id: project_id.clone(),
+            root_path: options.project_path.to_string_lossy().to_string(),
+        })
+        .map_err(ControlError::internal)?;
+    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let graph = storage
+        .graph_summary(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?;
+    let parse_failures = storage
+        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
+        .map_err(ControlError::internal)?
+        .saturating_sub(before_failures);
+    Ok(index_summary_response(
+        options,
+        summary,
+        graph.edge_count,
+        parse_failures,
+        started.elapsed(),
+        reindex,
+    ))
+}
+
+fn index_summary_response(
+    options: &ProjectCommandOptions,
+    summary: IndexSummary,
+    edges_indexed: usize,
+    parse_failures: usize,
+    duration: Duration,
+    reindex: bool,
+) -> ManualIndexSummary {
+    ManualIndexSummary {
+        project_path: path_string(&options.project_path),
+        database_path: path_string(&options.database_path),
+        files_discovered: summary.files_seen,
+        files_indexed: summary.files_parsed,
+        files_skipped: summary.files_seen.saturating_sub(summary.files_parsed),
+        symbols_indexed: summary.symbols_indexed,
+        edges_indexed,
+        parse_failures,
+        duration_ms: duration.as_millis(),
+        reindex,
+        behavior: if reindex {
+            "safe incremental reindex: unchanged files are skipped; deleted files are cleaned for the current branch".to_string()
+        } else {
+            "incremental index: unchanged files are skipped by content hash".to_string()
+        },
+    }
 }
 
 async fn graph_summary(
@@ -762,7 +1062,7 @@ fn start_watch_daemon(options: &ServeOptions, events: EventHub) -> Result<(), Co
             let _ = storage.upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"));
 
             let indexer = LocalIndexer::new(
-                NoopTreeSitterParser,
+                RustLanguagePack,
                 SharedSqliteIndexStore::new(storage),
                 EventForwarder {
                     events: events.clone(),
@@ -1810,6 +2110,13 @@ fn checked_confidence(confidence: Option<u16>) -> Result<u16, ControlError> {
     Ok(confidence)
 }
 
+fn now_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
 #[derive(Debug, Serialize)]
 struct SavingsSummaryResponse {
     records: usize,
@@ -1830,6 +2137,15 @@ impl From<SavingsSummary> for SavingsSummaryResponse {
             avoided_search_calls: value.avoided_search_calls,
             partial: false,
         }
+    }
+}
+
+#[derive(Clone)]
+struct NoopEventBus;
+
+impl EventBus for NoopEventBus {
+    fn publish(&self, _event: DomainEvent) -> ContractResult<()> {
+        Ok(())
     }
 }
 
@@ -1902,6 +2218,7 @@ mod tests {
     };
     use b3_storage::NewCentralityRecord;
     use http::{Request, StatusCode};
+    use std::fs;
     use tempfile::tempdir;
     use tower::ServiceExt;
 
@@ -2173,6 +2490,79 @@ mod tests {
         assert_eq!(body["indexed_file_count"], 1);
         assert_eq!(body["symbol_count"], 1);
         assert_eq!(body["offline_mode"], true);
+    }
+
+    #[test]
+    fn init_project_creates_database_and_default_scope() {
+        let dir = tempdir().expect("temp dir");
+        let options = ProjectCommandOptions {
+            project_path: dir.path().join("repo"),
+            database_path: dir.path().join("repo").join(".b3").join("b3.db"),
+        };
+
+        init_project(&options).expect("init");
+        let storage = SqliteStorage::open(&options.database_path).expect("open db");
+        let summary = storage.graph_summary(None, None).expect("summary");
+
+        assert!(storage.table_exists("projects").expect("projects table"));
+        assert_eq!(summary.project_id, Some("default".to_string()));
+        assert_eq!(summary.branch_id, Some("main".to_string()));
+    }
+
+    #[test]
+    fn index_project_indexes_small_rust_fixture_and_reindex_is_safe() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::write(
+            root.join("src").join("lib.rs"),
+            "pub fn entry() { helper(); }\nfn helper() {}\n",
+        )
+        .expect("fixture");
+        let options = ProjectCommandOptions {
+            project_path: root,
+            database_path: dir.path().join("b3.db"),
+        };
+
+        let first = index_project(&options, false).expect("index");
+        let second = index_project(&options, true).expect("reindex");
+
+        assert!(first.files_discovered > 0);
+        assert!(first.files_indexed > 0);
+        assert!(first.symbols_indexed > 0);
+        assert!(first.edges_indexed > 0);
+        assert!(second.files_discovered > 0);
+    }
+
+    #[tokio::test]
+    async fn index_api_run_and_status_return_summary() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::write(root.join("src").join("lib.rs"), "pub fn run() {}\n").expect("fixture");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+        let run_body = response_json(run_response).await;
+        assert!(run_body["files_discovered"].as_u64().unwrap_or_default() > 0);
+        assert!(run_body["symbols_indexed"].as_u64().unwrap_or_default() > 0);
+
+        let status_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/index/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(status_response.status(), StatusCode::OK);
+        let status_body = response_json(status_response).await;
+        assert_eq!(status_body["status"], "completed");
+        assert!(status_body["files_indexed"].as_u64().unwrap_or_default() > 0);
     }
 
     #[tokio::test]

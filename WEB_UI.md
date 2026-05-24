@@ -2,7 +2,7 @@
 
 The web UI is a local-only Next.js frontend for inspecting and controlling the B3 MCP code intelligence platform through `b3-control-server`.
 
-It does not access SQLite directly, run indexing, generate embeddings, upload source code, use SaaS auth, or emit telemetry.
+It does not access SQLite directly, own indexing logic, generate embeddings, upload source code, use SaaS auth, or emit telemetry. The UI can trigger local indexing through the control server.
 
 ## Run the Control Server
 
@@ -18,6 +18,13 @@ To enable local file watching and changed-file indexing:
 cargo run -p b3-control --bin b3-control-server -- serve --project "." --database ".b3/b3.db" --port 7777 --watch --debounce-ms 500
 ```
 
+To populate the local database before opening the UI:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
+```
+
 ## Run the Web UI
 
 ```powershell
@@ -26,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:3000`.
+Open `http://127.0.0.1:8888`.
 
 ## Environment Variables
 
@@ -58,6 +65,11 @@ npm run dev
 - Capabilities
 - Logs / Events
 
+The Project Status section shows the current project path, database path,
+indexed file/symbol/edge counts, last index status, parse failures, and local
+duration. It also includes `Run Index` and `Reindex Project` buttons. Reindex is
+safe incremental reindexing in this phase and skips unchanged files.
+
 ## Logs / Events
 
 The Logs / Events section connects to `GET /api/events` with SSE and displays whatever local server events are emitted.
@@ -82,6 +94,8 @@ Watch mode can emit:
 - `parse_failed`
 - `parse_retried`
 - `parse_failure_recorded`
+
+Manual index runs can emit the same indexing and parser lifecycle events.
 
 Events are local-only and are not sent to any remote service.
 

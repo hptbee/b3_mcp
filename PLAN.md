@@ -4,6 +4,13 @@ B3 is a local-first, offline-first, free-by-default AI-native code intelligence 
 
 This document is the source of truth for the detailed roadmap. README.md should remain concise and traditional.
 
+Current roadmap status:
+
+- Completed: Phase 8.5 - Command Output Compaction
+- Completed: Phase 8.5.1 - Project Init + Manual Index Command
+- Completed: Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+- Next: Phase 8.6 - MCP Tool Profiles + Manifest Slimming
+
 ---
 
 ## Vision
@@ -28,7 +35,7 @@ B3 combines:
 - parser isolation
 - benchmark baseline
 - command output compaction
-- future project init/index workflow
+- project init/index workflow
 - future MCP tool profiles
 - future agent install helper
 - future multi-repo registry
@@ -109,21 +116,16 @@ This requirement overrides all roadmap decisions.
 Completed:
 
 ```text
-Phase 8.5 — Command Output Compaction
+Phase 8.5 - Command Output Compaction
+Phase 8.5.1 - Project Init + Manual Index Command
+Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
 ```
 
-Recommended next:
+Next:
 
 ```text
-Phase 8.5.1 — Project Init + Manual Index Command
+Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 ```
-
-Then:
-
-```text
-Phase 8.6 — MCP Tool Profiles + Manifest Slimming
-```
-
 ---
 
 ## Completed Phases
@@ -155,6 +157,8 @@ Phase 8.6 — MCP Tool Profiles + Manifest Slimming
 - Phase 8.3 — Refactor Checkpoint A
 - Phase 8.4 — Performance Optimization Pass A
 - Phase 8.5 — Command Output Compaction
+- Phase 8.5.1 - Project Init + Manual Index Command
+- Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
 
 ---
 
@@ -200,11 +204,11 @@ Example:
 
 ```text
 Business Application
-├── Backend API        C# / Node.js / Java / Go
-├── Frontend App       React / Angular / Vue
-├── Worker Service     Kafka / RabbitMQ / background jobs
-├── Desktop Client     WPF / native app
-└── Runtime Infra      Docker / docker-compose
+|-- Backend API
+|-- Frontend App
+|-- Worker Service
+|-- Desktop Client
+`-- Runtime Infrastructure
 ```
 
 Default storage model:
@@ -276,6 +280,17 @@ Events:
 - `indexing_failed`
 - `parse_failed`
 
+Implementation status:
+
+- Completed with `b3-control-server init`, `index`, and `reindex`.
+- `reindex` is safe incremental reindexing in this phase; unchanged files are
+  skipped by content hash and deleted files are cleaned for the current branch.
+- Control API exposes `POST /api/index/run`, `POST /api/index/reindex`, and
+  `GET /api/index/status`.
+- Web UI Project Status exposes `Run Index`, `Reindex Project`, last status,
+  counts, parse failures, and errors.
+- Single-project mode only; multi-repo registry remains deferred to Phase 8.8.
+
 ### Rules
 
 - Local-only.
@@ -309,6 +324,31 @@ Manual smoke:
 - open UI
 - verify files/symbols/edges are non-zero for Rust repo
 - query a Rust symbol
+
+---
+
+## Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
+
+### Purpose
+
+Clean up the repository layout after the project init/index workflow and make
+the active documentation easier for humans and agents to navigate.
+
+### Scope
+
+- Keep active project docs at the repository root.
+- Move reference and historical docs under `docs/reference/` and `docs/archive/`.
+- Review `.gitignore` for local/generated artifacts.
+- Update the Web UI default development port to `8888`.
+- Keep the control server default on `7777`.
+
+### Implementation Status
+
+- Completed.
+- Historical and reference docs are preserved under `docs/`.
+- Web UI `npm run dev` defaults to `http://127.0.0.1:8888`.
+- Root active docs remain the source of truth.
+- No runtime feature behavior changed beyond the Web UI development port.
 
 ---
 
@@ -1068,7 +1108,7 @@ Add MCP install command, Cursor config helper, Codex config helper, Claude confi
 | Test MCP runtime with Codex/Cursor | Usable now |
 | Rust repositories | Usable now |
 | Command output compaction | Usable now |
-| Project init/index workflow | Phase 8.5.1 |
+| Project init/index workflow | Usable now |
 | MCP tool profiles | Phase 8.6 |
 | Multi-project local workflow | Phase 8.8 |
 | Project groups | Phase 8.8 |

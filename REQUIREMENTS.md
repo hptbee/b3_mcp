@@ -331,6 +331,8 @@ Avoid:
 - Phase 8.3: Refactor Checkpoint A
 - Phase 8.4: Performance Optimization Pass A
 - Phase 8.5: Command Output Compaction
+- Phase 8.5.1: Project Init + Manual Index Command
+- Phase 8.5.1.1: Repository Structure Audit + Folder/File Cleanup
 
 ### Planned Phases
 

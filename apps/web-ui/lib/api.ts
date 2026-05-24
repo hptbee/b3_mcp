@@ -43,6 +43,34 @@ export type ProjectResponse = {
   offline_mode: boolean;
 };
 
+export type IndexSummary = {
+  project_path: string;
+  database_path: string;
+  files_discovered: number;
+  files_indexed: number;
+  files_skipped: number;
+  symbols_indexed: number;
+  edges_indexed: number;
+  parse_failures: number;
+  duration_ms: number;
+  reindex: boolean;
+  behavior: string;
+};
+
+export type IndexStatusResponse = {
+  status: string;
+  started_at?: number | null;
+  completed_at?: number | null;
+  duration_ms?: number | null;
+  files_discovered: number;
+  files_indexed: number;
+  files_skipped: number;
+  symbols_indexed: number;
+  edges_indexed: number;
+  parse_failures: number;
+  last_error?: string | null;
+};
+
 export type SavingsSummary = {
   records: number;
   estimated_tokens_saved: number;

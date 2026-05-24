@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/next-local.mjs dev -H 127.0.0.1 -p 3000",
+    "dev": "node scripts/next-local.mjs dev -H 127.0.0.1 -p 8888",
     "build": "node scripts/next-local.mjs build",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"

@@ -3,17 +3,51 @@ use std::{
     path::PathBuf,
 };
 
-use b3_control::{serve, ControlError, ServeOptions};
+use b3_control::{
+    index_project, init_project, serve, ControlError, ProjectCommandOptions, ServeOptions,
+};
 
 #[tokio::main]
 async fn main() {
     match parse_args() {
-        Ok(options) => {
+        Ok(Command::Serve(options)) => {
             if let Err(error) = serve(options).await {
                 eprintln!("{error:?}");
                 std::process::exit(1);
             }
         }
+        Ok(Command::Init(options)) => {
+            if let Err(error) = init_project(&options) {
+                eprintln!("{error:?}");
+                std::process::exit(1);
+            }
+            println!(
+                "initialized project={} database={}",
+                options.project_path.to_string_lossy(),
+                options.database_path.to_string_lossy()
+            );
+        }
+        Ok(Command::Index { options, reindex }) => match index_project(&options, reindex) {
+            Ok(summary) => {
+                println!(
+                    "project_path={}\ndatabase_path={}\nfiles_discovered={}\nfiles_indexed={}\nfiles_skipped={}\nsymbols_indexed={}\nedges_indexed={}\nparse_failures={}\nduration_ms={}\nbehavior={}",
+                    summary.project_path,
+                    summary.database_path,
+                    summary.files_discovered,
+                    summary.files_indexed,
+                    summary.files_skipped,
+                    summary.symbols_indexed,
+                    summary.edges_indexed,
+                    summary.parse_failures,
+                    summary.duration_ms,
+                    summary.behavior
+                );
+            }
+            Err(error) => {
+                eprintln!("{error:?}");
+                std::process::exit(1);
+            }
+        },
         Err(error) => {
             eprintln!("{error:?}");
             std::process::exit(1);
@@ -21,12 +55,42 @@ async fn main() {
     }
 }
 
-fn parse_args() -> Result<ServeOptions, ControlError> {
+enum Command {
+    Serve(ServeOptions),
+    Init(ProjectCommandOptions),
+    Index {
+        options: ProjectCommandOptions,
+        reindex: bool,
+    },
+}
+
+fn parse_args() -> Result<Command, ControlError> {
     let mut args = std::env::args().skip(1);
     let command = args.next().unwrap_or_else(|| "serve".to_string());
+    if matches!(command.as_str(), "--help" | "-h") {
+        print_help();
+        std::process::exit(0);
+    }
+
+    if matches!(command.as_str(), "init" | "index" | "reindex") {
+        let options = parse_project_options(&mut args)?;
+        return Ok(match command.as_str() {
+            "init" => Command::Init(options),
+            "index" => Command::Index {
+                options,
+                reindex: false,
+            },
+            "reindex" => Command::Index {
+                options,
+                reindex: true,
+            },
+            _ => unreachable!(),
+        });
+    }
+
     if command != "serve" {
         return Err(ControlError::bad_request(
-            "expected command: b3-control-server serve",
+            "expected command: init, index, reindex, or serve",
         ));
     }
 
@@ -67,9 +131,7 @@ fn parse_args() -> Result<ServeOptions, ControlError> {
                     .map_err(|_| ControlError::bad_request("--debounce-ms must be a valid u64"))?;
             }
             "--help" | "-h" => {
-                println!(
-                    "Usage: b3-control-server serve --project . --database .b3/b3.db --port 7777 --watch"
-                );
+                print_help();
                 std::process::exit(0);
             }
             _ => {
@@ -82,6 +144,32 @@ fn parse_args() -> Result<ServeOptions, ControlError> {
 
     options.bind_addr = SocketAddr::new(host, port);
     options.validate()?;
+    Ok(Command::Serve(options))
+}
+
+fn parse_project_options(
+    args: &mut impl Iterator<Item = String>,
+) -> Result<ProjectCommandOptions, ControlError> {
+    let mut options = ProjectCommandOptions::default();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--project" => {
+                options.project_path = PathBuf::from(next_arg(args, "--project")?);
+            }
+            "--database" => {
+                options.database_path = PathBuf::from(next_arg(args, "--database")?);
+            }
+            "--help" | "-h" => {
+                print_help();
+                std::process::exit(0);
+            }
+            _ => {
+                return Err(ControlError::bad_request(format!(
+                    "unknown argument: {arg}"
+                )))
+            }
+        }
+    }
     Ok(options)
 }
 
@@ -91,4 +179,10 @@ fn next_arg(
 ) -> Result<String, ControlError> {
     args.next()
         .ok_or_else(|| ControlError::bad_request(format!("{name} requires a value")))
+}
+
+fn print_help() {
+    println!(
+        "Usage:\n  b3-control-server init --project . --database .b3/b3.db\n  b3-control-server index --project . --database .b3/b3.db\n  b3-control-server reindex --project . --database .b3/b3.db\n  b3-control-server serve --project . --database .b3/b3.db --port 7777 --watch"
+    );
 }

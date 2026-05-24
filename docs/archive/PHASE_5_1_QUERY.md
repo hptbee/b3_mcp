@@ -1,5 +1,8 @@
 # Phase 5.1 Query Hardening
 
+Archived historical document. Not the current roadmap source of truth; current
+query and MCP behavior is summarized in the active root documentation.
+
 Phase 5.1 keeps query functionality library-local. It does not add MCP tools,
 embeddings, UI, file watching, parser subprocesses, or additional language
 packs.

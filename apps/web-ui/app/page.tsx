@@ -9,6 +9,8 @@ import {
   ApiResult,
   getJson,
   HealthResponse,
+  IndexStatusResponse,
+  IndexSummary,
   JsonValue,
   postJson,
   ProjectResponse,
@@ -34,6 +36,7 @@ type DashboardState = {
   savings?: ApiResult<SavingsSummary>;
   diagnostics?: ApiResult<JsonValue>;
   config?: ApiResult<JsonValue>;
+  indexStatus?: ApiResult<IndexStatusResponse>;
 };
 
 type EventMessage = {
@@ -56,6 +59,10 @@ export default function Home() {
     useState<ApiResult<JsonValue>>();
   const [events, setEvents] = useState<EventMessage[]>([]);
   const [eventStatus, setEventStatus] = useState("disconnected");
+  const [indexAction, setIndexAction] = useState<"idle" | "index" | "reindex">(
+    "idle"
+  );
+  const [indexResult, setIndexResult] = useState<ApiResult<IndexSummary>>();
 
   useEffect(() => {
     void refresh();
@@ -87,6 +94,25 @@ export default function Home() {
         ...current
       ]);
     });
+    for (const eventName of [
+      "indexing_started",
+      "file_indexed",
+      "file_skipped",
+      "indexing_completed",
+      "indexing_failed",
+      "parse_failed"
+    ]) {
+      source.addEventListener(eventName, (message) => {
+        setEvents((current) => [
+          {
+            type: eventName,
+            data: message.data,
+            timestamp: new Date().toISOString()
+          },
+          ...current
+        ]);
+      });
+    }
 
     return () => source.close();
   }, []);
@@ -95,6 +121,8 @@ export default function Home() {
   const project = state.project?.ok ? state.project.data : undefined;
   const health = state.health?.ok ? state.health.data : undefined;
   const savings = state.savings?.ok ? state.savings.data : undefined;
+  const indexStatus =
+    state.indexStatus?.ok ? state.indexStatus.data : undefined;
 
   const capabilitySummary = useMemo(() => {
     if (!state.capabilities?.ok) {
@@ -112,7 +140,8 @@ export default function Home() {
       capabilitiesResponse,
       savingsResponse,
       diagnosticsResponse,
-      configResponse
+      configResponse,
+      indexStatusResponse
     ] = await Promise.all([
       getJson<HealthResponse>("/health"),
       getJson<StatusResponse>("/api/status"),
@@ -120,7 +149,8 @@ export default function Home() {
       getJson<JsonValue>("/api/capabilities"),
       getJson<SavingsSummary>("/api/savings/summary"),
       getJson<JsonValue>("/api/diagnostics"),
-      getJson<JsonValue>("/api/config")
+      getJson<JsonValue>("/api/config"),
+      getJson<IndexStatusResponse>("/api/index/status")
     ]);
 
     setState({
@@ -130,9 +160,22 @@ export default function Home() {
       capabilities: capabilitiesResponse,
       savings: savingsResponse,
       diagnostics: diagnosticsResponse,
-      config: configResponse
+      config: configResponse,
+      indexStatus: indexStatusResponse
     });
     setLoading(false);
+  }
+
+  async function runIndex(reindex: boolean) {
+    setIndexAction(reindex ? "reindex" : "index");
+    setIndexResult(undefined);
+    const result = await postJson<IndexSummary>(
+      reindex ? "/api/index/reindex" : "/api/index/run",
+      {}
+    );
+    setIndexResult(result);
+    await refresh();
+    setIndexAction("idle");
   }
 
   async function submitQuery(event: FormEvent<HTMLFormElement>) {
@@ -240,7 +283,57 @@ export default function Home() {
               value={String(project?.edge_count ?? status?.edge_count ?? 0)}
             />
           </dl>
-          <p className="note">Counts reflect the local control server storage view.</p>
+          <div className="button-row">
+            <button
+              type="button"
+              onClick={() => void runIndex(false)}
+              disabled={indexAction !== "idle"}
+            >
+              {indexAction === "index" ? "Indexing" : "Run Index"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void runIndex(true)}
+              disabled={indexAction !== "idle"}
+            >
+              {indexAction === "reindex" ? "Reindexing" : "Reindex Project"}
+            </button>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Index Status" value={indexStatus?.status ?? "idle"} />
+            <Metric
+              label="Files Discovered"
+              value={String(indexStatus?.files_discovered ?? 0)}
+            />
+            <Metric
+              label="Files Indexed"
+              value={String(indexStatus?.files_indexed ?? 0)}
+            />
+            <Metric
+              label="Files Skipped"
+              value={String(indexStatus?.files_skipped ?? 0)}
+            />
+            <Metric
+              label="Parse Failures"
+              value={String(indexStatus?.parse_failures ?? 0)}
+            />
+            <Metric
+              label="Last Duration"
+              value={
+                indexStatus?.duration_ms == null
+                  ? "0 ms"
+                  : `${indexStatus.duration_ms} ms`
+              }
+            />
+          </div>
+          {indexStatus?.last_error && (
+            <p className="error">{indexStatus.last_error}</p>
+          )}
+          <JsonPanel title="Last Index Summary" result={indexResult} />
+          <p className="note">
+            Counts reflect the local control server storage view. Reindex uses
+            the current safe incremental behavior and skips unchanged files.
+          </p>
         </section>
 
         <section id="query" className="band">

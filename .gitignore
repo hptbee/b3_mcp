@@ -10,6 +10,7 @@
 /.next/
 /web-ui/.next/
 /apps/web-ui/.next/
+/apps/web-ui/.turbo/
 /out/
 /web-ui/out/
 /apps/web-ui/out/
@@ -42,9 +43,15 @@
 /.codebase-memory/
 /.cache/
 /tmp/
+/target/benchmarks/
+/tmp/benchmarks/
 
 # Logs and temporary run inputs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 params.json
 test_*.json
 rustup-init.exe

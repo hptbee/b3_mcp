@@ -1,6 +1,6 @@
 # B3 Control Server
 
-The control server is local developer tooling for the future localhost UI. It is an adapter over the core contracts and local SQLite storage; it does not index files, generate embeddings, run semantic search, or handle MCP protocol traffic.
+The control server is local developer tooling for the future localhost UI. It is an adapter over the core contracts and local SQLite storage; it can trigger the indexer, but it does not own indexing logic, generate embeddings, run semantic search, or handle MCP protocol traffic.
 
 ## Run
 
@@ -8,7 +8,9 @@ The control server is local developer tooling for the future localhost UI. It is
 cargo run -p b3-control --bin b3-control-server -- serve --project "." --database ".b3/b3.db" --port 7777
 ```
 
-By default the server binds to `127.0.0.1:7777`.
+By default the server binds to `127.0.0.1:7777`. The Web UI development
+server runs separately on `http://127.0.0.1:8888` and uses this local control
+server URL by default.
 
 Watch mode keeps the local index warm for changed files only:
 
@@ -29,6 +31,31 @@ Watch mode ignores generated/vendor/runtime directories such as `.git`, `target`
 
 This server is intended for local development and agent control surfaces, not public internet exposure.
 
+## Project Init And Manual Index
+
+Initialize a single local project database without indexing files:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
+```
+
+Index the project once:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
+```
+
+Reindex currently uses the same safe incremental behavior as `index`: unchanged
+files are skipped by content hash and deleted files are cleaned for the current
+branch. It does not delete unrelated project data.
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db"
+```
+
+This phase is single-project only. Multi-repo registry and project groups are
+deferred to Phase 8.8.
+
 ## Endpoints
 
 Health and project status:
@@ -37,6 +64,12 @@ Health and project status:
 - `GET /api/status`
 - `GET /api/projects`
 - `GET /api/project`
+
+Manual indexing:
+
+- `POST /api/index/run`
+- `POST /api/index/reindex`
+- `GET /api/index/status`
 
 Query adapter endpoints:
 
@@ -67,7 +100,7 @@ Diagnostics and config:
 - `POST /api/config/validate`
 - `GET /api/events`
 
-The event stream emits server, watcher, debounce, indexing, and parser worker lifecycle events when watch mode is enabled.
+The event stream emits server, watcher, debounce, indexing, and parser worker lifecycle events. Manual index requests can emit `indexing_started`, `file_indexed`, `file_skipped`, `indexing_completed`, `indexing_failed`, and `parse_failed`.
 
 ## Examples
 
@@ -75,6 +108,12 @@ The event stream emits server, watcher, debounce, indexing, and parser worker li
 curl http://127.0.0.1:7777/health
 curl http://127.0.0.1:7777/api/status
 curl http://127.0.0.1:7777/api/graph/summary
+curl http://127.0.0.1:7777/api/index/status
+```
+
+```powershell
+curl -X POST http://127.0.0.1:7777/api/index/run
+curl -X POST http://127.0.0.1:7777/api/index/reindex
 ```
 
 ```powershell
@@ -117,6 +156,8 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   but in-process parsing remains the default compatibility mode.
 - Embeddings and Qdrant integration are not implemented in this phase.
 - Advanced parser diagnostics UI is deferred.
+- Manual indexing is synchronous for this phase; `GET /api/index/status`
+  reports the current or last run for the current server process.
 
 ## Parser Diagnostics
 

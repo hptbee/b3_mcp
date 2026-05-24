@@ -47,6 +47,31 @@ For a stricter local pre-commit pass:
 .\scripts\verify.ps1
 ```
 
+## Manual Project Indexing
+
+Initialize and index a local project database:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
+cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db"
+```
+
+Then run the control server:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- serve --project "." --database ".b3/b3.db" --port 7777
+```
+
+The control server uses `http://127.0.0.1:7777` by default. The Web UI dev
+server uses `http://127.0.0.1:8888` by default and calls the local control
+server through `NEXT_PUBLIC_B3_API_BASE_URL`.
+
+`reindex` is currently a safe incremental reindex. It skips unchanged files,
+cleans deleted files for the current branch, and does not delete unrelated
+project data. The workflow is single-project only; multi-repo registry support
+is deferred to Phase 8.8.
+
 The CI skeleton mirrors these commands with:
 
 - `cargo fmt --check`
