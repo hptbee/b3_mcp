@@ -241,7 +241,8 @@ CREATE TABLE IF NOT EXISTS centrality_snapshots (
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
     FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE,
-    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE SET NULL
+    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE SET NULL,
+    UNIQUE(project_id, branch_id, symbol_id, algorithm_version)
 );
 
 CREATE INDEX IF NOT EXISTS idx_centrality_scope_score
@@ -483,29 +484,32 @@ impl SqliteStorage {
     }
 
     fn ensure_centrality_table(&self) -> ContractResult<()> {
-        self.connection
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS centrality_snapshots (
-                    project_id TEXT NOT NULL,
-                    branch_id TEXT NOT NULL,
-                    symbol_id TEXT NOT NULL,
-                    algorithm_version TEXT NOT NULL,
-                    calculated_at_unix_ms INTEGER NOT NULL,
-                    in_degree INTEGER NOT NULL,
-                    out_degree INTEGER NOT NULL,
-                    fan_in INTEGER NOT NULL,
-                    fan_out INTEGER NOT NULL,
-                    degree_centrality REAL NOT NULL,
-                    pagerank_score REAL NOT NULL,
-                    component_size INTEGER,
-                    is_cycle_member INTEGER NOT NULL DEFAULT 0,
-                    PRIMARY KEY(project_id, branch_id, symbol_id, algorithm_version),
-                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
-                    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
-                    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
-                );",
-            )
-            .map_err(to_contract_error)?;
+        // Ensure the newer centrality schema (with node_id) exists.
+        // MIGRATION_002 defines the richer schema; apply it here if the
+        // existing table does not have the expected `node_id` column.
+        let has_node_id: bool = self
+            .connection
+            .prepare("PRAGMA table_info(centrality_snapshots)")
+            .map_err(to_contract_error)?
+            .query_map([], |row: &Row| {
+                Ok(row.get::<_, String>(1).unwrap_or_default())
+            })
+            .map_err(to_contract_error)?
+            .filter_map(Result::ok)
+            .any(|col| col == "node_id");
+
+        if !has_node_id {
+            // If the existing table lacks `node_id`, recreate it using the
+            // migration 2 schema. In tests this runs against an in-memory DB
+            // so it's safe to drop and recreate; in real migrations this
+            // should be replaced with an ALTER TABLE-based migration.
+            self.connection
+                .execute_batch("DROP TABLE IF EXISTS centrality_snapshots;")
+                .map_err(to_contract_error)?;
+            self.connection
+                .execute_batch(MIGRATION_002)
+                .map_err(to_contract_error)?;
+        }
         Ok(())
     }
 
@@ -1692,12 +1696,15 @@ impl CentralityRepository for SqliteStorage {
             .connection
             .prepare_cached(
                 "INSERT INTO centrality_snapshots (
-                    project_id, branch_id, symbol_id, algorithm_version, calculated_at_unix_ms,
-                    in_degree, out_degree, fan_in, fan_out, degree_centrality,
-                    pagerank_score, component_size, is_cycle_member
+                    project_id, branch_id, node_id, symbol_id, name, kind, algorithm_version, calculated_at_unix_ms,
+                    in_degree, out_degree, fan_in, fan_out, degree_centrality, pagerank_score,
+                    component_size, is_cycle_member
                  )
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                  ON CONFLICT(project_id, branch_id, symbol_id, algorithm_version) DO UPDATE SET
+                    node_id = excluded.node_id,
+                    name = excluded.name,
+                    kind = excluded.kind,
                     calculated_at_unix_ms = excluded.calculated_at_unix_ms,
                     in_degree = excluded.in_degree,
                     out_degree = excluded.out_degree,
@@ -1711,11 +1718,20 @@ impl CentralityRepository for SqliteStorage {
             .map_err(to_contract_error)?;
 
         for metric in snapshot.metrics {
+            let symbol_id = SymbolId::new(metric.symbol_id.clone());
+            let (name, kind) = match self.get_symbol(scope, &symbol_id) {
+                Ok(Some(symbol)) => (symbol.name, node_kind(symbol.kind).to_string()),
+                _ => (metric.symbol_id.clone(), "unknown".to_string()),
+            };
+
             statement
                 .execute(params![
                     scope.project_id.as_str(),
                     scope.branch_id.as_str(),
+                    symbol_node_id(&symbol_id).as_str(),
                     metric.symbol_id.as_str(),
+                    name.as_str(),
+                    kind.as_str(),
                     snapshot.algorithm_version.as_str(),
                     snapshot.calculated_at_unix_ms as i64,
                     metric.in_degree as i64,

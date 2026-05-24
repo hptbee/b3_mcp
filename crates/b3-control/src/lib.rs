@@ -26,7 +26,7 @@ use axum::{
 };
 use b3_core::{
     AppConfig, BranchId, BranchMetadata, ContractError, ContractResult, EventBus, FileId,
-    FileRecord, ProjectId, QueryRequest, QueryResult, SymbolRepository, IndexStore, PRODUCT_NAME,
+    FileRecord, IndexStore, ProjectId, QueryRequest, QueryResult, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     IndexerConfig, LocalIndexer, NoopTreeSitterParser, NotifyFileWatcher, WatchConfig,
@@ -1901,11 +1901,7 @@ mod tests {
             .upsert_symbol(
                 &project_id,
                 &branch_id,
-                &SymbolRecord {
-                    id: SymbolId::new("symbol"),
-                    file_id: file.id,
-                    name: "run".to_string(),
-                },
+                &SymbolRecord::new(SymbolId::new("symbol"), file.id, "run", NodeKind::Function),
             )
             .expect("symbol");
 
@@ -1959,11 +1955,12 @@ mod tests {
             content_hash: "hash".to_string(),
         };
         storage.upsert_file(&file, &branch_id).expect("file");
-        let symbol = SymbolRecord {
-            id: SymbolId::new(format!("{branch}-symbol-a")),
-            file_id: file.id.clone(),
-            name: "alpha".to_string(),
-        };
+        let symbol = SymbolRecord::new(
+            SymbolId::new(format!("{branch}-symbol-a")),
+            file.id.clone(),
+            "alpha",
+            NodeKind::Function,
+        );
         storage
             .upsert_symbol(&project_id, &branch_id, &symbol)
             .expect("symbol");

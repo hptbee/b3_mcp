@@ -215,7 +215,6 @@ pub trait RelationshipExtractor: Send + Sync {
     ) -> ContractResult<Vec<ExtractedRelationship>>;
 }
 
-
 pub trait FileWatcher: Send + Sync {
     fn watch(&self, root: PathBuf) -> ContractResult<()>;
 }
