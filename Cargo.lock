@@ -169,6 +169,7 @@ name = "b3-embeddings"
 version = "0.1.0"
 dependencies = [
  "b3-core",
+ "b3-storage",
 ]
 
 [[package]]

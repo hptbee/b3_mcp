@@ -10,5 +10,8 @@ path = "src/lib.rs"
 [dependencies]
 b3-core = { path = "../b3-core" }
 
+[dev-dependencies]
+b3-storage = { path = "../b3-storage" }
+
 [lints]
 workspace = true

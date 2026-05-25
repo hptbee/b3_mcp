@@ -362,3 +362,16 @@ integrations, model downloads, telemetry, API-key requirements, full semantic
 search, hybrid ranking, MCP semantic search tools, cross-project semantic
 search, symbolic editing, rename/refactor, session memory, or cross-project
 architecture intelligence.
+
+Phase 10.2 is completed as SQLite vector storage/search only. It may provide
+durable vector document and embedding vector tables, deterministic upsert/
+dedupe, cleanup by file/project/branch, little-endian `Vec<f32>` BLOB encoding,
+metadata-filtered local cosine search in Rust, vector stats, and read-only
+control status/stats updates.
+
+It must not implement hybrid ranking, final semantic search ranking, MCP
+semantic search tools, hosted vector database integrations, native SQLite vector
+extensions as required dependencies, OpenAI/cloud embedding providers, model
+downloads, telemetry, API-key requirements, cross-project semantic search,
+symbolic editing, rename/refactor, session memory, or cross-project
+architecture intelligence.

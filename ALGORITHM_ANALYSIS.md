@@ -611,7 +611,6 @@ Added requirements:
 
 ### Planned Phases
 
-- Phase 10.2: SQLite Vector Storage / Search Index
 - Phase 10.3: Hybrid Search Ranking
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
@@ -633,9 +632,27 @@ truncated at a configured character boundary before tokenization.
 The provider requires no model file, API key, network access, hosted vector
 database, telemetry endpoint, or paid dependency. It is suitable for offline
 chunk/vector generation, but it is not a full semantic search implementation.
-SQLite vector index completion remains Phase 10.2, hybrid ranking remains Phase
-10.3, MCP/control semantic integration remains Phase 10.4, and quality
-benchmarking remains Phase 10.5.
+Hybrid ranking remains Phase 10.3, MCP/control semantic integration remains
+Phase 10.4, and quality benchmarking remains Phase 10.5.
+
+### Phase 10.2 SQLite Vector Search
+
+Phase 10.2 stores vector documents and embedding vectors in normal SQLite
+tables. Vectors are encoded as validated little-endian `f32` BLOBs, keyed by
+document, provider, and dimension, and rejected when dimensions mismatch or
+values are NaN/infinite. The storage layer uses deterministic upserts for
+documents and vectors, deletes vector documents by file or project/branch, and
+relies on SQLite foreign-key cascade behavior to avoid orphan vectors.
+
+Search is exact brute-force cosine over SQLite-filtered candidates. SQLite
+first narrows candidates by project, branch, provider, dimension, language,
+framework, source kind, file, symbol, and optional path prefix. Rust then
+decodes vectors, validates dimensions, computes cosine similarity, applies
+`min_score`, and sorts deterministically by score descending, path ascending,
+chunk index ascending, and document id ascending. This phase requires no native
+SQLite vector extension, hosted vector database, approximate nearest neighbor
+index, API key, model download, cloud API, or telemetry. It is raw vector search,
+not final hybrid semantic ranking.
 
 ## Additional Planned Algorithms
 

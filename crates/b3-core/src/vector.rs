@@ -135,9 +135,11 @@ pub struct VectorDocumentInput {
 pub struct EmbeddingVector {
     pub document_id: String,
     pub provider_id: String,
+    pub model_id: Option<String>,
     pub dimension: usize,
     pub vector: Vec<f32>,
     pub vector_hash: String,
+    pub normalized: bool,
     pub indexed_at_unix_ms: u64,
 }
 
@@ -150,14 +152,22 @@ impl EmbeddingVector {
         indexed_at_unix_ms: u64,
     ) -> Self {
         let vector_hash = hash_f32_vector(&vector);
+        let normalized = (l2_norm(&vector) - 1.0).abs() <= 0.0001;
         Self {
             document_id: document_id.into(),
             provider_id: provider_id.into(),
+            model_id: None,
             dimension,
             vector,
             vector_hash,
+            normalized,
             indexed_at_unix_ms,
         }
+    }
+
+    pub fn with_model_id(mut self, model_id: impl Into<String>) -> Self {
+        self.model_id = Some(model_id.into());
+        self
     }
 }
 
@@ -166,9 +176,14 @@ pub struct VectorSearchRequest {
     pub query_vector: Vec<f32>,
     pub project_id: ProjectId,
     pub branch_id: BranchId,
+    pub provider_id: Option<String>,
+    pub dimension: Option<usize>,
     pub language: Option<String>,
     pub framework: Option<String>,
     pub source_kind: Option<SourceKind>,
+    pub file_id: Option<FileId>,
+    pub symbol_id: Option<SymbolId>,
+    pub path_prefix: Option<String>,
     pub limit: usize,
     pub min_score: Option<f32>,
 }
@@ -179,12 +194,18 @@ pub struct VectorSearchHit {
     pub score: f32,
     pub distance: f32,
     pub provider_id: String,
+    pub dimension: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct VectorStoreStats {
     pub documents: usize,
     pub vectors: usize,
+    pub providers: Vec<String>,
+    pub dimensions: Vec<usize>,
+    pub source_kind_counts: BTreeMap<String, usize>,
+    pub language_counts: BTreeMap<String, usize>,
+    pub framework_counts: BTreeMap<String, usize>,
 }
 
 pub trait VectorStore {

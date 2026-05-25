@@ -102,21 +102,21 @@ Completed:
 
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
+- Phase 10.2 - SQLite Vector Storage / Search Index
 
 Current/Next:
 
-- Phase 10.2 - SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
 
 Upcoming:
 
-- Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. Scoped indexing can preview and run path/file/glob/language/framework scopes and target existing route, component, data access, realtime, messaging, and infrastructure metadata. .NET Desktop / WPF intelligence is basic/static/local for modern and older WPF project hints, XAML Application/Window/UserControl/Page/ResourceDictionary metadata, x:Class, code-behind hints, binding paths, command bindings, resource references, and ViewModel hints. Target scopes may need an earlier broader index. LSP remains local-only and disabled by default. Phase 10.0 adds local embedding/vector contracts, deterministic chunk planning, SQLite vector tables, and read-only vector status/stats endpoints; real local providers, semantic search, hybrid ranking, symbolic editing, rename/refactor, and cross-project architecture intelligence remain planned for later phases.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. Scoped indexing can preview and run path/file/glob/language/framework scopes and target existing route, component, data access, realtime, messaging, and infrastructure metadata. .NET Desktop / WPF intelligence is basic/static/local for modern and older WPF project hints, XAML Application/Window/UserControl/Page/ResourceDictionary metadata, x:Class, code-behind hints, binding paths, command bindings, resource references, and ViewModel hints. Target scopes may need an earlier broader index. LSP remains local-only and disabled by default. Phase 10.2 adds local_hash embeddings plus SQLite vector persistence and raw local cosine vector search; hybrid ranking, MCP semantic search tools, symbolic editing, rename/refactor, and cross-project architecture intelligence remain planned for later phases.
 
 ---
 
@@ -172,9 +172,8 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   `go test`, `go list`, module downloads, or package registry access.
 - Neural/model embedding providers, semantic search, Qdrant, session memory, symbolic
   editing, and domain-specific intelligence beyond current static extractors
-  are deferred. Phase 10.1 provides the local/offline `local_hash`
-  deterministic embedding provider, but SQLite vector search and hybrid ranking
-  are still later phases.
+  are deferred. Phase 10.2 provides local/offline `local_hash` vectors and raw
+  SQLite cosine vector search, but hybrid ranking is still a later phase.
 - LSP exists as a local backend foundation and is disabled by default.
 - Reindex is currently safe incremental reindexing, not a separate force-delete
   full rebuild.
@@ -229,10 +228,10 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   runtime behavior, deep Angular DI/module/template behavior, full semantic C#,
   deep database semantics, Docker, ksqlDB, WPF/XAML, Three.js,
   and other app-stack support are planned for Phase 9.x.
-- Phase 10.1 adds the deterministic `local_hash` embedding provider with no API
-  key, model download, hosted vector database, or internet requirement.
-  Semantic search, SQLite vector index completion, hybrid ranking, and MCP
-  semantic tools are not implemented yet.
+- Phase 10.2 stores and searches vectors in local SQLite using brute-force
+  cosine over filtered candidates. It requires no native vector extension,
+  hosted vector database, API key, model download, or internet access. Hybrid
+  ranking and MCP semantic tools are not implemented yet.
 - Symbolic editing and rename/refactor tools are not implemented yet.
 - Session memory remains deferred beyond the current vector-search roadmap.
 - Command output compaction is rule-based and conservative.
@@ -512,14 +511,14 @@ Completed:
 
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
+- Phase 10.2 - SQLite Vector Storage / Search Index
 
 Current/Next:
 
-- Phase 10.2 - SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
 
 Upcoming:
 
-- Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence

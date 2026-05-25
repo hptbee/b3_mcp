@@ -248,10 +248,10 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Advanced graph layouts and whole-repo visual analysis are deferred.
 - Centrality requires a cached snapshot; it is not computed automatically by the UI.
 - Query trace quality depends on trace fields returned by the control server query endpoints.
-- Phase 10.1 local embeddings are available through the `local_hash` provider
-  and read-only local control API status/providers/stats endpoints, but no Web
-  UI redesign or semantic search UI is included. SQLite vector search, hybrid
-  ranking, and semantic search remain deferred.
+- Phase 10.2 local vector storage/search is available through SQLite-backed
+  storage and read-only local control API status/providers/stats endpoints, but
+  no Web UI redesign or semantic search UI is included. Hybrid ranking and MCP/
+  control semantic integration remain deferred.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - A dedicated Node.js REST route browser is deferred; route metadata is
   currently available through `GET /api/routes`.

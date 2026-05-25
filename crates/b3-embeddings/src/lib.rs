@@ -353,7 +353,11 @@ fn push_split_token(tokens: &mut Vec<String>, token: &str) {
 mod tests {
     use std::collections::BTreeMap;
 
-    use b3_core::{BranchId, FileId, ProjectId, SourceKind, VectorDocument, VectorDocumentInput};
+    use b3_core::{
+        BranchId, FileId, FileRecord, IndexStore, IndexedFileRecord, ProjectId, SourceKind,
+        VectorDocument, VectorDocumentInput, VectorSearchRequest, VectorStore,
+    };
+    use b3_storage::SqliteStorage;
 
     use super::*;
 
@@ -478,6 +482,64 @@ mod tests {
             documents[0].chunk_hash,
             document("pub fn run() {}").chunk_hash
         );
+    }
+
+    #[test]
+    fn local_hash_vectors_persist_and_search_in_sqlite() {
+        let storage = SqliteStorage::open_in_memory().expect("storage");
+        let provider = provider();
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        let file_id = FileId::new("file");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: file_id,
+                        project_id: project_id.clone(),
+                        path: "src/lib.rs".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("rust".to_string()),
+                    size_bytes: 16,
+                    content: "pub fn create_order() {}".to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("file");
+        let documents = vec![document("pub fn create_order() {}")];
+        storage.upsert_documents(&documents).expect("documents");
+        let vectors = embed_documents(&provider, &documents, 1).expect("vectors");
+        storage.upsert_vectors(&vectors).expect("vectors");
+        let query_vector = provider.embed_text("create order").expect("query");
+        let hits = storage
+            .search(VectorSearchRequest {
+                query_vector,
+                project_id,
+                branch_id,
+                provider_id: Some(LOCAL_HASH_PROVIDER_ID.to_string()),
+                dimension: Some(provider.dimension()),
+                language: Some("rust".to_string()),
+                framework: None,
+                source_kind: Some(SourceKind::FileChunk),
+                file_id: None,
+                symbol_id: None,
+                path_prefix: Some("src/".to_string()),
+                limit: 10,
+                min_score: None,
+            })
+            .expect("search");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].provider_id, LOCAL_HASH_PROVIDER_ID);
+        assert_eq!(hits[0].dimension, provider.dimension());
+        assert_eq!(hits[0].document.metadata["source"], "test");
     }
 
     #[test]

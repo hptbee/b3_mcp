@@ -892,14 +892,14 @@ Completed:
 
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
+- Phase 10.2 - SQLite Vector Storage / Search Index
 
 Current/Next:
 
-- Phase 10.2 - SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
 
 Upcoming:
 
-- Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence
@@ -971,14 +971,29 @@ Rules:
 
 ## Phase 10.2 - SQLite Vector Storage / Search Index
 
-Status: Current.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- finalize SQLite vector persistence and cleanup semantics
-- add practical local vector search over stored embeddings
-- avoid required native SQLite vector extensions by default
-- keep hosted vector databases optional and disabled
+- added migration v5 for durable `embedding_vectors` rows keyed by document/provider/dimension
+- validated little-endian `Vec<f32>` BLOB encoding/decoding with finite-value checks
+- hardened vector document/vector upsert and dedupe behavior
+- added cleanup by file and project/branch with vector cascade behavior
+- added local brute-force cosine search over SQLite-filtered candidates
+- added provider, dimension, language, framework, source kind, file, symbol, and path-prefix filters
+- added deterministic search tie-breaking and sane limit handling
+- expanded vector stats with providers, dimensions, source kinds, languages, and frameworks
+- updated control status/stats to report storage/search readiness truthfully
+- verified local_hash vectors can persist to SQLite and be searched locally
+
+Rules:
+
+- no native SQLite vector extension requirement
+- no hosted vector database requirement
+- no OpenAI/cloud embedding API integration
+- no semantic search MCP tool
+- no hybrid ranking
+- no telemetry, SaaS auth, API keys, model downloads, or internet requirement
 
 ---
 

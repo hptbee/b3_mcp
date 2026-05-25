@@ -92,11 +92,13 @@ The CI skeleton mirrors these commands with:
 - `cargo check --workspace`
 - `cargo test --workspace`
 
-Phase 10.1 local embeddings are verified by the Rust workspace tests. The
-default provider id is `local_hash`, embeddings remain disabled by default, and
-the provider works without internet access, API keys, hosted vector databases,
-Qdrant, model downloads, Node.js, Python, Docker, `dotnet`, or Go. SQLite vector
-search, hybrid ranking, and MCP semantic search tools remain deferred.
+Phase 10.2 local vector storage/search is verified by the Rust workspace tests.
+The default provider id is `local_hash`, embeddings remain disabled by default,
+and vector search runs as local SQLite candidate loading plus Rust cosine
+scoring. It works without internet access, API keys, hosted vector databases,
+Qdrant, native SQLite vector extensions, model downloads, Node.js, Python,
+Docker, `dotnet`, or Go. Hybrid ranking and MCP semantic search tools remain
+deferred.
 
 ## Benchmark Commands
 

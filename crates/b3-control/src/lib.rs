@@ -1287,6 +1287,9 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
         "vector_search": {
             "architecture_available": true,
             "semantic_search_available": false,
+            "semantic_search_ready": false,
+            "vector_search_ready": true,
+            "storage_available": true,
             "provider": state.app_config.embedding.provider_id.as_str(),
             "enabled": state.app_config.embedding.enabled,
             "dimension": state.app_config.embedding.dimension,
@@ -1483,10 +1486,11 @@ async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>,
         "vectors": stats.vectors,
         "local_only": true,
         "local_hash_provider_available": local_hash_available,
+        "storage_available": true,
         "external_plugins_enabled": state.app_config.embedding.external_plugins_enabled,
         "semantic_search_available": false,
         "semantic_search_ready": false,
-        "vector_search_ready": false,
+        "vector_search_ready": true,
         "hosted_vector_database_required": false,
         "openai_api_required": false,
         "cloud_embedding_api_required": false,
@@ -1534,6 +1538,11 @@ async fn vector_stats(State(state): State<ControlState>) -> Result<Json<Value>, 
         "status": "ok",
         "documents": stats.documents,
         "vectors": stats.vectors,
+        "providers": stats.providers,
+        "dimensions": stats.dimensions,
+        "source_kind_counts": stats.source_kind_counts,
+        "language_counts": stats.language_counts,
+        "framework_counts": stats.framework_counts,
         "local_only": true,
         "hosted_vector_database_required": false
     })))
@@ -4177,7 +4186,7 @@ mod tests {
         assert_eq!(status["local_only"], true);
         assert_eq!(status["semantic_search_available"], false);
         assert_eq!(status["semantic_search_ready"], false);
-        assert_eq!(status["vector_search_ready"], false);
+        assert_eq!(status["vector_search_ready"], true);
 
         let providers_response = app
             .clone()
@@ -4207,6 +4216,7 @@ mod tests {
         let stats = response_json(stats_response).await;
         assert_eq!(stats["documents"], 0);
         assert_eq!(stats["vectors"], 0);
+        assert_eq!(stats["providers"].as_array().expect("providers").len(), 0);
         assert_eq!(stats["hosted_vector_database_required"], false);
     }
 
