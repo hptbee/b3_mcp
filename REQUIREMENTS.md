@@ -1,4 +1,4 @@
-# Requirements
+﻿# Requirements
 
 ## Product Vision
 
@@ -259,9 +259,155 @@ Must support:
 - parser timeout/retry policy
 - branch-aware parse failure registry
 - parallel worker pools
+
+## LSP Backend
+
+Phase 9.1 adds a local LSP backend foundation.
+
+Must support:
+- disabled-by-default LSP config
+- explicitly configured local stdio language-server processes
+- workspace initialization
+- full-document open/sync messages
+- capability discovery
+- diagnostics collection
+- basic definition, references, and implementation requests when the server supports them
+- startup/request timeouts and bounded stderr capture
+- clear disabled, missing-server, crash, timeout, invalid-response, unsupported-capability, file, and URI errors
+
+Must not:
+- install or download language servers
+- require internet access
+- require cloud APIs or paid/proprietary backends
+- replace tree-sitter indexing, SQLite graph storage, FTS, query engine, or Rust parser behavior
+- add symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.1
 - debounced filesystem watcher
 - generated/vendor file skipping
 - crash recovery
+
+## Web Language Indexing
+
+Phase 9.2 adds basic local indexing for JavaScript, TypeScript, JSX, and TSX.
+
+Must support:
+- file detection for `.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, and detect-only `.cs`
+- local tree-sitter parsing for JS/TS/JSX/TSX
+- basic symbol extraction for functions, arrow/function variables, classes, methods, TypeScript interfaces, type aliases, enums, exports, and obvious component-like JSX/TSX declarations
+- import extraction for ESM imports and CommonJS `require(...)`
+- CommonJS export assignment detection
+- safe `CONTAINS` and `IMPORTS` relationships without fake external package file nodes
+- no `npm`, `node`, `tsc`, `eslint`, cloud parser, external API, telemetry, or runtime install requirement
+
+Must defer:
+- deep React runtime behavior, state-machine inference, full JSX tree graph,
+  and framework-specific router intelligence
+- Angular module/route/template intelligence
+- C# parser and semantic intelligence
+- JS/TS call graph extraction unless it can be made low-noise
+- symbolic editing, rename/refactor, embeddings, semantic search, and cross-project architecture intelligence
+
+## Node.js REST API Intelligence
+
+Phase 9.2.1 adds basic local REST route intelligence for Node.js projects.
+
+Must support:
+- package.json detection for Express, NestJS, Fastify, TypeScript, and detect-only frontend packages where obvious
+- Express route calls and router calls
+- NestJS controller and method decorator routes with class/method path composition
+- Fastify shorthand calls and basic route object calls
+- route metadata represented locally without runtime execution
+- read-only route listing through the control API when route metadata is indexed
+- route cleanup through normal deleted-file index cleanup
+
+Must not require:
+- `npm install`
+- `node`
+- `tsc`
+- `eslint`
+- Nest CLI
+- package registry access
+- cloud parsers or external APIs
+
+Must defer:
+- deep middleware execution order
+- Nest guards/interceptors/pipes/modules/deep dependency injection
+- request lifecycle inference
+- advanced React component graph/runtime intelligence
+- Next.js intelligence
+- Angular intelligence
+- ASP.NET Core/C# intelligence
+- realtime, messaging, cloud, infrastructure, Go, symbolic editing, embeddings, semantic search, and cross-project intelligence
+
+## React / TSX Component Intelligence
+
+Phase 9.2.2 adds basic local React component intelligence for JavaScript,
+TypeScript, JSX, and TSX projects.
+
+Must support:
+- React package detection from package.json for `react`, `react-dom`, and `@types/react`
+- React import/package detection through existing import extraction
+- function, arrow-function, class, memo, and forwardRef component metadata where statically obvious
+- default and named export metadata where statically obvious
+- props type/interface name extraction from local annotations and React.FC generics
+- basic JSX component usage names for PascalCase tags
+- basic hook name detection for built-in hooks and custom `use[A-Z]*` hooks
+- read-only component listing through the control API when component metadata is indexed
+- no duplicate components on reindex and cleanup through normal deleted-file cleanup
+
+Must not require:
+- `npm install`
+- `node`
+- `tsc`
+- `eslint`
+- React dev server or build tooling
+- package registry access
+- cloud parsers or external APIs
+
+Must defer:
+- Angular, Vue, and Svelte intelligence
+- Next.js routing intelligence
+- React runtime rendering behavior
+- state machine inference
+- deep hook semantics and dependency-array analysis
+- CSS/layout intelligence
+- full JSX tree graph
+- symbolic editing, rename/refactor, embeddings, semantic search, and cross-project intelligence
+
+## Next.js Intelligence
+
+Phase 9.2.3 plans basic static Next.js intelligence on top of the completed
+React / TSX component support.
+
+Must support:
+- Next.js package detection from `package.json`
+- detection of `next.config.js`, `next.config.mjs`, and `next.config.ts`
+- App Router structure under `app/`
+- Pages Router structure under `pages/`
+- safe mapping of page, layout, loading, error, and not-found files to routes
+- dynamic route segment detection for `[id]`, `[...slug]`, and `[[...slug]]`
+- `app/api/**/route.ts` and `route.js` API handler detection
+- route handler method detection for `GET`, `POST`, `PUT`, `PATCH`, `DELETE`,
+  `OPTIONS`, and `HEAD`
+- `"use client"` boundary detection
+- basic static server/client component classification
+- preservation of React component intelligence from Phase 9.2.2
+
+Must not require:
+- `next dev`
+- `next build`
+- `npm install`
+- `node`
+- package registry access
+- cloud parsers or external APIs
+
+Must defer:
+- runtime rendering
+- full React Server Components semantics
+- middleware execution order
+- Vercel/deployment intelligence
+- NextAuth/auth intelligence
+- deep data fetching semantics
+- symbolic editing
 
 ## Graph Requirements
 
@@ -408,12 +554,25 @@ Avoid:
 - Phase 8.7: Agent Install Helper + Hook Integration Foundation
 - Phase 8.8: Multi-repo Registry + Project Groups
 - Phase 9.0: Language Backend Architecture
+- Phase 9.1: LSP Backend MVP
+- Phase 9.2: Web Application Priority Support A
+- Phase 9.2.1: Node.js / REST API Intelligence
+- Phase 9.2.2: React / TSX Component Intelligence
 
 ### Planned Phases
 
-- Phase 9: Local Embeddings + Vector Search
-- Phase 9.1: Semantic Context Upgrade
-- Phase 10: Multi-language Packs
+- Phase 9.2.3: Next.js Intelligence
+- Phase 9.2.4: Angular Intelligence
+- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6: ORM / Database Access Intelligence
+- Phase 9.2.7: Realtime / Socket Intelligence
+- Phase 9.2.8: Messaging / Event-driven Intelligence
+- Phase 9.2.9: Cloud / Infrastructure Intelligence
+- Phase 9.2.10: Go Language Support
+- Phase 9.3/9.4: Symbolic editing and rename/refactor support
+- Phase 10: Local Embeddings + Vector Search
+- Phase 10.1: Semantic Context Upgrade
+- Phase 10.2+: Local session memory and context platform
 - Phase 11: Architecture Intelligence
 - Phase 12: Git Intelligence
 - Phase 13: Duplicate / Similarity Detection

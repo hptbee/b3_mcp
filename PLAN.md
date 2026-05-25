@@ -1,8 +1,8 @@
-# Project Plan
+﻿# B3 Project Plan
 
 B3 is a local-first, offline-first, free-by-default AI-native code intelligence platform for coding agents and local developer workflows.
 
-This document is the source of truth for the detailed roadmap. README.md should remain concise and traditional.
+This document is the source of truth for the detailed roadmap. `README.md` should remain concise and traditional.
 
 Current roadmap status:
 
@@ -13,7 +13,11 @@ Current roadmap status:
 - Completed: Phase 8.7 - Agent Install Helper + Hook Integration Foundation
 - Completed: Phase 8.8 - Multi-repo Registry + Project Groups
 - Completed: Phase 9.0 - Language Backend Architecture
-- Next: Phase 9.1 - LSP Backend MVP
+- Completed: Phase 9.1 - LSP Backend MVP
+- Completed: Phase 9.2 - Web Application Priority Support A
+- Completed: Phase 9.2.1 - Node.js / REST API Intelligence
+- Completed: Phase 9.2.2 - React / TSX Component Intelligence
+- Next: Phase 9.2.3 - Next.js Intelligence
 
 ---
 
@@ -31,8 +35,9 @@ B3 combines:
 - context packing
 - token-saving retrieval
 - MCP runtime
+- MCP tool profiles and manifest slimming
 - localhost control server
-- web UI
+- local web UI
 - graph explorer
 - query trace UI
 - file watcher
@@ -46,10 +51,16 @@ B3 combines:
 - project groups
 - language backend architecture
 - future LSP backend
+- local CLI install/doctor/uninstall helper
+- local multi-repo registry
+- project group metadata
+- language backend architecture
+- local LSP backend foundation
+- JavaScript/TypeScript/JSX/TSX basic indexing
+- future framework, route, messaging, realtime, infrastructure, and cloud intelligence
 - future symbolic editing
-- future messaging/runtime infrastructure intelligence
 - future session memory
-- future local embeddings
+- future local embeddings and vector search
 
 B3 is not a SaaS product. It must work locally and offline by default.
 
@@ -80,8 +91,11 @@ Allowed in core:
 - local parser worker
 - local benchmark harness
 - local command output compaction
-- local LSP servers when implemented later
-- local embeddings only when implemented later
+- local JSON registry
+- local CLI helpers
+- local LSP servers when explicitly enabled
+- local embeddings when implemented later
+- local vector storage/index when implemented later
 - local Qdrant only as an optional local component when implemented later
 
 External/cloud/paid integrations are allowed only as optional plugins:
@@ -98,20 +112,22 @@ This requirement overrides all roadmap decisions.
 
 ## Design Principles
 
-1. **Local-first and offline-first** — B3 must work without internet access.
-2. **Free-by-default** — core functionality must be free to run locally.
-3. **MCP runtime stays thin** — protocol/tool adapter only.
-4. **Storage owns persistence** — SQLite schema, migrations, transactions, repositories, and adapters live in `b3-storage`.
-5. **Indexer owns indexing** — parsing, discovery, hashing, incremental indexing, watcher, parser worker, and parse failures live in `b3-indexer`.
-6. **Query owns intelligence** — graph traversal, ranking, context packing, impact analysis, dependency tracing, cycle detection, and query trace live in `b3-query`.
-7. **Control server is an adapter** — localhost HTTP/SSE only; no storage internals or query intelligence.
-8. **Web UI talks only to local control server** — no cloud calls.
-9. **Graph first, semantic second** — AST, graph, and FTS are core; embeddings are optional future secondary signals.
-10. **Benchmark before optimization** — measure first, optimize measured bottlenecks only.
-11. **Refactor only after verified milestones** — prefer small targeted refactors.
-12. **Language support must be layered** — do not implement all languages in one phase.
-13. **LSP complements tree-sitter** — tree-sitter for fast indexing; local LSP for semantic operations later.
-14. **Project model supports standalone and grouped projects** — `1 project = 1 .b3/b3.db` by default.
+1. **Local-first and offline-first** â€” B3 must work without internet access.
+2. **Free-by-default** â€” core functionality must be free to run locally.
+3. **MCP runtime stays thin** â€” protocol/tool adapter only.
+4. **Storage owns persistence** â€” SQLite schema, migrations, transactions, repositories, and adapters live in `b3-storage`.
+5. **Indexer owns indexing** â€” parsing, discovery, hashing, incremental indexing, watcher, parser worker, parse failures, and language extraction live in `b3-indexer`.
+6. **Query owns intelligence** â€” graph traversal, ranking, context packing, impact analysis, dependency tracing, cycle detection, and query trace live in `b3-query`.
+7. **Control server is an adapter** â€” localhost HTTP/SSE only; no storage internals or query intelligence.
+8. **Web UI talks only to local control server** â€” no cloud calls.
+9. **Graph first, semantic second** â€” AST, graph, and FTS are core; embeddings are optional future secondary signals.
+10. **Benchmark before optimization** â€” measure first, optimize measured bottlenecks only.
+11. **Refactor only after verified milestones** â€” prefer small targeted refactors.
+12. **Language support must be layered** â€” language syntax support, framework/library detection, and framework intelligence are separate layers.
+13. **LSP complements tree-sitter** â€” tree-sitter for fast indexing; local LSP for semantic operations.
+14. **Project model supports standalone and grouped projects** â€” `1 project = 1 .b3/b3.db` by default.
+15. **Framework detection must be conservative** â€” do not invent routes, handlers, components, topics, or infrastructure relationships with low confidence.
+16. **UI should follow data maturity** â€” major UI refresh should happen after enough backend intelligence exists to display useful information.
 
 ---
 
@@ -127,57 +143,87 @@ Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 Phase 8.7 - Agent Install Helper + Hook Integration Foundation
 Phase 8.8 - Multi-repo Registry + Project Groups
 Phase 9.0 - Language Backend Architecture
+Phase 9.1 - LSP Backend MVP
+Phase 9.2 - Web Application Priority Support A
+Phase 9.2.1 - Node.js / REST API Intelligence
+Phase 9.2.2 - React / TSX Component Intelligence
 ```
 
-Next:
+Recommended next:
 
 ```text
-Phase 9.1 - LSP Backend MVP
+Phase 9.2.3 - Next.js Intelligence
 ```
+
+Then:
+
+```text
+Phase 9.2.4 â€” Angular Intelligence
+Phase 9.2.5 â€” ASP.NET Core / C# Web API Intelligence
+Phase 9.2.6 â€” ORM / Database Access Intelligence
+Phase 9.2.7 â€” Realtime / Socket Intelligence
+Phase 9.2.8 â€” Messaging / Event-driven Intelligence
+Phase 9.2.9 â€” Cloud / Infrastructure Intelligence
+Phase 9.2.10 â€” Go Language Support
+```
+
 ---
 
 ## Completed Phases
 
-- Phase 1 — Workspace / Scaffold
-- Phase 1.5 — Contracts / Boundaries
-- Phase 2 — SQLite Storage / Schema Foundation
-- Phase 3 — Incremental Indexer Skeleton
-- Phase 3.1 — Indexer Audit / Cleanup
-- Pre-Phase-4 — Plugin Contracts / Docs / CI
-- Phase 4 — Real Rust Parsing + Storage Adapter
-- Phase 4.1 — Project/Branch Auto Ensure + Deleted File Cleanup
-- Phase 5 — Query Engine + Graph Traversal + Context Pack
-- Phase 5.1 — Query Hardening + Retrieval Explainability
-- Phase 5.2 — Ranking Algorithms Upgrade
-- Phase 6 — MCP Tools over Query Engine
-- Phase 6.0.1 — Live MCP Runtime Wiring
-- Phase 6.1 — Impact Intelligence
-- Phase 6.2 — PageRank / Centrality
-- Phase 6.3 — MCP Runtime Hardening + Real-world Smoke Test
-- Phase 7 — Control Server + Localhost API
-- Phase 7.1 — Web UI Foundation
-- Phase 7.2 — Graph Explorer UI
-- Phase 7.2.1 — Real Graph API Wiring
-- Phase 7.3 — Query Trace UI
-- Phase 8 — File Watcher + Daemon Mode
-- Phase 8.1 — Parser Isolation
-- Phase 8.2 — Benchmark Harness + Performance Baseline
-- Phase 8.3 — Refactor Checkpoint A
-- Phase 8.4 — Performance Optimization Pass A
-- Phase 8.5 — Command Output Compaction
+- Phase 1 â€” Workspace / Scaffold
+- Phase 1.5 â€” Contracts / Boundaries
+- Phase 2 â€” SQLite Storage / Schema Foundation
+- Phase 3 â€” Incremental Indexer Skeleton
+- Phase 3.1 â€” Indexer Audit / Cleanup
+- Pre-Phase-4 â€” Plugin Contracts / Docs / CI
+- Phase 4 â€” Real Rust Parsing + Storage Adapter
+- Phase 4.1 â€” Project/Branch Auto Ensure + Deleted File Cleanup
+- Phase 5 â€” Query Engine + Graph Traversal + Context Pack
+- Phase 5.1 â€” Query Hardening + Retrieval Explainability
+- Phase 5.2 â€” Ranking Algorithms Upgrade
+- Phase 6 â€” MCP Tools over Query Engine
+- Phase 6.0.1 â€” Live MCP Runtime Wiring
+- Phase 6.1 â€” Impact Intelligence
+- Phase 6.2 â€” PageRank / Centrality
+- Phase 6.3 â€” MCP Runtime Hardening + Real-world Smoke Test
+- Phase 7 â€” Control Server + Localhost API
+- Phase 7.1 â€” Web UI Foundation
+- Phase 7.2 â€” Graph Explorer UI
+- Phase 7.2.1 â€” Real Graph API Wiring
+- Phase 7.3 â€” Query Trace UI
+- Phase 8 â€” File Watcher + Daemon Mode
+- Phase 8.1 â€” Parser Isolation
+- Phase 8.2 â€” Benchmark Harness + Performance Baseline
+- Phase 8.3 â€” Refactor Checkpoint A
+- Phase 8.4 â€” Performance Optimization Pass A
+- Phase 8.5 â€” Command Output Compaction
 - Phase 8.5.1 - Project Init + Manual Index Command
 - Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
 - Phase 8.6 - MCP Tool Profiles + Manifest Slimming
 - Phase 8.7 - Agent Install Helper + Hook Integration Foundation
 - Phase 8.8 - Multi-repo Registry + Project Groups
 - Phase 9.0 - Language Backend Architecture
+- Phase 8.5.1 â€” Project Init + Manual Index Command
+- Phase 8.5.1.1 â€” Repository Structure Audit + Folder/File Cleanup + Web UI Port 8888
+- Phase 8.6 â€” MCP Tool Profiles + Manifest Slimming
+- Phase 8.7 â€” Agent Install Helper + Hook Integration Foundation
+- Phase 8.8 â€” Multi-repo Registry + Project Groups
+- Phase 9.0 â€” Language Backend Architecture
+- Phase 9.1 â€” LSP Backend MVP
+- Phase 9.2 â€” Web Application Priority Support A
+- Phase 9.2.1 â€” Node.js / REST API Intelligence
+- Phase 9.2.2 â€” React / TSX Component Intelligence
 
 ---
 
-## Current Tool State
+## Current Capabilities
 
 B3 has 11 current MCP tools. The default `optimized` MCP profile exposes 7
 tools in `tools/list`; `full` and `debug` expose all 11.
+### MCP Runtime
+
+B3 exposes 11 MCP tools in the `full` and `debug` profiles:
 
 - `find_symbol`
 - `search_code`
@@ -191,27 +237,21 @@ tools in `tools/list`; `full` and `debug` expose all 11.
 - `savings_report`
 - `compact_command_output`
 
----
-
-## Project Model
-
-B3 must support both standalone projects and project groups.
-
-### Standalone Project
-
-A standalone project is an independent repository with its own local `.b3` database.
-
-Examples:
+Default profile:
 
 ```text
-D:\Project\b3_mcp\.b3\b3.db
-D:\Project\ThreeDemo\.b3\b3.db
-D:\Project\DesktopTool\.b3\b3.db
+optimized
 ```
 
-### Project Group
+The `optimized` profile exposes 7 high-value tools by default to reduce manifest noise and token overhead:
 
-A project group is a set of related projects that form one system.
+- `find_symbol`
+- `search_code`
+- `related_symbols`
+- `impact_analysis`
+- `get_context_pack`
+- `compact_command_output`
+- `savings_report`
 
 Example:
 
@@ -242,7 +282,7 @@ The global registry tracks projects and groups, but each project keeps its own l
 
 ## Roadmap
 
-## Phase 8.5.1 — Project Init + Manual Index Command
+## Phase 8.5.1 â€” Project Init + Manual Index Command
 
 ### Purpose
 
@@ -365,7 +405,7 @@ the active documentation easier for humans and agents to navigate.
 
 ---
 
-## Phase 8.6 — MCP Tool Profiles + Manifest Slimming
+## Phase 8.6 â€” MCP Tool Profiles + Manifest Slimming
 
 ### Purpose
 
@@ -377,6 +417,7 @@ Inspired by:
 - Serena mode/profile system
 
 ### Profiles
+Available MCP profiles:
 
 - `tiny`
 - `optimized`
@@ -387,97 +428,33 @@ Inspired by:
 - `web-app`
 - `enterprise`
 
-### Default
+Hidden tools return a structured `tool_not_enabled` error.
 
-Default profile:
+### Control Server
+
+Control server:
 
 ```text
-optimized
+http://127.0.0.1:7777
 ```
 
-### Profile Behavior
+Current local APIs include project status, health, diagnostics, graph/query APIs, index APIs, capabilities, language metadata, and LSP metadata.
 
-#### tiny
+Registry control APIs are deferred. Registry management is currently CLI-only.
 
-Expose only the smallest high-value set:
+### Web UI
 
-- `search_code`
-- `find_symbol`
-- `get_context_pack`
-- `compact_command_output`
-- `savings_report`
+Web UI:
 
-#### optimized
+```text
+http://127.0.0.1:8888
+```
 
-Default normal agent profile:
-
-- `find_symbol`
-- `search_code`
-- `related_symbols`
-- `impact_analysis`
-- `get_context_pack`
-- `compact_command_output`
-- `savings_report`
-
-#### full
-
-Expose all current tools.
-
-#### debug
-
-Expose all current tools, especially:
-
-- `trace_dependency`
-- `detect_cycles`
-- `savings_report`
-
-#### readonly
-
-Expose only non-mutating tools.
-
-Currently all tools are readonly. Future mutation tools must be hidden in this profile.
-
-#### editing
-
-Reserved for future symbolic editing tools.
-
-For now, same as optimized or full.
-
-#### web-app
-
-Optimized for common web application workflows.
-
-For now:
-
-- `find_symbol`
-- `search_code`
-- `related_symbols`
-- `impact_analysis`
-- `get_context_pack`
-- `compact_command_output`
-- `savings_report`
-
-Future web-app tools may prioritize C#, TypeScript, JavaScript, React, Angular, Node.js, REST APIs, and route/component workflows.
-
-#### enterprise
-
-Optimized for future graph, impact, messaging, Docker, SignalR, and API route workflows.
-
-For now:
-
-- `find_symbol`
-- `search_code`
-- `related_symbols`
-- `impact_analysis`
-- `get_context_pack`
-- `trace_dependency`
-- `detect_cycles`
-- `compact_command_output`
-- `savings_report`
+Current UI remains a local single-project developer console. A larger UI refresh is deferred until after more route, component, messaging, infrastructure, semantic search, and project-group data is available.
 
 ### CLI
 
-Add a profile flag:
+The `b3` CLI currently supports:
 
 ```bash
 b3-mcp-runtime serve --profile optimized
@@ -520,7 +497,7 @@ b3-mcp-runtime serve --tool-profile optimized
 
 ---
 
-## Phase 8.7 — Agent Install Helper + Hook Integration
+## Phase 8.7 â€” Agent Install Helper + Hook Integration
 
 ### Purpose
 
@@ -538,8 +515,18 @@ Inspired by:
 - `b3 install --agent codex`
 - `b3 install --dry-run`
 - `b3 install --backup`
+- `b3 install`
 - `b3 doctor`
 - `b3 uninstall`
+- `b3 register`
+- `b3 unregister`
+- `b3 list`
+- `b3 status`
+- `b3 group create`
+- `b3 group add`
+- `b3 group remove`
+- `b3 group list`
+- `b3 group status`
 
 ### Implementation Status
 
@@ -563,45 +550,206 @@ Inspired by:
   are implemented.
 
 ### Rules
+CLI commands are local-only and dry-run/apply oriented where destructive writes are possible.
 
-- Idempotent.
-- Backup existing configs.
-- Show diff before writing when possible.
-- No cloud.
-- No telemetry.
-- No required internet.
-- Hooks must be optional.
-- Any auto-interception must be disabled by default.
+### Command Output Compaction
 
-### Future Hook Integration
+`compact_command_output` summarizes provided stdout/stderr only. It does not execute commands.
 
-Optional only:
+Supported families include:
 
-- suggest MCP tools instead of repeated grep/read
-- optional command output compaction
-- optional session event capture
+- git
+- cargo
+- dotnet
+- npm
+- pnpm
+- yarn
+- ng
+- tsc
+- eslint
+- docker
+- docker compose
+- rg
+- grep
+- cat
+- tree
+- unknown/generic
 
 ---
 
-## Phase 8.8 — Multi-repo Registry + Project Groups
+## Current Language Support
 
-### Purpose
+Support levels are intentionally honest.
 
-Support many local repos cleanly.
+### Rust â€” Good
 
-Some projects are standalone.
+Backend:
 
-Some projects belong to a group/system.
+- `tree-sitter-rust`
 
-Inspired by:
+Capabilities:
 
-- GitNexus multi-repo registry
-- GitNexus project groups
-- multi-service developer workflows
+- file detection
+- parsing
+- symbol extraction
+- import extraction
+- basic relationship extraction
+
+### JavaScript â€” Basic
+
+Backend:
+
+- `tree-sitter-javascript`
+
+Capabilities:
+
+- `.js`, `.mjs`, `.cjs` detection
+- parsing
+- functions
+- arrow/function variables
+- classes
+- methods
+- imports / exports
+- CommonJS `require`
+- conservative `CONTAINS` and `IMPORTS` relationships
+
+### TypeScript â€” Basic
+
+Backend:
+
+- `tree-sitter-typescript`
+
+Capabilities:
+
+- `.ts`, `.mts`, `.cts` detection
+- parsing
+- functions
+- arrow/function variables
+- classes
+- methods
+- interfaces
+- type aliases
+- enums
+- imports / exports
+- conservative `CONTAINS` and `IMPORTS` relationships
+
+### JSX / TSX â€” Basic
+
+Backend:
+
+- JavaScript/TypeScript tree-sitter grammars
+
+Capabilities:
+
+- `.jsx`, `.tsx` detection
+- parsing
+- component-like declarations where structurally obvious
+- imports / exports
+- conservative relationships
+
+### C# â€” Detect-only
+
+B3 can detect `.cs` files but does not yet provide full parser or semantic support.
+
+### Other Planned Languages
+
+Other planned languages are detect-only or unsupported unless explicitly implemented.
+
+---
+
+## Language Backend Status
+
+B3 has a language backend architecture.
+
+The model separates:
+
+- language detection
+- backend kind
+- backend capabilities
+- support level
+- selection policy
+- unsupported fallback
+
+Backend kinds:
+
+- Tree-sitter
+- LSP
+- Static config
+- Unknown
+
+Support levels:
+
+- Unsupported
+- Basic
+- Good
+- Advanced
+
+Tree-sitter is used for fast local indexing. LSP is used for future semantic operations.
+
+---
+
+## LSP Backend Status
+
+B3 has an LSP Backend MVP.
+
+Current behavior:
+
+- local-only
+- disabled by default
+- no language server installation
+- no downloads
+- no cloud
+- no paid backend requirement
+- missing language servers are non-fatal
+
+Implemented foundation:
+
+- local stdio process manager
+- bounded stderr capture
+- startup and request timeouts
+- JSON-RPC/LSP framing
+- `initialize`
+- `initialized`
+- `shutdown`
+- `exit`
+- `didOpen`
+- `didChange`
+- `definition`
+- `references`
+- `implementation`
+- diagnostics parsing
+- `/api/lsp/status`
+- `/api/lsp/servers`
+
+LSP complements tree-sitter indexing. It does not replace the local SQLite code graph.
+
+---
+
+## Project Model
+
+B3 supports both standalone projects and project groups.
+
+### Standalone Project
+
+A standalone project is an independent repository with its own local `.b3` database.
+
+Examples:
+
+```text
+D:\Project\b3_mcp\.b3\b3.db
+D:\Project\BackendApi\.b3\b3.db
+D:\Project\FrontendApp\.b3\b3.db
+```
+
+Default storage model:
+
+```text
+1 project = 1 repo-local .b3/b3.db
+```
 
 ### Registry
 
-Add:
+B3 has a local JSON registry:
 
 ```text
 ~/.b3/registry.json
@@ -627,14 +775,19 @@ Implementation status:
 - `b3 unregister <project-id>`
 - `b3 list`
 - `b3 status <project-id>`
+The registry stores metadata only:
 
-### Group Commands
+- projects
+- groups
+- tags
+- paths
+- database paths
+- timestamps
+- notes
 
-- `b3 group create <group-name>`
-- `b3 group add <group-id> <project-id>`
-- `b3 group remove <group-id> <project-id>`
-- `b3 group list`
-- `b3 group status <group-id>`
+The registry does not merge project databases. Each project keeps its own repo-local DB by default.
+
+### Project Group
 
 Deferred:
 
@@ -646,45 +799,22 @@ Deferred:
 - installer `--project-id` lookup
 
 ### Registry Example
+A project group is a metadata grouping of related projects.
 
-```json
-{
-  "version": 1,
-  "projects": [
-    {
-      "id": "backend-api",
-      "name": "Backend API",
-      "path": "D:\\Project\\BackendApi",
-      "database": "D:\\Project\\BackendApi\\.b3\\b3.db",
-      "tags": ["api", "backend"]
-    },
-    {
-      "id": "frontend-app",
-      "name": "Frontend App",
-      "path": "D:\\Project\\FrontendApp",
-      "database": "D:\\Project\\FrontendApp\\.b3\\b3.db",
-      "tags": ["frontend", "react", "angular"]
-    }
-  ],
-  "groups": [
-    {
-      "id": "business-app",
-      "name": "Business Application",
-      "description": "Backend, frontend, workers, desktop clients, and runtime infrastructure.",
-      "project_ids": [
-        "backend-api",
-        "frontend-app",
-        "worker-service",
-        "desktop-client"
-      ]
-    }
-  ]
-}
+Example:
+
+```text
+Business Application
+â”œâ”€â”€ Backend API
+â”œâ”€â”€ Frontend App
+â”œâ”€â”€ Worker Service
+â”œâ”€â”€ Desktop Client
+â””â”€â”€ Runtime Infrastructure
 ```
 
-### UI
+Project groups are currently metadata-only.
 
-Add:
+Deferred:
 
 - project list
 - group list
@@ -721,34 +851,41 @@ Add:
 - Existing single-project commands do not require the registry.
 - Groups are metadata only and do not merge graphs or execute cross-project
   queries.
+- control server registry APIs
+- Web UI registry view
+- installer `--project-id`
+- cross-project graph merging
+- cross-project architecture intelligence
 
 ---
 
-## Phase 9.0 — Language Backend Architecture
+## Technology Intelligence Model
 
-### Purpose
+B3 separates language support from technology intelligence.
 
-Replace the old “Language Pack Architecture” concept with a broader language backend architecture.
+Language support teaches B3 how to parse code syntax.
 
-Support both:
+Technology intelligence teaches B3 how to understand application architecture, including:
 
-- tree-sitter
-- LSP
+- routes
+- controllers
+- services
+- components
+- modules
+- middleware
+- dependency injection
+- message handlers
+- queues
+- topics
+- exchanges
+- realtime events
+- cloud resources
+- infrastructure manifests
+- deployment relationships
 
-### Add
+Planned technology intelligence includes the following groups.
 
-- `LanguageBackend` trait
-- `TreeSitterBackend`
-- `LspBackend`
-- `LanguageRegistry`
-- capability discovery
-- extension-to-language resolution
-- backend selection policy
-- unsupported language fallback
-- support quality levels:
-  - Basic
-  - Good
-  - Advanced
+### Web Backend
 
 ### Implementation Status
 
@@ -769,258 +906,413 @@ Support both:
   editing, or domain intelligence was added.
 
 ### Tree-sitter Responsibilities
+- Node.js
+- Express
+- NestJS
+- Fastify
+- ASP.NET Core
+- Go web services
 
-- fast local indexing
-- symbols
-- imports
-- basic relationships
-- FTS
-- graph nodes/edges
+### Web Frontend
 
-### LSP Responsibilities
-
-- go to definition
-- find references
-- find implementations
-- diagnostics
-- rename support
-- type-aware operations
-- safe symbolic editing support
-
-### Offline/Free Rules
-
-- LSP backends must use local language servers.
-- No paid/proprietary backend required.
-- Paid/proprietary integrations are optional plugins only, disabled by default.
-
----
-
-## Phase 9.1 — LSP Backend MVP
-
-Priority languages:
-
-- C#
-- TypeScript
-- JavaScript
-- Angular where possible
-
-Implement local LSP process management, workspace initialization, document sync, definition lookup, references lookup, implementations lookup, diagnostics, capability detection, timeout/retry/error handling.
-
-Rules:
-
-- Do not implement symbolic editing yet.
-- Use local/free LSP servers only.
-- No paid JetBrains plugin required.
-- No cloud language service.
-
----
-
-## Phase 9.2 — Web Application Priority Support
-
-Support:
-
-- C#
-- TypeScript
-- JavaScript
-- React / TSX
+- React
 - Angular
+- Vue
+- Svelte
 
-This phase targets common business/web application stacks, not one specific product domain.
+### Realtime
 
-Detect common C# classes, interfaces, methods, controllers, services, repositories, DTOs, tests, and ASP.NET routes where possible.
+- WebSocket
+- Socket.IO
+- SignalR
+- RSocket
 
-Detect React/Angular components, hooks, services, modules, routes, imports/exports, and tests.
+### Messaging / Event-driven
 
-Graph nodes:
+- AMQP
+- RabbitMQ
+- Kafka
+- Google Pub/Sub
+- generic Pub/Sub messaging
+- ksqlDB
 
-- Controller
-- Service
-- Repository
-- DTO
-- Component
-- Hook
-- Module
-- Route
+### Cloud / Infrastructure
 
-Edges:
+- GCP
+- GKE
+- Kubernetes
+- Terraform
+- Docker
+- Docker Compose
 
-- `ROUTES_TO`
-- `HANDLES_ROUTE`
-- `COMPONENT_USES`
-- `SERVICE_INJECTS`
-- `CALLS_SERVICE`
+### Data / ORM
 
----
+- Entity Framework Core
+- Dapper
+- Prisma
+- TypeORM
+- Sequelize
 
-## Phase 9.2.1 — Node.js / REST API Intelligence
+### Desktop / Graphics
 
-Support Node.js, Express, NestJS, Fastify basic, REST handlers, API routes, middleware, controllers, and services.
-
-Graph nodes:
-
-- ApiRoute
-- Controller
-- Middleware
-- Service
-- Handler
-
-Edges:
-
-- `ROUTES_TO`
-- `HANDLES_ROUTE`
-- `USES_MIDDLEWARE`
-- `CALLS_SERVICE`
+- WPF
+- Avalonia if useful
+- Electron if useful
+- Three.js
+- WebGL
 
 ---
 
-## Phase 9.2.2 — Messaging / Event-driven Intelligence
+## Roadmap
+
+## Phase 9.2.1 â€” Node.js / REST API Intelligence
+
+Status: Completed with basic static/local REST route intelligence.
+
+### Purpose
+
+Add first REST API intelligence for Node.js web applications.
+
+### Scope
 
 Support:
 
-- Kafka
-- ksqlDB
+- local package.json technology detection helper for Express, NestJS, Fastify,
+  TypeScript, and detect-only frontend packages
+- Express route extraction for direct `app.*`, `router.*`, chained
+  `router.route(...).get(...)`, and `app.use(...)` patterns
+- NestJS controller/method decorator route extraction with class/method path
+  composition
+- Fastify shorthand and basic route-object extraction
+- route metadata encoded on local `Route` symbols
+- route-to-handler `REFERENCES` edges where a handler/method symbol is
+  resolvable by the current static extractor
+- read-only `GET /api/routes` with project, branch, framework, method, path,
+  and limit filters
+- route cleanup through normal deleted-file index cleanup
+
+### Express Targets
+
+Detect common patterns:
+
+- `app.get("/users", handler)`
+- `app.post("/users", handler)`
+- `app.put("/users/:id", handler)`
+- `app.patch("/users/:id", handler)`
+- `app.delete("/users/:id", handler)`
+- `app.use("/users", router)`
+- `router.get("/", handler)`
+- `router.post("/", handler)`
+- `router.route("/users").get(handler).post(handler)`
+
+### NestJS Targets
+
+Detect common patterns:
+
+- `@Controller("users")`
+- `@Get()`
+- `@Get(":id")`
+- `@Post()`
+- `@Put()`
+- `@Patch()`
+- `@Delete()`
+- class route prefix + method route composition
+
+### Fastify Targets
+
+Detect if low-risk:
+
+- `fastify.get("/users", handler)`
+- `fastify.post("/users", handler)`
+- `fastify.route({ method, url, handler })`
+
+### Out of Scope
+
+- React component graph
+- Angular intelligence
+- ASP.NET Core
+- Go
+- WebSocket/RSocket/SignalR
+- Kafka/RabbitMQ/AMQP/PubSub
+- GCP/GKE/Terraform
+- symbolic editing
+- embeddings
+- cross-project intelligence
+- deep middleware execution order
+- runtime request tracing or dynamic runtime route generation
+- Nest module graph, guards, interceptors, pipes, and deep dependency injection
+- request lifecycle inference
+
+---
+
+## Phase 9.2.2 â€” React / TSX Component Intelligence
+
+Status: Completed with basic static/local React component intelligence.
+
+### Purpose
+
+Understand basic React component structure.
+
+### Scope
+
+- function components
+- arrow function components
+- class components
+- default and named exports
+- props interfaces/types
+- local package/import detection for React
+- JSX component usages and parent-child component references where safe
+- basic hook detection
+- component metadata encoded on component symbols
+- read-only `GET /api/components` with project, branch, framework, name, file,
+  and limit filters
+
+### Out of Scope
+
+- full runtime rendering behavior
+- state machine inference
+- deep hook semantics or dependency-array analysis
+- full JSX tree graph
+- CSS/layout intelligence
+- Next.js routing and app/page route intelligence, handled in Phase 9.2.3
+- automatic editing
+- Angular, C#, realtime, messaging, cloud/infrastructure, Go, embeddings,
+  semantic search, and cross-project intelligence
+
+---
+
+## Phase 9.2.3 â€” Next.js Intelligence
+
+### Purpose
+
+Add basic static intelligence for Next.js applications on top of React / TSX
+support.
+
+### Scope
+
+- detect Next.js from `package.json`
+- detect `next.config.js`, `next.config.mjs`, and `next.config.ts`
+- detect App Router structure under `app/`
+- detect Pages Router structure under `pages/`
+- map page, layout, loading, error, and not-found files to routes where safe
+- detect dynamic routes like `[id]`, `[...slug]`, and `[[...slug]]`
+- detect `app/api/**/route.ts` and `route.js` API handlers
+- detect route handler methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`,
+  `OPTIONS`, and `HEAD`
+- detect `"use client"` boundaries
+- basic static server/client component classification
+- preserve React component intelligence from Phase 9.2.2
+
+### Out of Scope
+
+- running `next dev`
+- running `next build`
+- runtime rendering
+- full React Server Components semantics
+- middleware execution order
+- Vercel/deployment intelligence
+- NextAuth/auth intelligence
+- deep data fetching semantics
+- symbolic editing
+
+---
+
+## Phase 9.2.4 â€” Angular Intelligence
+
+### Purpose
+
+Understand Angular application structure.
+
+### Scope
+
+- components
+- services
+- modules
+- decorators
+- route config
+- templates where safe
+- dependency injection basics
+
+### Out of Scope
+
+- full template type checking
+- Angular compiler integration
+- runtime behavior
+- advanced RxJS flow inference
+
+---
+
+## Phase 9.2.5 â€” ASP.NET Core / C# Web API Intelligence
+
+### Purpose
+
+Add first real C# web API intelligence.
+
+### Scope
+
+- C# parser or LSP-backed support
+- controllers
+- actions
+- route attributes
+- dependency injection basics
+- service relationships
+- request/response DTOs where safe
+
+### Out of Scope
+
+- full Roslyn replacement
+- deep EF query analysis
+- symbolic editing
+- rename/refactor
+
+---
+
+## Phase 9.2.6 â€” ORM / Database Access Intelligence
+
+### Purpose
+
+Understand common data access patterns.
+
+### Scope
+
+- Entity Framework Core
+- Dapper
+- Prisma
+- TypeORM
+- Sequelize
+- repository/service relationships
+- query callsites
+- data model references where safe
+
+### Out of Scope
+
+- full SQL optimizer
+- DB connection execution
+- schema migration execution
+- runtime query tracing
+
+---
+
+## Phase 9.2.7 â€” Realtime / Socket Intelligence
+
+### Purpose
+
+Understand realtime communication flows.
+
+### Scope
+
+- WebSocket
+- Socket.IO
+- SignalR
+- RSocket
+- event handlers
+- event/channel names
+- hub methods
+- client/server flow metadata
+- route or service links where safe
+
+### Out of Scope
+
+- live socket tracing
+- runtime packet capture
+- command execution
+- telemetry
+
+---
+
+## Phase 9.2.8 â€” Messaging / Event-driven Intelligence
+
+### Purpose
+
+Understand asynchronous messaging flows.
+
+### Scope
+
+- AMQP
 - RabbitMQ
+- Kafka
+- Google Pub/Sub
+- generic Pub/Sub messaging
+- ksqlDB
+- producers
+- consumers
+- topics
+- queues
+- exchanges
+- routing keys
+- consumer groups
+- streams/tables
+- event contract impact
 
-Detect topics, producers, consumers, consumer groups, ksql streams/tables, joins, windows, queues, exchanges, bindings, routing keys, publishers, consumers, and dead-letter queues.
+### Out of Scope
 
-Graph nodes:
-
-- Topic
-- Queue
-- Exchange
-- RoutingKey
-- ConsumerGroup
-- Stream
-- Table
-- MessageContract
-- Producer
-- Consumer
-
-Edges:
-
-- `PRODUCES_TO`
-- `CONSUMES_FROM`
-- `PUBLISHES_TO`
-- `BINDS_TO`
-- `ROUTES_TO`
-- `JOINS_STREAM`
-- `READS_TOPIC`
-- `WRITES_TOPIC`
-- `USES_CONTRACT`
+- broker connection
+- message consumption
+- cloud service calls
+- telemetry
 
 ---
 
-## Phase 9.2.3 — Docker / Runtime Infrastructure Intelligence
+## Phase 9.2.9 â€” Cloud / Infrastructure Intelligence
 
-Support Dockerfile, docker-compose.yml, `.env`, and deployment configs.
+### Purpose
 
-Detect services, images, ports, volumes, env vars, networks, depends_on, healthchecks, and build contexts.
+Understand infrastructure and deployment metadata.
 
-Graph nodes:
+### Scope
 
-- DockerService
-- DockerImage
-- Port
-- Volume
-- Network
-- EnvironmentVariable
-- Container
+- Docker
+- Docker Compose
+- Kubernetes manifests
+- GCP resources where statically detectable
+- GKE workload/config metadata
+- Terraform resources/modules/variables/outputs
+- service-to-infra relationships where safe
 
-Edges:
+### Out of Scope
 
-- `DEPENDS_ON`
-- `EXPOSES_PORT`
-- `USES_VOLUME`
-- `USES_NETWORK`
-- `BUILDS_FROM`
-- `USES_ENV`
-- `RUNS_SERVICE`
+- cloud API calls
+- Terraform plan/apply
+- kubectl execution
+- gcloud execution
+- live cluster inspection
 
 ---
 
-## Phase 9.2.4 — SignalR / Real-time Communication Intelligence
+## Phase 9.2.10 â€” Go Language Support
 
-Support ASP.NET SignalR hubs, hub methods, client events, groups, and frontend SignalR client handlers.
+### Purpose
 
-Detect Hub classes, Hub methods, `Clients.All`, `Clients.Caller`, `Clients.Group`, `Groups.AddToGroupAsync`, `SendAsync` event names, frontend `.on` handlers, and frontend `.invoke` calls.
+Add basic Go indexing support.
 
-Graph nodes:
+### Scope
 
-- SignalRHub
-- HubMethod
-- ClientEvent
-- Group
-- RealtimeConnection
+- `.go` detection
+- packages
+- imports
+- functions
+- structs
+- interfaces
+- methods
+- basic relationships where safe
 
-Edges:
+### Future Go Framework Support
 
-- `EMITS_EVENT`
-- `HANDLES_EVENT`
-- `JOINS_GROUP`
-- `SENDS_TO_CLIENT`
-- `CALLS_HUB`
-- `USES_CONNECTION`
-
----
-
-## Phase 9.2.5 — C# WPF Desktop App Intelligence
-
-Support WPF XAML, Windows, Pages, UserControls, ViewModels, Commands, Bindings, Resources, and Event handlers.
-
-Detect Window, Page, UserControl, ViewModel, `ICommand`, `RelayCommand`, Binding paths, ResourceDictionary, XAML event handlers, and navigation targets.
-
-Graph nodes:
-
-- WpfWindow
-- WpfPage
-- WpfUserControl
-- ViewModel
-- Command
-- Binding
-- Resource
-- EventHandler
-
-Edges:
-
-- `BINDS_TO`
-- `USES_VIEWMODEL`
-- `HANDLES_EVENT`
-- `USES_RESOURCE`
-- `NAVIGATES_TO`
-- `COMMAND_EXECUTES`
+- `net/http`
+- Gin
+- Echo
+- Fiber
+- gRPC
 
 ---
 
-## Phase 9.2.6 — Three.js / WebGL Graphics Intelligence
+## Phase 9.3 â€” Symbolic Editing MVP
 
-Support Three.js scenes, meshes, cameras, lights, render loops, shaders, and React integration where applicable.
+### Purpose
 
-Detect canvas elements, Three.js imports, scene construction, camera setup, mesh creation, material usage, animation loops, and shader usage.
+Add safe local code-editing tools based on indexed symbols.
 
-Graph nodes:
-
-- ThreeScene
-- Mesh
-- Camera
-- Light
-- Material
-- Shader
-- ReactComponent
-
-Edges:
-
-- `RENDERS_IN`
-- `CONTAINS_MESH`
-- `ATTACHES_CAMERA`
-- `USES_MATERIAL`
-- `USES_SHADER`
-- `EMBEDDED_IN_COMPONENT`
-
----
-
-## Phase 9.3 — Symbolic Editing MVP
-
-Tools:
+### Tools
 
 - `replace_symbol_body`
 - `insert_before_symbol`
@@ -1029,7 +1321,7 @@ Tools:
 - `apply_edit`
 - `reindex_after_edit`
 
-Rules:
+### Rules
 
 - dry-run first
 - show affected files
@@ -1038,12 +1330,19 @@ Rules:
 - no blind text replacement
 - no full-file rewrite unless needed
 - readonly profile must hide mutation tools
+- Do not install or download language servers.
+- Missing language servers are unavailable, not fatal.
+- Rust tree-sitter indexing remains the best supported path.
 
 ---
 
-## Phase 9.4 — Rename / Refactor MVP
+## Phase 9.4 â€” Rename / Refactor MVP
 
-Tools:
+### Purpose
+
+Add safe rename/refactor support using LSP where available.
+
+### Tools
 
 - `rename_symbol`
 - `preview_rename`
@@ -1051,43 +1350,67 @@ Tools:
 - `find_implementations`
 - `find_references_lsp`
 
-Rules:
+### Rules
 
 - use LSP when available
 - preview affected edits
 - apply atomically where possible
 - reindex after apply
-- fallback to readonly when LSP capability is missing
+- fallback to readonly behavior when LSP capability is missing
 
 ---
 
-## Phase 9.5 — Backend Language Packs
+## Phase 9.5 â€” Additional Backend Language Support
 
-Support Python, Java, Go, PHP, and Ruby.
+### Purpose
 
-Target:
+Add Basic or Good support for additional backend languages.
 
-- Basic for all
-- Good for Python / Java / Go where feasible
+### Targets
 
----
+- Python
+- Java
+- PHP
+- Ruby
 
-## Phase 9.6 — Systems/Mobile Language Packs
-
-Support C, C++, Swift, Kotlin, and Dart if useful.
-
-Target:
-
-- Basic first
-- Good where feasible
+Go is handled earlier in Phase 9.2.10 because it is part of the planned web/backend priority stack.
 
 ---
 
-## Phase 9.7 — Config/Data/Web Language Packs
+## Phase 9.6 â€” Systems / Mobile Language Support
 
-Support SQL, YAML, JSON, HTML, CSS / SCSS, TOML if useful, and XML if useful.
+### Purpose
 
-Support level:
+Add Basic support for systems and mobile-adjacent languages where useful.
+
+### Targets
+
+- C
+- C++
+- Swift
+- Kotlin
+- Dart if useful
+
+---
+
+## Phase 9.7 â€” Config / Data / Web File Support
+
+### Purpose
+
+Improve indexing for configuration, data, and web file types.
+
+### Targets
+
+- SQL
+- YAML
+- JSON
+- HTML
+- CSS / SCSS
+- TOML
+- XML
+- XAML if not already handled by WPF intelligence
+
+### Support Level
 
 - file detection
 - top-level symbols/keys
@@ -1097,101 +1420,296 @@ Support level:
 
 ---
 
-## Phase 9.8 — Language Pack Benchmark + Quality Audit
+## Phase 9.8 â€” Language and Technology Quality Audit
 
-Measure indexing correctness, symbol extraction quality, relationship extraction quality, route extraction quality, messaging extraction quality, Docker extraction quality, SignalR extraction quality, WPF extraction quality, false positives, false negatives, parser crash/error rate, and LSP timeout/failure rate.
+### Purpose
+
+Measure extraction correctness and risk across implemented languages and technologies.
+
+### Measure
+
+- symbol extraction quality
+- relationship extraction quality
+- route extraction quality
+- component extraction quality
+- messaging extraction quality
+- infrastructure extraction quality
+- false positives
+- false negatives
+- parser crash/error rate
+- LSP timeout/failure rate
 
 ---
 
-## Phase 9.9 — Refactor Checkpoint B
+## Phase 9.9 â€” Refactor Checkpoint B
 
-Clean language backend abstractions after real-world usage.
+### Purpose
 
----
-
-## Phase 9.10 — Performance Optimization Pass B
-
-Optimize measured multi-language bottlenecks.
-
----
-
-## Phase 10 — Local Embeddings + Vector Search
-
-Add semantic retrieval as a secondary signal.
-
-Allowed local/free providers:
-
-- Ollama
-- fastembed
-- Candle if feasible
-- local Qdrant only as an optional local component
+Clean language and technology backend abstractions after real-world usage.
 
 Rules:
 
+- no speculative rewrite
+- preserve DTO compatibility where possible
+- keep MCP runtime thin
+- keep parser/indexing logic in indexer
+
+---
+
+## Phase 9.10 â€” Performance Optimization Pass B
+
+### Purpose
+
+Optimize measured multi-language and technology intelligence bottlenecks.
+
+Rules:
+
+- benchmark first
+- optimize measured bottlenecks only
+- no telemetry
+- no unrelated refactor
+
+---
+
+## Phase 10 â€” Local Embeddings + Vector Search
+
+### Purpose
+
+Add semantic retrieval as a secondary signal.
+
+### Allowed Local/Free Providers
+
+- local embedding model abstraction
+- fastembed if feasible
+- Candle if feasible
+- Ollama if used as an optional local provider
+- local vector index/storage
+- local Qdrant only as an optional local component
+
+### Rules
+
 - no cloud embeddings required
 - no OpenAI / Anthropic / Gemini required
-- cloud providers optional plugin only, disabled by default
+- no hosted vector database required
+- no internet required at runtime
+- cloud providers are optional plugins only, disabled by default
 - semantic signal remains secondary to AST/graph/FTS
 
 ---
 
-## Phase 10.1 — Semantic Context Upgrade
+## Phase 10.1 â€” Semantic Context Upgrade
 
-Add semantic search, semantic + graph reranking, semantic fallback, semantic duplicate dedup, and embedding freshness tracking.
+### Purpose
 
----
+Use local semantic signals to improve context quality.
 
-## Phase 10.2 — Session Memory + Context Virtualization
+### Scope
 
-Inspired by Context Mode and Token Savior.
-
-Add SessionEvent, SessionSnapshot, DecisionMemory, TaskMemory, ErrorFixMemory, ResumeContext, compact/resume support, local SQLite memory, and no telemetry.
-
----
-
-## Phase 10.3 — Transcript Discovery / Token Opportunity Report
-
-Scan agent transcripts/logs locally, detect repeated grep/read chains, detect missed context-pack opportunities, detect long command output opportunities, produce adoption report, and suggest better B3 tool usage.
+- semantic search
+- hybrid search: FTS + graph + vector
+- graph-aware reranking
+- semantic fallback
+- duplicate deduplication
+- embedding freshness tracking
+- benchmark context quality impact
 
 ---
 
-## Phase 11 — Architecture Intelligence
+## Phase 10.2 â€” Session Memory + Context Virtualization
+
+### Purpose
+
+Add local session continuity inspired by Context Mode and Token Savior.
+
+### Scope
+
+- `SessionEvent`
+- `SessionSnapshot`
+- `DecisionMemory`
+- `TaskMemory`
+- `ErrorFixMemory`
+- `ResumeContext`
+- compact/resume support
+- local SQLite memory
+- no telemetry
+
+---
+
+## Phase 10.3 â€” Transcript Discovery / Token Opportunity Report
+
+### Purpose
+
+Scan local agent transcripts/logs to find missed opportunities for B3 tools.
+
+### Scope
+
+- detect repeated grep/read chains
+- detect missed context-pack opportunities
+- detect long command output opportunities
+- produce local adoption report
+- suggest better B3 tool usage
+
+Rules:
+
+- local logs only
+- no uploads
+- no telemetry
+
+---
+
+## Phase 10.4 â€” Web UI Developer Console Refresh
+
+### Purpose
+
+Upgrade the B3 Web UI into a polished local developer console after core language, route, framework, messaging, infrastructure, semantic search, and project-group capabilities are mature enough to display useful data.
+
+### Planned UI Stack
+
+- Tailwind CSS
+- shadcn/ui-style local components
+- Radix UI primitives where useful
+- lucide-react icons
+
+### Scope
+
+- app shell
+- sidebar navigation
+- dashboard cards
+- project status
+- indexing status
+- language support page
+- technology intelligence page
+- route view
+- component view
+- service view
+- registry/project group visibility
+- diagnostics/events improvements
+- better empty/loading/error states
+
+### Rules
+
+- no paid UI kit
+- no telemetry
+- no cloud dependency
+- no runtime internet requirement
+- no fake data
+- no backend intelligence hidden in UI
+
+---
+
+## Phase 11 â€” Architecture Intelligence
+
+### Purpose
 
 Add architecture-level understanding, including group-level and cross-project analysis.
 
-Add community detection, module boundary detection, dependency cluster map, circular dependency reports, architecture layer detection, service map, multi-service flow analysis, project group overview, cross-project dependency flow, frontend -> backend -> worker flow, and API -> message broker -> consumer flow.
+### Scope
 
-Algorithms:
+- community detection
+- module boundary detection
+- dependency cluster map
+- circular dependency reports
+- architecture layer detection
+- service map
+- multi-service flow analysis
+- project group overview
+- cross-project dependency flow
+- frontend -> backend -> worker flow
+- API -> message broker -> consumer flow
+- app service -> infrastructure flow where safe
+
+### Algorithms
 
 - connected components
-- SCC
+- strongly connected components
 - PageRank / centrality
 - label propagation or Louvain if feasible
 - dependency clustering
 
 ---
 
-## Phase 12 — Git Intelligence
+## Phase 12 â€” Git Intelligence
 
-Add recent churn score, last modified commit, commit frequency, hotspot files, author count, and ranking/risk integration.
+### Purpose
+
+Add repository history signals as local ranking/risk inputs.
+
+### Scope
+
+- recent churn score
+- last modified commit
+- commit frequency
+- hotspot files
+- author count
+- ranking/risk integration
+
+Rules:
+
+- local git data only
+- no remote calls required
+- no telemetry
 
 ---
 
-## Phase 13 — Duplicate / Similarity Detection
+## Phase 13 â€” Duplicate / Similarity Detection
 
-Add AST fingerprinting, normalized AST hash, MinHash, SimHash, duplicate function detection, and similar code search.
+### Purpose
+
+Detect duplicate and similar code locally.
+
+### Scope
+
+- AST fingerprinting
+- normalized AST hash
+- MinHash
+- SimHash
+- duplicate function detection
+- similar code search
 
 ---
 
-## Phase 14 — Real Plugin System
+## Phase 14 â€” Real Plugin System
 
-Add plugin registry runtime, plugin lifecycle, capability discovery, language plugin loading, ranking plugin loading, embedding plugin loading, compactor plugin loading, and external providers optional and disabled by default.
+### Purpose
+
+Add a real plugin model while keeping the default core offline/free.
+
+### Scope
+
+- plugin registry runtime
+- plugin lifecycle
+- capability discovery
+- language plugin loading
+- ranking plugin loading
+- embedding plugin loading
+- compactor plugin loading
+
+Rules:
+
+- external providers optional only
+- disabled by default
+- not required for install/tests/benchmarks/core features
 
 ---
 
-## Phase 15 — Packaging + Installers
+## Phase 15 â€” Packaging + Installers
 
-Add MCP install command, Cursor config helper, Codex config helper, Claude config helper if applicable, doctor command, uninstall command, optional Tauri app, and release packaging.
+### Purpose
+
+Prepare B3 for easier distribution.
+
+### Scope
+
+- release packaging
+- binary install workflow
+- optional Tauri app if still useful
+- versioned artifacts
+- platform notes
+- install/doctor/uninstall polish
+
+Note:
+
+Basic local agent install helpers already exist from Phase 8.7. This phase is about release-grade packaging and distribution polish.
 
 ---
 
@@ -1201,6 +1719,7 @@ Add MCP install command, Cursor config helper, Codex config helper, Claude confi
 |---|---|
 | Test MCP runtime with Codex/Cursor | Usable now |
 | Rust repositories | Usable now |
+| JavaScript / TypeScript / JSX / TSX basic indexing | Usable now |
 | Command output compaction | Usable now |
 | Project init/index workflow | Usable now |
 | MCP tool profiles | Usable now |
@@ -1208,19 +1727,40 @@ Add MCP install command, Cursor config helper, Codex config helper, Claude confi
 | Multi-project local workflow | Usable now, metadata only |
 | Project groups | Usable now, metadata only |
 | Language backend contracts | Usable now |
-| C# Web API / backend services | Phase 9.1 / 9.2 |
-| React / Angular / TypeScript / JavaScript | Phase 9.2 |
-| Node.js REST API | Phase 9.2.1 |
-| Kafka / ksqlDB | Phase 9.2.2 |
-| RabbitMQ | Phase 9.2.2 |
-| Docker / docker-compose | Phase 9.2.3 |
-| SignalR | Phase 9.2.4 |
-| C# WPF | Phase 9.2.5 |
-| Three.js / WebGL | Phase 9.2.6 |
+| C# Web API / backend services | Phase 9.2.5 |
+| Basic JavaScript / TypeScript / JSX / TSX indexing | Usable now |
+| Basic React / TSX component intelligence | Usable now, basic/static |
+| Next.js intelligence | Phase 9.2.3 |
+| Angular deep graph intelligence | Phase 9.2.4 |
+| Node.js REST API | Usable now, basic/static |
+| Kafka / ksqlDB | Phase 9.2.8 |
+| RabbitMQ | Phase 9.2.8 |
+| Docker / docker-compose | Phase 9.2.9 |
+| SignalR | Phase 9.2.7 |
+| C# WPF | Deferred |
+| Three.js / WebGL | Deferred |
+| Agent install helper for Codex/Cursor | Usable now |
+| Multi-project CLI registry | Usable now |
+| Project groups metadata | Usable now |
+| Registry Web UI | Deferred |
+| Control registry APIs | Deferred |
+| C# Web API / ASP.NET Core | Phase 9.2.5 |
+| Node.js REST API / Express / NestJS / Fastify | Usable now, basic/static |
+| React / TSX component intelligence | Usable now, basic/static |
+| Next.js intelligence | Phase 9.2.3 |
+| Angular intelligence | Phase 9.2.4 |
+| ORM / database access intelligence | Phase 9.2.6 |
+| WebSocket / Socket.IO / SignalR / RSocket | Phase 9.2.7 |
+| AMQP / RabbitMQ / Kafka / Google Pub/Sub | Phase 9.2.8 |
+| Docker / Kubernetes / GCP / GKE / Terraform | Phase 9.2.9 |
+| Go language support | Phase 9.2.10 |
 | Refactor assistant | Phase 9.3 / 9.4 |
+| Local embeddings / vector search | Phase 10 |
 | Full memory/context platform | Phase 10.2+ |
+| Architecture intelligence | Phase 11 |
+| Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform, but broad real-world app-stack intelligence depends on Phase 9.x.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, and basic static React/TSX component intelligence. Broader real-world app-stack intelligence depends on Phase 9.2.3 and later.
 
 ---
 
@@ -1238,6 +1778,7 @@ B3 can run today as a local MCP/runtime/control/UI platform, but broad real-worl
   - `scope.branch_id`
 - Do not move persistence internals out of storage.
 - Do not move graph traversal/ranking into MCP runtime or control server.
+- Do not move parser/indexing logic into MCP runtime or control server.
 
 ---
 
@@ -1258,7 +1799,26 @@ B3 can run today as a local MCP/runtime/control/UI platform, but broad real-worl
 
 Benchmarks should establish a baseline before optimization work starts.
 
-Track cold startup time, MCP initialize latency, MCP tools/list latency, MCP tools/call latency, common query latencies, graph traversal latency, context pack latency, impact analysis latency, indexing speed, changed-file reindex latency, watcher debounce overhead, SQLite query latency, parser worker latency, command compaction latency, and approximate memory use when feasible.
+Track:
+
+- cold startup time
+- MCP initialize latency
+- MCP tools/list latency
+- MCP tools/call latency
+- common query latencies
+- graph traversal latency
+- context pack latency
+- impact analysis latency
+- route extraction latency when implemented
+- technology detection latency when implemented
+- indexing speed
+- changed-file reindex latency
+- watcher debounce overhead
+- SQLite query latency
+- parser worker latency
+- LSP request latency when enabled and tested locally
+- command compaction latency
+- approximate memory use when feasible
 
 Benchmark fixtures must remain local, deterministic, small enough to commit, and free from network/cloud/API calls.
 
@@ -1287,6 +1847,7 @@ Use support levels.
 - basic calls
 - references
 - route hints
+- framework/library hints where safe
 
 ### Advanced
 
@@ -1295,6 +1856,8 @@ Use support levels.
 - cross-file references
 - inheritance/interface edges
 - component relationships
+- message flows
+- infrastructure relationships
 - LSP references/definitions
 - safe editing support
 
@@ -1302,20 +1865,42 @@ Use support levels.
 
 First priority is based on common real-world application stacks:
 
-- C#
-- TypeScript
+- Rust
 - JavaScript
-- React / TSX
+- TypeScript
+- JSX / TSX
+- C#
+- React
 - Angular
 - Node.js
+- Express
+- NestJS
+- Fastify
 
 Then:
 
-- Docker
-- Kafka
-- ksqlDB
-- RabbitMQ
+- ASP.NET Core
+- Entity Framework Core
+- Dapper
+- Prisma
+- TypeORM
+- Sequelize
+- WebSocket
+- Socket.IO
 - SignalR
+- RSocket
+- AMQP
+- RabbitMQ
+- Kafka
+- Google Pub/Sub
+- generic Pub/Sub messaging
+- ksqlDB
+- Docker
+- Kubernetes
+- GCP
+- GKE
+- Terraform
+- Go
 - WPF
 - Three.js / WebGL
 
@@ -1323,7 +1908,6 @@ Then:
 
 - Python
 - Java
-- Go
 - PHP
 - Ruby
 - C
@@ -1335,6 +1919,8 @@ Then:
 - JSON
 - HTML
 - CSS / SCSS
+- TOML
+- XML
 
 ---
 
@@ -1367,7 +1953,9 @@ E. verification results
 F. offline/free compliance result  
 G. remaining risks  
 H. deferred work  
-I. READY / NOT READY for next phase  
+I. READY / NOT READY for next phase
+
+For larger feature phases, include phase-specific sections such as API behavior, storage behavior, benchmark status, MCP/profile compatibility, and UI impact.
 
 ---
 
@@ -1453,7 +2041,8 @@ B3 intentionally stays local-first, offline-first, free-by-default, MCP-compatib
 
 - Do not implement all domains at once.
 - Each domain must have tests and benchmark fixtures.
-- Framework detection should be conservative and explainable.
+- Framework/library detection should be conservative and explainable.
+- Language support, framework detection, and framework intelligence are separate layers.
 - No cloud APIs are required.
 - Offline-first and free-by-default remain hard requirements.
 - External/cloud/paid integrations are optional plugins only and disabled by default.

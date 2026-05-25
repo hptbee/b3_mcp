@@ -10,6 +10,7 @@ Future phases may also require:
 - Node.js for the Next.js UI
 - local Qdrant for vector search
 - local embedding providers such as Ollama, GGUF models, sentence-transformers, Candle, or fastembed
+- optional local language servers such as `typescript-language-server`, `csharp-ls`, or OmniSharp when LSP is explicitly enabled
 
 All required dependencies should be available locally for normal development.
 Do not make verification depend on live network access, hosted databases,
@@ -178,8 +179,14 @@ GET /api/languages
 
 Detection is local and rule-based: extensions, selected filenames such as
 `Dockerfile`, and compose filenames. Detection does not mean parser support.
-Rust is currently implemented through `tree-sitter-rust`; planned languages
-report detect-file support only. LSP is disabled by default until Phase 9.1.
+Rust is currently implemented through `tree-sitter-rust`. JavaScript,
+TypeScript, JSX, and TSX have basic local tree-sitter indexing. C# and other
+planned languages remain detect-only or unsupported until their phases land.
+LSP exists as a local backend foundation and is disabled by default.
+React/TSX component intelligence is basic static analysis only and is exposed
+through indexed symbol metadata and the local control API. The current roadmap
+is completed through Phase 9.2.2; the next planned implementation phase is
+Phase 9.2.3 - Next.js Intelligence.
 
 ## Offline-First Expectations
 
@@ -213,6 +220,11 @@ External integrations must remain:
 - Storage exposes repository contracts instead of leaking SQLite details across crates.
 - Thread-safe SQLite index-store adapters belong in `b3-storage`, not HTTP or MCP adapters.
 - Command output compaction only transforms provided stdout/stderr; it must not execute commands.
+- LSP runtime belongs in `b3-indexer` as a local backend capability; it must stay disabled by default and must not install, download, or shell out beyond launching configured local server binaries.
+- JavaScript/TypeScript/JSX/TSX support is tree-sitter based and local-only; do not require `npm`, `node`, `tsc`, or `eslint` during indexing.
+- Node.js REST intelligence is basic static analysis only; route extraction must not execute app code, framework CLIs, package managers, or package-registry lookups.
+- React/TSX component intelligence is basic static analysis only; component extraction must not execute React apps, dev servers, package managers, `node`, `tsc`, or `eslint`.
+- Next.js intelligence is planned next and must stay static/local when implemented; do not run `next dev`, `next build`, package scripts, or deployment tooling.
 - Embeddings run in background workers in later phases.
 - UI/control plane stays separate from MCP runtime.
 - Hook integration foundation is disabled by default and must not intercept

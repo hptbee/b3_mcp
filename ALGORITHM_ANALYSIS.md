@@ -69,6 +69,82 @@ Improvement:
 - add language packs as plugins
 - support fallback text extraction for unsupported languages
 
+### Local LSP Backend
+
+Use local language servers as a semantic capability layer alongside the tree-sitter graph.
+
+Phase 9.1 scope:
+1. launch only explicitly configured local stdio server binaries
+2. initialize a workspace with bounded startup/request timeouts
+3. sync documents with full-text `didOpen`/`didChange`
+4. parse capabilities and diagnostics
+5. request definition, references, and implementations when supported
+6. keep missing servers non-fatal
+
+LSP does not replace tree-sitter indexing, graph persistence, FTS/BM25, context packing, or Rust parser behavior. Symbolic editing and rename/refactor remain deferred.
+
+### Basic Web Language Indexing
+
+Phase 9.2 adds tree-sitter parsing for JavaScript, TypeScript, JSX, and TSX.
+
+Extraction is intentionally conservative:
+1. create a file-level module symbol for each parsed web file
+2. extract high-confidence declarations such as functions, classes, methods, exported constants, interfaces, type aliases, and enums
+3. extract ESM and CommonJS import specifiers as package symbols
+4. emit `CONTAINS` and `IMPORTS` relationships only
+5. skip JS/TS call graph extraction until name resolution is reliable enough
+
+External packages remain package symbols, not fake file nodes. Relative import resolution supports common JS/TS extensions and `index.*`, but tsconfig aliases and framework route/template graphs are deferred.
+
+### Node.js REST Route Extraction
+
+Phase 9.2.1 adds conservative static route extraction for Node.js backends.
+
+Implemented extraction rules:
+1. detect REST-relevant packages from local `package.json` dependency sections
+2. extract direct Express route calls and router calls from tree-sitter call expressions
+3. extract NestJS controller routes from decorator text and compose controller/method paths
+4. extract basic Fastify shorthand and route-object calls
+5. store each confident route as a `Route` symbol with encoded method/path/framework metadata
+6. emit a route-to-handler `REFERENCES` edge only when the handler or controller method symbol is resolvable
+
+The extractor intentionally avoids runtime middleware order, Nest module graphs,
+guards/interceptors/pipes, deep DI resolution, request lifecycle inference, and
+low-confidence inferred routes. It does not execute `npm`, `node`, `tsc`,
+`eslint`, framework CLIs, package registries, or app code.
+
+### React / TSX Component Extraction
+
+Phase 9.2.2 adds conservative static React component extraction for
+JavaScript, TypeScript, JSX, and TSX files.
+
+Implemented extraction rules:
+1. detect React package metadata from local package.json dependency sections
+2. annotate high-confidence PascalCase function, arrow-function, class,
+   memo, and forwardRef component symbols when JSX is present
+3. encode component metadata on existing symbols, including export kind,
+   component kind, props type name, hooks, JSX component usages, source kind,
+   line range, and confidence
+4. emit safe `REFERENCES` edges from components to same-file props
+   interfaces/type aliases and same-file component usages where resolvable
+5. expose read-only component metadata through the control API
+
+The extractor intentionally avoids React runtime rendering, state-machine
+inference, deep hook semantics, dependency-array analysis, full JSX tree graph
+construction, CSS/layout intelligence, framework-specific router intelligence,
+and low-confidence component guesses. It does not execute `npm`, `node`, `tsc`,
+`eslint`, React dev servers, package registries, or app code.
+
+### Planned Next.js Route Extraction
+
+Phase 9.2.3 plans static Next.js intelligence. The intended algorithm is
+file-system based: detect Next.js packages/config files, inspect `app/` and
+`pages/` route conventions, map safe page/layout/loading/error/not-found files,
+detect dynamic route segments, detect `app/api/**/route.ts` and `route.js`
+handlers, and classify `"use client"` boundaries without running Next.js.
+
+This is planned work, not current behavior.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.
@@ -271,11 +347,26 @@ Added requirements:
 - Phase 8: File Watcher + Daemon Mode
 - Phase 8.1: Parser Isolation
 
+### Completed Through Current Phase
+
+- Phase 9.1: LSP Backend MVP
+- Phase 9.2: Web Application Priority Support A
+- Phase 9.2.1: Node.js / REST API Intelligence
+- Phase 9.2.2: React / TSX Component Intelligence
+
 ### Planned Phases
 
-- Phase 9: Local Embeddings + Vector Search
-- Phase 9.1: Semantic Context Upgrade
-- Phase 10: Multi-language Packs
+- Phase 9.2.3: Next.js Intelligence, including static file-system route and
+  route-handler extraction on top of React / TSX support
+- Phase 9.2.4: Angular Intelligence
+- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6: ORM / Database Access Intelligence
+- Phase 9.2.7: Realtime / Socket Intelligence
+- Phase 9.2.8: Messaging / Event-driven Intelligence
+- Phase 9.2.9: Cloud / Infrastructure Intelligence
+- Phase 9.2.10: Go Language Support
+- Phase 10: Local Embeddings + Vector Search
+- Phase 10.1: Semantic Context Upgrade
 - Phase 11: Architecture Intelligence
 - Phase 12: Git Intelligence
 - Phase 13: Duplicate / Similarity Detection

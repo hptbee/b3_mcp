@@ -1,4 +1,4 @@
-# B3 Control Server
+﻿# B3 Control Server
 
 The control server is local developer tooling for the future localhost UI. It is an adapter over the core contracts and local SQLite storage; it can trigger the indexer, but it does not own indexing logic, generate embeddings, run semantic search, or handle MCP protocol traffic.
 
@@ -110,6 +110,10 @@ Diagnostics and config:
 - `GET /api/diagnostics`
 - `GET /api/capabilities`
 - `GET /api/languages`
+- `GET /api/lsp/status`
+- `GET /api/lsp/servers`
+- `GET /api/routes`
+- `GET /api/components`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -123,12 +127,41 @@ The event stream emits server, watcher, debounce, indexing, and parser worker li
 
 Current truth:
 
-- Rust has an available `tree-sitter-rust` backend with `Good` support.
-- Planned languages may be detected by extension or filename, but only report
-  detect-file capability.
-- LSP is disabled until Phase 9.1.
-- No non-Rust parser, LSP runtime, semantic search, or framework intelligence is
-  exposed by these endpoints.
+- Rust has `Good` tree-sitter support.
+- JavaScript, TypeScript, JSX, and TSX have `Basic` local tree-sitter support.
+- C# is detect-only.
+- Node.js REST route intelligence is `Basic`, static, and local for Express,
+  NestJS, and Fastify.
+- React/TSX component intelligence is `Basic`, static, and local for common
+  component declarations, props type names, JSX usages, and hooks.
+- LSP metadata is exposed, but LSP remains disabled by default.
+- Semantic search and deeper framework intelligence remain deferred.
+
+LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
+
+`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, and C# as detect-only until a parser or semantic backend is added.
+
+`GET /api/routes` returns locally indexed Node.js REST route metadata from
+`Route` symbols. Optional filters include `project_id`, `branch_id`,
+`framework`, `method`, `path`, and `limit`.
+
+`GET /api/components` returns locally indexed React component metadata from
+component symbols. Optional filters include `project_id`, `branch_id`,
+`framework`, `name`, `file`, and `limit`.
+
+Next.js route intelligence is planned for Phase 9.2.3. Future Next.js page/API
+route metadata may reuse `GET /api/routes` where it fits the existing read-only
+route model, but no Next.js-specific route API is current.
+
+Route support is intentionally basic and static. It does not execute `npm`,
+`node`, `tsc`, `eslint`, framework CLIs, package registries, app code, or
+runtime routing. It does not infer deep middleware order, Nest module graphs,
+guards/interceptors/pipes, deep dependency injection, or request lifecycles.
+
+Component support is intentionally basic and static. It does not execute
+`npm`, `node`, `tsc`, `eslint`, React dev servers, package registries, app code,
+or runtime rendering. It does not infer state machines, deep hook semantics,
+full JSX tree graphs, CSS/layout, or framework-specific router behavior.
 
 ## Examples
 
@@ -142,6 +175,9 @@ curl http://127.0.0.1:7777/api/index/status
 ```powershell
 curl -X POST http://127.0.0.1:7777/api/index/run
 curl -X POST http://127.0.0.1:7777/api/index/reindex
+curl http://127.0.0.1:7777/api/lsp/status
+curl http://127.0.0.1:7777/api/routes?framework=express
+curl http://127.0.0.1:7777/api/components?framework=react
 ```
 
 ```powershell
@@ -184,6 +220,10 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   but in-process parsing remains the default compatibility mode.
 - Embeddings and Qdrant integration are not implemented in this phase.
 - Advanced parser diagnostics UI is deferred.
+- Dedicated route browser UI is deferred; route metadata is exposed through the
+  control API.
+- Dedicated component browser UI is deferred; component metadata is exposed
+  through the control API.
 - Manual indexing is synchronous for this phase; `GET /api/index/status`
   reports the current or last run for the current server process.
 

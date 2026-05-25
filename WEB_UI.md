@@ -70,6 +70,12 @@ indexed file/symbol/edge counts, last index status, parse failures, and local
 duration. It also includes `Run Index` and `Reindex Project` buttons. Reindex is
 safe incremental reindexing in this phase and skips unchanged files.
 
+Node.js REST route metadata is available through the local control API, but the
+current Web UI does not include a dedicated route browser yet.
+
+React/TSX component metadata is available through the local control API, but
+the current Web UI does not include a dedicated component browser yet.
+
 ## Registry Visibility
 
 Phase 8.8 registry and project group support is CLI-only for now. Web UI
@@ -82,7 +88,9 @@ control server.
 The control server now exposes language backend metadata at `/api/languages`,
 but the Web UI does not render a dedicated language support table yet. This is
 deferred to a later UI pass. Current capability truth is Rust implemented,
-planned languages detected only, and LSP disabled.
+JavaScript/TypeScript/JSX/TSX basic indexing, Node REST basic static route
+metadata, React/TSX basic static component metadata, C# detect-only, and LSP
+disabled by default.
 
 ## Logs / Events
 
@@ -214,5 +222,15 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Query trace quality depends on trace fields returned by the control server query endpoints.
 - Embeddings and semantic search are deferred.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
+- A dedicated Node.js REST route browser is deferred; route metadata is
+  currently available through `GET /api/routes`.
+- A dedicated React component browser is deferred; component metadata is
+  currently available through `GET /api/components`.
+- Dedicated Next.js route/page views are deferred; Next.js intelligence is
+  planned for Phase 9.2.3 and is not current UI behavior.
+- Future technology intelligence views are deferred until the underlying backend
+  intelligence is completed.
+- The broader Web UI Developer Console Refresh remains deferred until after
+  core intelligence and semantic search work.
 - Config mutation/save is deferred.
 - SSE currently reflects the minimal control-server event stream.

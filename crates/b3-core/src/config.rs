@@ -230,6 +230,46 @@ impl Default for LanguageBackendConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LspConfig {
+    pub enabled: bool,
+    pub startup_timeout_ms: u64,
+    pub request_timeout_ms: u64,
+    pub stderr_capture_bytes: usize,
+    pub servers: Vec<LspServerConfig>,
+}
+
+impl Default for LspConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            startup_timeout_ms: 5_000,
+            request_timeout_ms: 5_000,
+            stderr_capture_bytes: 4_096,
+            servers: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LspServerConfig {
+    pub language_id: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub enabled: bool,
+}
+
+impl LspServerConfig {
+    pub fn local_disabled(language_id: impl Into<String>, command: impl Into<String>) -> Self {
+        Self {
+            language_id: language_id.into(),
+            command: command.into(),
+            args: Vec::new(),
+            enabled: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AppConfig {
     pub offline: OfflineConfig,
@@ -240,4 +280,5 @@ pub struct AppConfig {
     pub graph: GraphConfig,
     pub ui: UiConfig,
     pub language_backends: LanguageBackendConfig,
+    pub lsp: LspConfig,
 }

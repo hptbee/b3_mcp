@@ -1,4 +1,4 @@
-# B3 MCP Code Intelligence
+﻿# B3 MCP Code Intelligence
 
 B3 is a local-first, offline-first, free-by-default code intelligence platform
 for MCP-compatible coding agents such as Codex and Cursor.
@@ -31,6 +31,44 @@ access, or OpenAI/Anthropic/Gemini/cloud embedding APIs.
 
 Optional integrations may be added later only as disabled-by-default plugins.
 The default system must remain fully local.
+B3 is offline-first and free-by-default.
+
+Core functionality must not require:
+
+- external APIs
+- cloud services
+- hosted vector databases
+- SaaS authentication
+- telemetry
+- paid UI kits
+- paid backend services
+- paid/proprietary plugins
+- OpenAI / Anthropic / Gemini / cloud embedding APIs
+- JetBrains paid plugin
+- internet access
+
+Allowed in core:
+
+- local SQLite
+- local FTS5
+- local parser worker
+- local benchmark harness
+- local command output compaction
+- local LSP servers when explicitly enabled/configured
+- local embeddings when implemented later
+- local Qdrant only as an optional local component when implemented later
+
+External/cloud/paid integrations are allowed only as optional plugins:
+
+- disabled by default
+- not required for install
+- not required for tests
+- not required for benchmarks
+- not required for core features
+
+This requirement overrides all roadmap decisions.
+
+---
 
 ## Current Status
 
@@ -43,13 +81,43 @@ Completed:
 - Phase 8.7 - Agent Install Helper + Hook Integration Foundation
 - Phase 8.8 - Multi-repo Registry + Project Groups
 - Phase 9.0 - Language Backend Architecture
+- Phase 9.1 - LSP Backend MVP
+- Phase 9.2 - Web Application Priority Support A
+- Phase 9.2.1 - Node.js / REST API Intelligence
+- Phase 9.2.2 - React / TSX Component Intelligence
 
 Next:
 
-- Phase 9.1 - LSP Backend MVP
+- Phase 9.2.3 - Next.js Intelligence
 
-Rust has the best current language support. Multi-language and domain-specific
-application intelligence is planned for later phases.
+B3 can run today as a local MCP/runtime/control/UI platform.
+
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. C# remains detect-only, and LSP remains local-only and disabled by default. Next.js intelligence is planned next; Angular, Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and deeper app-stack intelligence remain planned for later Phase 9.x work.
+
+---
+
+## Why Phase 8.5.1 Exists
+
+B3 already has the indexing engine, storage, query engine, watcher, and UI.
+
+However, it still needs a simple user workflow for:
+
+```text
+init project -> index project -> open UI -> see files/symbols/edges
+```
+
+Phase 8.5.1 turns the existing indexing capability into an easy workflow:
+
+- CLI init command
+- CLI index command
+- CLI reindex command
+- control API index trigger
+- UI Run Index button
+- indexing status/events
+
+Without this phase, B3 can index internally, but users do not yet have a clean `b3 init` / `b3 index` style experience.
+
+---
 
 ## What Works Today
 
@@ -68,14 +136,33 @@ application intelligence is planned for later phases.
 
 - Cross-project query execution, graph merging, and architecture intelligence
   are deferred.
-- Rust is the only implemented parser backend right now.
-- C#, TypeScript, JavaScript, TSX/JSX, Dockerfile, XAML, Python, Java, Go, and
-  other languages are detected for capability reporting only.
-- Embeddings, semantic search, Qdrant, LSP runtime, session memory, symbolic editing,
-  installer tooling, and domain-specific intelligence are deferred.
+- Rust has the strongest implemented parser backend.
+- JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
+- C#, Dockerfile, XAML, Python, Java, Go, and other planned languages are
+  detect-only or unsupported until their phases land.
+- Embeddings, semantic search, Qdrant, session memory, symbolic editing, and
+  domain-specific intelligence are deferred.
+- LSP exists as a local backend foundation and is disabled by default.
 - Reindex is currently safe incremental reindexing, not a separate force-delete
   full rebuild.
 - Web UI dependencies must be installed locally before frontend checks/builds.
+- Rust has the best current language support.
+- JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
+- Node.js REST route extraction for Express, NestJS, and Fastify is basic/static/local.
+- React/TSX component extraction is basic/static/local for common function,
+  arrow, class, memo/forwardRef components, props type names, JSX usages, and
+  hook names.
+- Deep middleware order, runtime routing, Nest module graphs, guards/interceptors,
+  deep dependency injection, and request lifecycle inference are deferred.
+- Manual project init/index workflow is planned for Phase 8.5.1.
+- MCP tool profiles start in Phase 8.6.
+- Multi-repo registry and project groups are planned for Phase 8.8.
+- C#, Angular intelligence, deep React runtime behavior, deep Node runtime behavior, Docker, Kafka, ksqlDB, RabbitMQ, SignalR, WPF, Three.js, and other app-stack support are planned for Phase 9.x.
+- Semantic search and embeddings are not implemented yet.
+- Symbolic editing and rename/refactor tools are not implemented yet.
+- Session memory is planned for Phase 10.2+.
+- Command output compaction is rule-based and conservative.
+- Token savings estimates are approximate and not tokenizer-exact.
 
 ## Architecture Summary
 
@@ -118,11 +205,11 @@ Future project groups are generic workspace groupings, for example:
 
 ```text
 Business Application
-├── Backend API
-├── Frontend App
-├── Worker Service
-├── Desktop Client
-└── Runtime Infrastructure
+â”œâ”€â”€ Backend API
+â”œâ”€â”€ Frontend App
+â”œâ”€â”€ Worker Service
+â”œâ”€â”€ Desktop Client
+â””â”€â”€ Runtime Infrastructure
 ```
 
 Project groups are metadata only in Phase 8.8. Each project keeps its own
@@ -320,13 +407,149 @@ Benchmark data stays local.
 Recently completed:
 
 - Phase 9.0 - Language Backend Architecture
+- Phase 9.1 - LSP Backend MVP
+- Phase 9.2 - Web Application Priority Support A
+- Phase 9.2.1 - Node.js / REST API Intelligence
+- Phase 9.2.2 - React / TSX Component Intelligence
 
 Next:
 
-- Phase 9.1 - LSP Backend MVP
+- Phase 9.2.3 - Next.js Intelligence
 
 See `PLAN.md` for the full roadmap.
 
+Upcoming roadmap highlights:
+
+- project init/index workflow
+- MCP tool profiles
+- agent install helper
+- multi-repo registry
+- project groups
+- language backend architecture
+- LSP backend foundation, local-only and disabled by default
+- basic JavaScript / TypeScript / JSX / TSX indexing
+- basic Node.js REST route intelligence
+- basic React / TSX component intelligence
+- Next.js intelligence
+- C# / Angular deeper support
+- Node.js REST API intelligence, basic/static/local
+- Kafka / ksqlDB / RabbitMQ intelligence
+- Docker runtime infrastructure intelligence
+- SignalR intelligence
+- C# WPF intelligence
+- Three.js / WebGL intelligence
+- symbolic editing
+- rename/refactor support
+- local embeddings
+- session memory
+- architecture intelligence
+- git intelligence
+- duplicate/similarity detection
+- plugin system
+- packaging/installers
+
+For the full plan, see `PLAN.md`.
+
+---
+
+## When Can We Use It?
+
+| Use case | Status |
+|---|---|
+| Test MCP runtime with Codex/Cursor | Usable now |
+| Rust repositories | Usable now |
+| Command output compaction | Usable now |
+| Project init/index workflow | Phase 8.5.1 |
+| MCP tool profiles | Phase 8.6 |
+| Multi-project local workflow | Phase 8.8 |
+| Project groups | Phase 8.8 |
+| Basic JavaScript / TypeScript / JSX / TSX indexing | Phase 9.2 |
+| Basic Node.js REST route intelligence | Usable now, basic/static |
+| C# Web API / backend services | Phase 9.2.5 |
+| Basic React / TSX component intelligence | Usable now, basic/static |
+| Next.js intelligence | Phase 9.2.3 |
+| Angular deep graph intelligence | Phase 9.2.4 |
+| Node.js REST API | Usable now, basic/static |
+| Kafka / ksqlDB | Phase 9.2.8 |
+| RabbitMQ | Phase 9.2.8 |
+| Docker / docker-compose | Phase 9.2.9 |
+| SignalR | Phase 9.2.7 |
+| C# WPF | Deferred |
+| Three.js / WebGL | Deferred |
+| Refactor assistant | Phase 9.3 / 9.4 |
+| Full memory/context platform | Phase 10.2+ |
+
+---
+
+## Reference Models
+
+B3 is inspired by several projects and product patterns, but does not depend on them.
+
+References include:
+
+- codebase-memory-mcp
+- TokenSave
+- RTK / Rust Token Killer
+- Context Mode
+- Token Savior
+- CodeGraph
+- GitNexus
+- Serena
+- Neo4j Browser-style graph UX
+- Sourcegraph/Cursor-style code intelligence workflows
+
+These are architectural inspirations only.
+
+B3 remains:
+
+```text
+local-first
+offline-first
+free-by-default
+Rust-native where appropriate
+MCP-compatible
+SQLite-backed
+```
+
+---
+
+## Security and Privacy
+
+B3 is designed for local development.
+
+By default:
+
+- repository data stays local
+- command output stays local
+- benchmark data stays local
+- SQLite database stays local
+- no telemetry is sent
+- no cloud service is required
+- no external API is required
+
+Command output compaction only processes output that is provided to B3. It does not execute commands or capture terminal output automatically.
+
+---
+
 ## License
 
-See `LICENSE`.
+License information should be reviewed before public distribution.
+
+If this repository is intended to be open source, add or verify the final license file before release.
+
+---
+
+## Status Note
+
+B3 is under active development.
+
+Current best use:
+
+- local MCP experiments
+- Rust code intelligence
+- graph/query debugging
+- command output compaction
+- benchmark-driven development
+- dogfooding on the B3 repository itself
+
+For production-like usage on deep React runtime behavior, deep Node.js REST behavior, C#, Angular graphs, Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and other application stacks, wait for the later Phase 9.x language and domain intelligence work.

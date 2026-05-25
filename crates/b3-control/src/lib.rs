@@ -15,7 +15,7 @@ use std::{
 };
 
 use axum::{
-    extract::{Json, Path, State},
+    extract::{Json, Path, Query, State},
     http::{HeaderValue, Method, StatusCode},
     response::{
         sse::{Event, KeepAlive, Sse},
@@ -30,13 +30,13 @@ use b3_core::{
     QueryResult, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
-    IndexerConfig, LocalIndexer, NotifyFileWatcher, ParserIsolation, RustLanguagePack, WatchConfig,
-    WatchEventKind,
+    lsp::LspBackend, DefaultLanguagePack, IndexerConfig, LocalIndexer, NotifyFileWatcher,
+    ParserIsolation, WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
-    StoredGraphEdge, StoredGraphNode, StoredParseFailure,
+    StoredComponent, StoredGraphEdge, StoredGraphNode, StoredParseFailure, StoredRoute,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -261,6 +261,10 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
         .route("/api/languages", get(languages))
+        .route("/api/lsp/status", get(lsp_status))
+        .route("/api/lsp/servers", get(lsp_servers))
+        .route("/api/routes", get(routes))
+        .route("/api/components", get(components))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -534,7 +538,7 @@ pub fn index_project(
         .map_err(ControlError::internal)?;
     let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
     let indexer = LocalIndexer::new(
-        RustLanguagePack,
+        DefaultLanguagePack,
         SharedSqliteIndexStore::new(storage),
         NoopEventBus,
         IndexerConfig {
@@ -648,7 +652,7 @@ fn run_index_with_events(
         .map_err(ControlError::internal)?;
     let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
     let indexer = LocalIndexer::new(
-        RustLanguagePack,
+        DefaultLanguagePack,
         SharedSqliteIndexStore::new(storage),
         EventForwarder {
             events: events.clone(),
@@ -968,8 +972,9 @@ async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
     }))
 }
 
-async fn capabilities() -> Json<Value> {
+async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
     let language_registry = default_language_backend_registry();
+    let lsp = LspBackend::from(&state.app_config.lsp);
     Json(json!({
         "product": PRODUCT_NAME,
         "offline_first": true,
@@ -977,20 +982,216 @@ async fn capabilities() -> Json<Value> {
         "external_api_required": false,
         "telemetry_enabled": false,
         "mcp_runtime": RuntimeSummary::default(),
+        "language_backend": {
+            "tree_sitter": {
+                "enabled": true,
+                "best_supported_language": "rust",
+                "parsed_languages": ["rust", "javascript", "typescript", "jsx", "tsx"],
+                "detect_only_languages": ["csharp"]
+            },
+            "node_rest": {
+                "available": true,
+                "support": "basic",
+                "frameworks": {
+                    "express": "basic",
+                    "nestjs": "basic",
+                    "fastify": "basic"
+                },
+                "runtime_execution_required": false
+            },
+            "react_components": {
+                "available": true,
+                "support": "basic",
+                "framework": "react",
+                "runtime_execution_required": false,
+                "features": {
+                    "function_components": true,
+                    "arrow_components": true,
+                    "class_components": true,
+                    "props_type_links": true,
+                    "jsx_usages": true,
+                    "hooks": true
+                }
+            },
+            "lsp": {
+                "available": true,
+                "enabled": lsp.enabled,
+                "status": lsp.status(),
+                "local_only": true,
+                "auto_start": false,
+                "missing_servers_fatal": false
+            }
+        },
         "control_api": {
             "projects": true,
             "query": true,
             "graph": true,
             "config_read": true,
             "config_mutation": false,
+            "languages": true,
+            "lsp_status": true,
+            "routes": true,
             "events": "sse"
         },
         "language_backends": language_registry
     }))
 }
 
-async fn languages() -> Json<Value> {
-    Json(json!(default_language_backend_registry()))
+async fn languages(State(state): State<ControlState>) -> Json<Value> {
+    let lsp = LspBackend::from(&state.app_config.lsp);
+    let language_registry = default_language_backend_registry();
+    Json(json!({
+        "status": "ok",
+        "lsp_enabled": lsp.enabled,
+        "known_languages": language_registry.known_languages,
+        "languages": [
+            {
+                "language_id": "rust",
+                "tree_sitter": "good",
+                "lsp": "disabled_by_default",
+                "support": "good",
+                "notes": "Rust tree-sitter indexing remains the best supported path."
+            },
+            {
+                "language_id": "typescript",
+                "tree_sitter": "basic",
+                "lsp": "configurable_local_server",
+                "support": "basic",
+                "backend": "tree-sitter-typescript",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships"],
+                "notes": "Basic TypeScript symbols, imports, and Node REST routes are indexed locally; React graph and Angular intelligence are deferred."
+            },
+            {
+                "language_id": "javascript",
+                "tree_sitter": "basic",
+                "lsp": "configurable_local_server",
+                "support": "basic",
+                "backend": "tree-sitter-javascript",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships"],
+                "notes": "Basic JavaScript symbols, imports, and Node REST routes are indexed locally."
+            },
+            {
+                "language_id": "jsx",
+                "tree_sitter": "basic",
+                "lsp": "configurable_local_server",
+                "support": "basic",
+                "backend": "tree-sitter-javascript",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports"],
+                "notes": "Basic JSX component-like function/class symbols are indexed; deep React graph intelligence is deferred."
+            },
+            {
+                "language_id": "tsx",
+                "tree_sitter": "basic",
+                "lsp": "configurable_local_server",
+                "support": "basic",
+                "backend": "tree-sitter-typescript",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports"],
+                "notes": "Basic TSX component-like function/class symbols are indexed; deep React graph intelligence is deferred."
+            },
+            {
+                "language_id": "csharp",
+                "tree_sitter": "detect_only",
+                "lsp": "configurable_local_server",
+                "support": "basic_detect_only",
+                "backend": null,
+                "capabilities": ["DetectFile"],
+                "notes": "C# parser and semantic intelligence are still deferred."
+            }
+        ]
+    }))
+}
+
+async fn lsp_status(State(state): State<ControlState>) -> Json<Value> {
+    let lsp = LspBackend::from(&state.app_config.lsp);
+    Json(json!({
+        "status": lsp.status(),
+        "enabled": lsp.enabled,
+        "local_only": true,
+        "auto_start": false,
+        "startup_timeout_ms": lsp.timeout.startup_timeout_ms,
+        "request_timeout_ms": lsp.timeout.request_timeout_ms,
+        "stderr_capture_bytes": lsp.timeout.stderr_capture_bytes,
+        "server_count": lsp.servers.len(),
+        "missing_servers_fatal": false,
+        "limitations": [
+            "LSP is disabled by default",
+            "language servers are never installed or downloaded by B3",
+            "symbolic editing and rename/refactor tools are deferred"
+        ]
+    }))
+}
+
+async fn lsp_servers(State(state): State<ControlState>) -> Json<Value> {
+    let lsp = LspBackend::from(&state.app_config.lsp);
+    Json(json!({
+        "status": "ok",
+        "enabled": lsp.enabled,
+        "servers": lsp.server_statuses()
+    }))
+}
+
+async fn routes(
+    State(state): State<ControlState>,
+    Query(query): Query<RoutesQuery>,
+) -> Result<Json<RoutesResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let routes = state
+        .storage
+        .lock()
+        .await
+        .routes(
+            &project_id,
+            &branch_id,
+            query.framework.as_deref(),
+            query.method.as_deref(),
+            query.path.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(RouteDto::from)
+        .collect();
+
+    Ok(Json(RoutesResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        routes,
+    }))
+}
+
+async fn components(
+    State(state): State<ControlState>,
+    Query(query): Query<ComponentsQuery>,
+) -> Result<Json<ComponentsResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let components = state
+        .storage
+        .lock()
+        .await
+        .components(
+            &project_id,
+            &branch_id,
+            query.framework.as_deref(),
+            query.name.as_deref(),
+            query.file.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(ComponentDto::from)
+        .collect();
+
+    Ok(Json(ComponentsResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        components,
+    }))
 }
 
 async fn config(State(state): State<ControlState>) -> Json<Value> {
@@ -1034,6 +1235,18 @@ async fn config(State(state): State<ControlState>) -> Json<Value> {
             "selection_policy": config.language_backends.selection_policy,
             "enable_lsp": config.language_backends.enable_lsp,
             "enable_experimental_languages": config.language_backends.enable_experimental_languages
+        },
+        "lsp": {
+            "enabled": config.lsp.enabled,
+            "startup_timeout_ms": config.lsp.startup_timeout_ms,
+            "request_timeout_ms": config.lsp.request_timeout_ms,
+            "stderr_capture_bytes": config.lsp.stderr_capture_bytes,
+            "servers": config.lsp.servers.iter().map(|server| json!({
+                "language_id": server.language_id,
+                "command": server.command,
+                "args": server.args,
+                "enabled": server.enabled
+            })).collect::<Vec<_>>()
         }
     }))
 }
@@ -1074,7 +1287,7 @@ fn start_watch_daemon(options: &ServeOptions, events: EventHub) -> Result<(), Co
             let _ = storage.upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"));
 
             let indexer = LocalIndexer::new(
-                RustLanguagePack,
+                DefaultLanguagePack,
                 SharedSqliteIndexStore::new(storage),
                 EventForwarder {
                     events: events.clone(),
@@ -1686,6 +1899,118 @@ struct GraphEdgeDto {
     branch_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct RoutesQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    framework: Option<String>,
+    method: Option<String>,
+    path: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RoutesResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    routes: Vec<RouteDto>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ComponentsQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    framework: Option<String>,
+    name: Option<String>,
+    file: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ComponentsResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    components: Vec<ComponentDto>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ComponentDto {
+    id: String,
+    name: String,
+    framework: String,
+    file_path: String,
+    symbol_id: String,
+    export_kind: Option<String>,
+    component_kind: String,
+    props_type_name: Option<String>,
+    hooks: Vec<String>,
+    usages: Vec<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RouteDto {
+    id: String,
+    framework: String,
+    method: String,
+    path: String,
+    file_path: String,
+    symbol_id: String,
+    handler_name: Option<String>,
+    class_name: Option<String>,
+    function_name: Option<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+impl From<StoredComponent> for ComponentDto {
+    fn from(value: StoredComponent) -> Self {
+        Self {
+            id: value.id,
+            name: value.name,
+            framework: value.framework,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            export_kind: value.export_kind,
+            component_kind: value.component_kind,
+            props_type_name: value.props_type_name,
+            hooks: value.hooks,
+            usages: value.usages,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredRoute> for RouteDto {
+    fn from(value: StoredRoute) -> Self {
+        Self {
+            id: value.id,
+            framework: value.framework,
+            method: value.method,
+            path: value.path,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            handler_name: value.handler_name,
+            class_name: value.class_name,
+            function_name: value.function_name,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
 impl From<StoredGraphEdge> for GraphEdgeDto {
     fn from(value: StoredGraphEdge) -> Self {
         Self {
@@ -2225,8 +2550,8 @@ mod tests {
     use axum::body::{to_bytes, Body};
     use b3_core::{
         BranchId, BranchMetadata, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance, FileId,
-        FileRecord, GraphEdge, GraphEdgeMetadata, GraphNode, NodeId, NodeKind, ParseFailureRecord,
-        SymbolId, SymbolRecord,
+        FileRecord, GraphEdge, GraphEdgeMetadata, GraphNode, IndexStore, IndexedFileRecord, NodeId,
+        NodeKind, ParseFailureRecord, SymbolId, SymbolRecord,
     };
     use b3_storage::NewCentralityRecord;
     use http::{Request, StatusCode};
@@ -2271,6 +2596,98 @@ mod tests {
             PathBuf::from("."),
             PathBuf::from(":memory:"),
             SqliteStorage::open_in_memory().expect("open storage"),
+        ))
+    }
+
+    fn route_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("route-file"),
+                        project_id: project_id.clone(),
+                        path: "src/server.ts".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 32,
+                    content: "app.get('/users', listUsers);".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("route-symbol"),
+                        file_id: FileId::new("route-file"),
+                        name: "GET /users".to_string(),
+                        kind: NodeKind::Route,
+                        start_byte: 0,
+                        end_byte: 28,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 28,
+                        visibility: Some(
+                            "route.framework=express;route.method=GET;route.path=/users;route.file=src/server.ts;route.handler=listUsers;route.function=listUsers;route.source=ExpressCall;route.line_start=1;route.line_end=1;route.confidence=9500".to_string(),
+                        ),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("route file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+    }
+
+    fn component_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("component-file"),
+                        project_id: project_id.clone(),
+                        path: "src/ProductCard.tsx".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("tsx".to_string()),
+                    size_bytes: 32,
+                    content: "export function ProductCard() { return <div />; }".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("component-symbol"),
+                        file_id: FileId::new("component-file"),
+                        name: "ProductCard".to_string(),
+                        kind: NodeKind::Function,
+                        start_byte: 0,
+                        end_byte: 48,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 48,
+                        visibility: Some("export;component.framework=react;component.export=named;component.kind=function;component.props=ProductCardProps;component.source=FunctionDeclaration;component.hooks=useState;component.usages=Badge;component.line_start=1;component.line_end=1;component.confidence=9500".to_string()),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("component file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
         ))
     }
 
@@ -2627,6 +3044,111 @@ mod tests {
         let status_body = response_json(status_response).await;
         assert_eq!(status_body["status"], "completed");
         assert!(status_body["files_indexed"].as_u64().unwrap_or_default() > 0);
+    }
+
+    #[tokio::test]
+    async fn capabilities_include_lsp_metadata() {
+        let response = test_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/capabilities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["language_backend"]["lsp"]["available"], true);
+        assert_eq!(body["language_backend"]["lsp"]["enabled"], false);
+        assert_eq!(body["language_backend"]["lsp"]["local_only"], true);
+    }
+
+    #[tokio::test]
+    async fn languages_endpoint_reports_phase_9_2_web_language_support() {
+        let response = test_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/languages")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["lsp_enabled"], false);
+        assert_eq!(body["languages"][0]["language_id"], "rust");
+        assert_eq!(body["languages"][1]["language_id"], "typescript");
+        assert_eq!(body["languages"][1]["support"], "basic");
+        assert_eq!(body["languages"][3]["language_id"], "jsx");
+        assert_eq!(body["languages"][5]["support"], "basic_detect_only");
+    }
+
+    #[tokio::test]
+    async fn lsp_status_endpoint_is_disabled_by_default() {
+        let response = test_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/lsp/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["enabled"], false);
+        assert_eq!(body["status"], "disabled");
+        assert_eq!(body["auto_start"], false);
+        assert_eq!(body["missing_servers_fatal"], false);
+    }
+
+    #[tokio::test]
+    async fn routes_endpoint_returns_indexed_rest_routes_and_filters() {
+        let response = route_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=express&method=GET")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["routes"].as_array().expect("routes").len(), 1);
+        assert_eq!(body["routes"][0]["framework"], "express");
+        assert_eq!(body["routes"][0]["method"], "GET");
+        assert_eq!(body["routes"][0]["path"], "/users");
+    }
+
+    #[tokio::test]
+    async fn components_endpoint_returns_indexed_react_components_and_filters() {
+        let response = component_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/components?framework=react&name=ProductCard")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["components"].as_array().expect("components").len(), 1);
+        assert_eq!(body["components"][0]["name"], "ProductCard");
+        assert_eq!(body["components"][0]["framework"], "react");
+        assert_eq!(body["components"][0]["props_type_name"], "ProductCardProps");
+        assert_eq!(body["components"][0]["hooks"][0], "useState");
+        assert_eq!(body["components"][0]["usages"][0], "Badge");
     }
 
     #[tokio::test]

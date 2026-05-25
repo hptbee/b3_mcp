@@ -427,6 +427,45 @@ pub struct StoredGraphEdge {
     pub provenance: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredRoute {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub method: String,
+    pub path: String,
+    pub framework: String,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub handler_name: Option<String>,
+    pub class_name: Option<String>,
+    pub function_name: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredComponent {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub name: String,
+    pub framework: String,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub export_kind: Option<String>,
+    pub component_kind: String,
+    pub props_type_name: Option<String>,
+    pub hooks: Vec<String>,
+    pub usages: Vec<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1163,6 +1202,86 @@ impl SqliteStorage {
             .map_err(to_contract_error)?;
 
         collect_rows(rows)
+    }
+
+    pub fn routes(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        framework: Option<&str>,
+        method: Option<&str>,
+        path: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredRoute>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2 AND s.kind = 'route'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(params![project_id, branch_id, limit as i64], route_from_row)
+            .map_err(to_contract_error)?;
+        let mut routes = collect_rows(rows)?;
+        if let Some(framework) = framework {
+            routes.retain(|route| route.framework == framework);
+        }
+        if let Some(method) = method {
+            routes.retain(|route| route.method.eq_ignore_ascii_case(method));
+        }
+        if let Some(path) = path {
+            routes.retain(|route| route.path == path);
+        }
+        Ok(routes)
+    }
+
+    pub fn components(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        framework: Option<&str>,
+        name: Option<&str>,
+        file: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredComponent>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%component.framework=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![project_id, branch_id, limit as i64],
+                component_from_row,
+            )
+            .map_err(to_contract_error)?;
+        let mut components = collect_rows(rows)?;
+        if let Some(framework) = framework {
+            components.retain(|component| component.framework == framework);
+        }
+        if let Some(name) = name {
+            components.retain(|component| component.name == name);
+        }
+        if let Some(file) = file {
+            components.retain(|component| component.file_path == file);
+        }
+        Ok(components)
     }
 
     pub fn centrality_snapshot(
@@ -2431,6 +2550,116 @@ fn graph_edge_from_row(row: &Row<'_>) -> rusqlite::Result<StoredGraphEdge> {
     })
 }
 
+fn route_from_row(row: &Row<'_>) -> rusqlite::Result<StoredRoute> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let name: String = row.get(3)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    let (fallback_method, fallback_path) = name
+        .split_once(' ')
+        .map(|(method, path)| (method.to_string(), path.to_string()))
+        .unwrap_or_else(|| ("UNKNOWN".to_string(), name.clone()));
+    Ok(StoredRoute {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        method: route_metadata_value(&metadata, "method").unwrap_or(fallback_method),
+        path: route_metadata_value(&metadata, "path").unwrap_or(fallback_path),
+        framework: route_metadata_value(&metadata, "framework")
+            .unwrap_or_else(|| "unknown".to_string()),
+        file_path: route_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        handler_name: route_metadata_value(&metadata, "handler"),
+        class_name: route_metadata_value(&metadata, "class"),
+        function_name: route_metadata_value(&metadata, "function"),
+        line_start: route_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: route_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: route_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: route_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
+fn component_from_row(row: &Row<'_>) -> rusqlite::Result<StoredComponent> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let name: String = row.get(3)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    Ok(StoredComponent {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        name,
+        framework: component_metadata_value(&metadata, "framework")
+            .unwrap_or_else(|| "react".to_string()),
+        file_path,
+        symbol_id,
+        export_kind: component_metadata_value(&metadata, "export"),
+        component_kind: component_metadata_value(&metadata, "kind")
+            .unwrap_or_else(|| "unknown".to_string()),
+        props_type_name: component_metadata_value(&metadata, "props"),
+        hooks: component_metadata_value(&metadata, "hooks")
+            .map(|hooks| split_metadata_list(&hooks))
+            .unwrap_or_default(),
+        usages: component_metadata_value(&metadata, "usages")
+            .map(|usages| split_metadata_list(&usages))
+            .unwrap_or_default(),
+        line_start: component_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: component_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: component_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: component_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
+fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("route.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";"))
+    })
+}
+
+fn component_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("component.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";"))
+    })
+}
+
+fn split_metadata_list(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .filter(|part| !part.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
 fn collect_rows<T, F>(rows: rusqlite::MappedRows<'_, F>) -> ContractResult<Vec<T>>
 where
     F: FnMut(&Row<'_>) -> rusqlite::Result<T>,
@@ -2772,6 +3001,135 @@ mod tests {
                 avoided_search_calls: 1,
             })
             .expect("record savings");
+    }
+
+    #[test]
+    fn routes_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("file"),
+                project_id: project_id.clone(),
+                path: "src/server.ts".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("typescript".to_string()),
+            size_bytes: 32,
+            content: "app.get('/users', listUsers);".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("route-symbol"),
+                file_id: FileId::new("file"),
+                name: "GET /users".to_string(),
+                kind: NodeKind::Route,
+                start_byte: 0,
+                end_byte: 28,
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 28,
+                visibility: Some("route.framework=express;route.method=GET;route.path=/users;route.file=src/server.ts;route.handler=listUsers;route.function=listUsers;route.source=ExpressCall;route.line_start=1;route.line_end=1;route.confidence=9500".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first route upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second route upsert");
+        let routes = storage
+            .routes(
+                "project",
+                "main",
+                Some("express"),
+                Some("GET"),
+                Some("/users"),
+                10,
+            )
+            .expect("routes");
+        assert_eq!(routes.len(), 1);
+        assert_eq!(routes[0].handler_name.as_deref(), Some("listUsers"));
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .routes("project", "main", None, None, None, 10)
+            .expect("routes after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn components_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("component-file"),
+                project_id: project_id.clone(),
+                path: "src/ProductCard.tsx".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("tsx".to_string()),
+            size_bytes: 32,
+            content: "export function ProductCard() { return <div />; }".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("component-symbol"),
+                file_id: FileId::new("component-file"),
+                name: "ProductCard".to_string(),
+                kind: NodeKind::Function,
+                start_byte: 0,
+                end_byte: 48,
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 48,
+                visibility: Some("export;component.framework=react;component.export=named;component.kind=function;component.props=ProductCardProps;component.source=FunctionDeclaration;component.hooks=useState,useEffect;component.usages=Badge;component.line_start=1;component.line_end=1;component.confidence=9500".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first component upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second component upsert");
+        let components = storage
+            .components(
+                "project",
+                "main",
+                Some("react"),
+                Some("ProductCard"),
+                Some("src/ProductCard.tsx"),
+                10,
+            )
+            .expect("components");
+        assert_eq!(components.len(), 1);
+        assert_eq!(
+            components[0].props_type_name.as_deref(),
+            Some("ProductCardProps")
+        );
+        assert_eq!(components[0].hooks, vec!["useState", "useEffect"]);
+        assert_eq!(components[0].usages, vec!["Badge"]);
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .components("project", "main", None, None, None, 10)
+            .expect("components after cleanup")
+            .is_empty());
     }
 
     #[test]

@@ -168,3 +168,45 @@ Use:
 - microservices
 - global mutable state
 - sync mutexes in hot paths
+
+## LSP Backend Boundaries
+
+LSP complements the tree-sitter graph; it does not replace indexing, SQLite graph storage, FTS, query ranking, context pack generation, or Rust parser behavior.
+
+LSP must remain:
+- local-only
+- disabled by default
+- free-by-default
+- configured explicitly
+- non-fatal when a language server is missing
+
+Do not install or download language servers. Do not add cloud, telemetry, paid/proprietary, symbolic editing, rename/refactor, semantic search, embeddings, or cross-project architecture intelligence while working in Phase 9.1.
+
+## Web Language Boundaries
+
+Phase 9.2 web language support is basic indexing only. JavaScript, TypeScript, JSX, and TSX may use bundled local tree-sitter parsers for symbols/imports, but indexing must not run `npm`, `node`, `tsc`, `eslint`, cloud parsers, or framework CLIs.
+
+Do not add Node.js REST route intelligence, React hook/component graph intelligence, Angular route/template/module intelligence, C# semantic intelligence, JS/TS symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.
+
+## Node.js REST Boundaries
+
+Phase 9.2.1 Node.js REST intelligence is completed as basic local static analysis only. It may detect package.json dependencies and high-confidence Express, NestJS, and Fastify route declarations, but it must not execute `node`, `npm`, `tsc`, `eslint`, Nest CLI, app code, package-manager scripts, package registries, or cloud parsers.
+
+Do not add React graph intelligence, Angular intelligence, ASP.NET Core/C# intelligence, Go support, realtime/socket intelligence, messaging intelligence, cloud/infrastructure intelligence, symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.1.
+
+## React / TSX Boundaries
+
+Phase 9.2.2 React / TSX component intelligence is completed as basic local static analysis only. It may detect common React components, props type names, JSX component usages, and hook names, but it must not execute `node`, `npm`, `tsc`, `eslint`, React dev servers, app code, package-manager scripts, package registries, or cloud parsers.
+
+Do not add Angular intelligence, Vue/Svelte intelligence, Next.js routing intelligence, ASP.NET Core/C# intelligence, Go support, realtime/socket intelligence, messaging intelligence, cloud/infrastructure intelligence, symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.2.
+
+## Next.js Intelligence Boundaries
+
+The next intended implementation phase is Phase 9.2.3 — Next.js Intelligence.
+It should add only basic static/local Next.js intelligence on top of the
+completed React / TSX support. It may inspect local `package.json`,
+`next.config.*`, `app/`, and `pages/` files, but it must not run `next dev`,
+`next build`, `node`, `npm`, `tsc`, `eslint`, package scripts, deployment
+tooling, package registries, cloud parsers, or app code.
+
+Do not start Angular intelligence until Phase 9.2.4.
