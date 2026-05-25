@@ -649,7 +649,41 @@ Must defer:
 - cost estimation
 - policy enforcement
 - cross-project deployment/service matching
-- Go, scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
+- scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
+  embeddings, semantic search, and cross-project architecture intelligence
+
+## Go Language Support
+
+Phase 9.2.10 adds basic static Go language support.
+
+Must support:
+- `.go` file detection
+- `go.mod` detection for module, require, and replace metadata
+- package declaration extraction
+- imports, including aliases, blank imports, dot imports, and simple stdlib
+  classification
+- functions, receiver methods, structs, interfaces, type aliases/basic type
+  declarations, and const/var declarations
+- conservative same-file local call relationships where names can be matched
+  safely
+- basic HTTP route hints for `net/http` and simple Gin/Echo/Fiber/Chi router
+  calls when visible local router construction makes the framework clear
+- read-only route listing through existing `GET /api/routes` when route hints
+  are indexed
+- metadata cleanup through normal deleted-file index cleanup
+
+Must not require:
+- Go toolchain, `go build`, `go test`, `go run`, `go list`,
+  `go mod download`, module registry access, package restore, network,
+  telemetry, external APIs, paid dependencies, or app execution
+
+Must defer:
+- Go compiler/type checking
+- dependency resolution from registries
+- full interface implementation graphs
+- full module workspace analysis
+- deep Gin/Echo/Fiber/Chi/gRPC intelligence
+- scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
   embeddings, semantic search, and cross-project architecture intelligence
 
 ## Graph Requirements
@@ -808,10 +842,10 @@ Avoid:
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
+- Phase 9.2.10: Go Language Support
 
 ### Planned Phases
 
-- Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 9.3/9.4: Symbolic editing and rename/refactor support

@@ -160,20 +160,26 @@ Current truth:
   Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and visible GCP/GKE
   hints, including images, services, workloads, ports, env keys, providers,
   resources, modules, variables, and outputs.
+- Go language support is `Basic`, static, and local for `.go` and `go.mod`
+  detection, packages, imports, functions, receiver methods, structs,
+  interfaces, type declarations, const/var declarations, local call edges, and
+  conservative HTTP route hints.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 
-`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, and C# as Basic static ASP.NET Core / Web API support.
+`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, C# as Basic static ASP.NET Core / Web API support, and Go as Basic static support.
 
-`GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular, and
-ASP.NET Core route
+`GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
+ASP.NET Core, and Go route
 metadata from `Route` symbols. Optional filters include `project_id`,
 `branch_id`, `framework`, `method`, `path`, and `limit`. Next.js records use
 `framework=nextjs` and include a `route_kind` such as `page`, `layout`,
 `loading`, `error`, `not_found`, or `api`. Angular route config records use
 `framework=angular` and `route_kind=route`. ASP.NET Core route records use
+`framework=aspnetcore`. Go route hints use `framework=go_net_http`, `gin`,
+`echo`, `fiber`, or `chi` when detected.
 `framework=aspnetcore` and `route_kind=api`.
 
 `GET /api/components` returns locally indexed React and Angular component metadata from
@@ -307,6 +313,8 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   through `GET /api/messaging`.
 - Dedicated cloud/infrastructure browser UI is deferred; infrastructure
   metadata is exposed through `GET /api/infrastructure`.
+- Dedicated Go browser UI is deferred; Go symbols are available through
+  existing symbol/query APIs and Go route hints through `GET /api/routes`.
 - Manual indexing is synchronous for this phase; `GET /api/index/status`
   reports the current or last run for the current server process.
 

@@ -56,12 +56,12 @@ Completed:
 - Phase 9.2.7 — Realtime / Socket Intelligence
 - Phase 9.2.8 — Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
-
-Next:
 - Phase 9.2.10 - Go Language Support
 
+Next:
+- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
+
 Later:
-- Phase 9.2.11 — Scoped Indexing + Intelligence Targets
 - Phase 9.2.12 — .NET Desktop / WPF Intelligence
 - Phase 9.3 — Symbolic Editing MVP
 - Phase 9.4 — Rename / Refactor MVP
@@ -835,32 +835,35 @@ Support is basic, static, local, and conservative:
 The implementation does not run Docker, Docker Compose, `kubectl`, Terraform,
 `gcloud`, cloud APIs, registries, module/provider downloads, cloud credential
 loading, runtime discovery, security scanning, cost estimation, or cross-project
-deployment matching. Go language support remains deferred to Phase 9.2.10.
+deployment matching.
 
 ---
 
 ## Phase 9.2.10 — Go Language Support
 
-Status: Planned.
+Status: Completed.
 
 ### Scope
 
 - `.go` detection
+- `go.mod` detection for module, require, and replace metadata
 - packages
 - imports
 - functions
 - structs
 - interfaces
 - methods
-- basic relationships where safe
+- type aliases and basic type declarations
+- const/var declarations
+- basic local call relationships where same-file names can be matched safely
+- conservative HTTP route hints for `net/http`, Gin, Echo, Fiber, and Chi when
+  visible local router construction makes the framework clear
 
-Future framework support:
-
-- `net/http`
-- Gin
-- Echo
-- Fiber
-- gRPC
+This is basic static analysis in `b3-indexer`, not Go compiler/type checking.
+It does not run `go build`, `go test`, `go run`, `go list`,
+`go mod download`, module registry access, package restore, app code, gRPC
+analysis, deep framework intelligence, symbolic editing, rename/refactor,
+embeddings, semantic search, or cross-project architecture intelligence.
 
 ---
 
@@ -1291,7 +1294,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | WebSocket / Socket.IO / SignalR / RSocket | Usable now, basic/static |
 | AMQP / RabbitMQ / Kafka / Google Pub/Sub / NestJS messaging | Usable now, basic/static |
 | Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Phase 9.2.9 |
-| Go language support | Phase 9.2.10 |
+| Go language support | Usable now, basic/static |
 | Scoped indexing targets | Phase 9.2.11 |
 | C# WPF / XAML | Phase 9.2.12 |
 | Three.js / WebGL | Deferred |
@@ -1303,9 +1306,9 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, and basic static cloud/infrastructure metadata.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, and basic static Go language support.
 
-Go, scoped indexing targets, WPF/XAML, local embeddings, and cross-project architecture intelligence depend on Phase 9.2.10 and later.
+Scoped indexing targets, WPF/XAML, local embeddings, and cross-project architecture intelligence depend on Phase 9.2.11 and later.
 
 ---
 

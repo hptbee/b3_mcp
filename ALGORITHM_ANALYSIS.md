@@ -304,6 +304,29 @@ Terraform, `gcloud`, registry calls, provider/module downloads, cloud API
 calls, credential loading, runtime discovery, security scanning, cost
 estimation, cross-project deployment matching, external APIs, and telemetry.
 
+### Basic Go Language Extraction
+
+Phase 9.2.10 adds conservative static Go extraction:
+
+1. detect `.go`, `go.mod`, `go.sum`, and `go.work` locally by filename or
+   extension
+2. strip Go comments while preserving line positions, then scan declarations
+   without invoking the Go toolchain
+3. extract package declarations, imports, functions, receiver methods, structs,
+   interfaces, type aliases/basic type declarations, and const/var declarations
+4. parse `go.mod` for module, require, and replace metadata without resolving
+   modules
+5. add same-file local call edges only when a callable name can be matched
+   safely
+6. encode basic `net/http` and simple Gin/Echo/Fiber/Chi route hints as
+   existing `Route` symbols when the framework is visible from local router
+   construction
+
+The extractor intentionally avoids `go build`, `go test`, `go run`, `go list`,
+`go mod download`, module registry access, package restore, compiler/type
+checking, app execution, gRPC intelligence, deep framework intelligence,
+external APIs, and telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.
@@ -516,13 +539,13 @@ Added requirements:
 - Phase 9.2.4: Angular Intelligence
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
-
-### Planned Phases
-
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
+
+### Planned Phases
+
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 10: Local Embeddings + Vector Search

@@ -182,8 +182,11 @@ Detection is local and rule-based: extensions, selected filenames such as
 Rust is currently implemented through `tree-sitter-rust`. JavaScript,
 TypeScript, JSX, and TSX have basic local tree-sitter indexing. C# has basic
 local static extraction for ASP.NET Core Web API controllers, route attributes,
-action methods, and constructor dependency type names. Other planned languages
-remain detect-only or unsupported until their phases land.
+action methods, and constructor dependency type names. Go has basic local static
+extraction for `.go` and `go.mod` files, package/import metadata, functions,
+receiver methods, structs, interfaces, type declarations, const/var
+declarations, conservative local call edges, and HTTP route hints. Other
+planned languages remain detect-only or unsupported until their phases land.
 LSP exists as a local backend foundation and is disabled by default.
 React/TSX component intelligence is basic static analysis only and is exposed
 through indexed symbol metadata and the local control API. Next.js intelligence
@@ -203,12 +206,16 @@ exposed through `GET /api/messaging` without broker connections, broker startup,
 cloud API calls, package managers, protocol execution, or app code.
 Cloud/infrastructure intelligence is basic static analysis only and is exposed
 through `GET /api/infrastructure` without Docker, Kubernetes, Terraform,
-`gcloud`, cloud APIs, credentials, registries, package managers, or app code. Phase
+`gcloud`, cloud APIs, credentials, registries, package managers, or app code. Go
+language support is basic static analysis only and is exposed through existing
+symbol metadata, `/api/languages`, `/api/capabilities`, and `/api/routes` for
+route hints without the Go toolchain, `go` commands, module downloads,
+registries, package managers, or app code. Phase
 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.9; the next planned
-implementation phase is Phase 9.2.10 - Go Language Support.
+current roadmap is completed through Phase 9.2.10; the next planned
+implementation phase is Phase 9.2.11 - Scoped Indexing + Intelligence Targets.
 
 ## Offline-First Expectations
 
@@ -275,6 +282,10 @@ External integrations must remain:
   Docker Compose, Kubernetes, Terraform, GCP, and GKE extraction must not run
   Docker, Docker Compose, `kubectl`, Terraform, `gcloud`, cloud APIs, registry
   calls, provider/module downloads, credentials, package managers, or app code.
+- Go language support is basic static analysis only; `.go` and `go.mod`
+  extraction must not run the Go toolchain, `go build`, `go test`, `go run`,
+  `go list`, `go mod download`, module registries, package managers, network,
+  or app code.
 - Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
   orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
   indexer unit tests live in `crates/b3-indexer/src/tests.rs`.

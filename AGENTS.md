@@ -290,4 +290,17 @@ inventory, cluster discovery, Terraform plan/apply behavior, Helm/Kustomize
 rendering, CRD semantic expansion, security scanning, cost estimation, policy
 enforcement, or cross-project deployment matching.
 
-Do not start Go Language Support until Phase 9.2.10.
+## Go Language Boundaries
+
+Phase 9.2.10 Go language support is completed as basic local static analysis
+only. It may inspect local `.go`, `go.mod`, `go.sum`, and `go.work` files,
+detect packages, imports, functions, receiver methods, structs, interfaces,
+type declarations, const/var declarations, conservative same-file call edges,
+and basic HTTP route hints for `net/http` plus simple Gin/Echo/Fiber/Chi router
+calls when local router construction is visible, but it must not run `go`,
+`go build`, `go test`, `go run`, `go list`, `go mod download`, module registry
+access, package restore, app code, compiler/type checking, or external parsers.
+It does not implement full semantic Go analysis, dependency resolution, full
+interface implementation graphs, deep framework intelligence, gRPC
+intelligence, scoped indexing targets, symbolic editing, rename/refactor,
+embeddings, semantic search, or cross-project architecture intelligence.

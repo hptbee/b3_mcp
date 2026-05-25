@@ -992,7 +992,30 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "enabled": true,
                 "best_supported_language": "rust",
                 "parsed_languages": ["rust", "javascript", "typescript", "jsx", "tsx"],
-                "detect_only_languages": ["csharp"]
+                "static_parsed_languages": ["csharp", "go"],
+                "detect_only_languages": []
+            },
+            "go": {
+                "available": true,
+                "support": "basic_static",
+                "runtime_execution_required": false,
+                "go_toolchain_required": false,
+                "module_download_required": false,
+                "features": {
+                    "go_file_detection": true,
+                    "go_mod_detection": true,
+                    "packages": true,
+                    "imports": true,
+                    "functions": true,
+                    "methods": true,
+                    "structs": true,
+                    "interfaces": true,
+                    "type_declarations": true,
+                    "const_var_declarations": true,
+                    "local_call_edges": true,
+                    "http_route_hints": true
+                },
+                "deferred": ["type_checking", "interface_implementation_graph", "deep_framework_intelligence", "grpc_intelligence"]
             },
             "node_rest": {
                 "available": true,
@@ -1169,6 +1192,15 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "backend": "static-csharp",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractRoutes"],
                 "notes": "Basic local static C# and ASP.NET Core Web API extraction indexes controllers, route attributes, action methods, and constructor dependency type names; Roslyn, dotnet CLI execution, full semantic analysis, EF/Dapper, and WPF/XAML remain deferred."
+            },
+            {
+                "language_id": "go",
+                "tree_sitter": "not_required",
+                "lsp": "configurable_local_server",
+                "support": "basic",
+                "backend": "static-go",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships", "ExtractRoutes"],
+                "notes": "Basic local static Go extraction indexes packages, imports, functions, methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative net/http plus simple router route hints; no Go toolchain, go command, module download, package registry, or runtime execution is required."
             }
         ]
     }))
@@ -3546,10 +3578,22 @@ mod tests {
             .iter()
             .find(|backend| backend["language_id"] == "csharp")
             .expect("csharp backend");
+        let go = backends
+            .iter()
+            .find(|backend| backend["language_id"] == "go")
+            .expect("go backend");
 
         assert_eq!(rust["support_level"], "Good");
         assert_eq!(rust["available"], true);
         assert_eq!(csharp["available"], true);
+        assert_eq!(go["backend_id"], "static-go");
+        assert_eq!(go["support_level"], "Basic");
+        assert_eq!(go["available"], true);
+        assert_eq!(body["language_backend"]["go"]["support"], "basic_static");
+        assert_eq!(
+            body["language_backend"]["go"]["go_toolchain_required"],
+            false
+        );
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
     }
 
@@ -3571,6 +3615,14 @@ mod tests {
         assert!(body["known_languages"]
             .to_string()
             .contains("docker-compose"));
+        assert!(body["known_languages"].to_string().contains("go.mod"));
+        assert!(body["languages"]
+            .as_array()
+            .expect("languages")
+            .iter()
+            .any(|language| language["language_id"] == "go"
+                && language["support"] == "basic"
+                && language["backend"] == "static-go"));
     }
 
     #[tokio::test]
@@ -3908,6 +3960,64 @@ mod tests {
         let body = response_json(routes_response).await;
         assert_eq!(body["routes"][0]["path"], "/api/users/{id}");
         assert_eq!(body["routes"][0]["handler_name"], "Get");
+    }
+
+    #[tokio::test]
+    async fn index_api_exposes_static_go_symbols_and_routes() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("cmd").join("server")).expect("server");
+        fs::write(
+            root.join("go.mod"),
+            "module github.com/acme/orders\n\ngo 1.22\nrequire github.com/go-chi/chi/v5 v5.0.0\n",
+        )
+        .expect("go.mod");
+        fs::write(
+            root.join("cmd").join("server").join("main.go"),
+            r#"
+                package main
+                import "net/http"
+                type Server struct {}
+                func main() { http.HandleFunc("/health", healthHandler) }
+                func healthHandler(w http.ResponseWriter, r *http.Request) {}
+            "#,
+        )
+        .expect("main.go");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let route_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=go_net_http&method=GET")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(route_response.status(), StatusCode::OK);
+        let route_body = response_json(route_response).await;
+        assert_eq!(route_body["routes"][0]["path"], "/health");
+        assert_eq!(route_body["routes"][0]["handler_name"], "healthHandler");
+
+        let symbol_response = post_json(
+            app,
+            "/api/query/find-symbol",
+            r#"{"symbol":"Server","scope":{"project_id":"default"},"limit":10}"#,
+        )
+        .await;
+        assert_eq!(symbol_response.status(), StatusCode::OK);
+        let symbol_body = response_json(symbol_response).await;
+        assert!(symbol_body["matches"]
+            .as_array()
+            .expect("matches")
+            .iter()
+            .any(|record| record["name"] == "Server"));
     }
 
     #[tokio::test]

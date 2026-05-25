@@ -8,6 +8,7 @@
 
 mod csharp;
 mod data_access;
+mod go;
 mod infrastructure;
 pub mod lsp;
 mod messaging;
@@ -22,6 +23,8 @@ pub(crate) use data_access::data_access_metadata_value;
 pub use data_access::{
     detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
 };
+#[cfg(test)]
+pub(crate) use go::{detect_go_mod_technologies, go_metadata_value};
 #[cfg(test)]
 pub(crate) use infrastructure::infrastructure_metadata_value;
 #[cfg(test)]
@@ -385,6 +388,7 @@ pub enum TechnologySupportLevel {
 pub enum TechnologyCapability {
     DetectPackage,
     DetectImport,
+    ExtractSymbols,
     ExtractRoutes,
     ExtractComponents,
     ExtractRealtime,
@@ -1683,6 +1687,7 @@ impl TreeSitterParser for DefaultLanguagePack {
             Some("rs") => RustLanguagePack.parse(input),
             Some("javascript" | "jsx" | "typescript" | "tsx") => WebLanguagePack.parse(input),
             Some("csharp" | "csproj") => csharp::parse(input),
+            Some("go" | "gomod") => go::parse(input),
             _ => NoopTreeSitterParser.parse(input),
         }
     }
@@ -2057,6 +2062,19 @@ fn relative_path(root: &Path, path: &Path) -> String {
 }
 
 fn language_from_path(path: &Path) -> Option<String> {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(str::to_ascii_lowercase);
+    if let Some(file_name) = file_name.as_deref() {
+        match file_name {
+            "go.mod" => return Some("gomod".to_string()),
+            "go.sum" => return Some("gosum".to_string()),
+            "go.work" => return Some("gowork".to_string()),
+            _ => {}
+        }
+    }
+
     let extension = path
         .extension()
         .and_then(|value| value.to_str())

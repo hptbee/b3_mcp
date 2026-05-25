@@ -159,6 +159,7 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
     let backends = vec![
         rust_tree_sitter_backend_metadata(),
         csharp_static_backend_metadata(),
+        go_static_backend_metadata(),
         planned_detect_only_backend("typescript", "TypeScript", "planned-lsp-typescript"),
         planned_detect_only_backend("tsx", "TSX", "planned-lsp-typescript-react"),
         planned_detect_only_backend("javascript", "JavaScript", "planned-lsp-javascript"),
@@ -175,7 +176,6 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
         planned_detect_only_backend("xaml", "XAML", "planned-static-xaml"),
         planned_detect_only_backend("python", "Python", "planned-lsp-python"),
         planned_detect_only_backend("java", "Java", "planned-lsp-java"),
-        planned_detect_only_backend("go", "Go", "planned-lsp-go"),
         planned_detect_only_backend("php", "PHP", "planned-lsp-php"),
         planned_detect_only_backend("ruby", "Ruby", "planned-lsp-ruby"),
         planned_detect_only_backend("c", "C", "planned-lsp-c"),
@@ -232,6 +232,30 @@ pub fn csharp_static_backend_metadata() -> LanguageBackendMetadata {
             "Basic local static C# extraction for ASP.NET Core controllers, route attributes, action methods, and constructor dependency type names.".to_string(),
             "No Roslyn, dotnet CLI, language server, build, restore, runtime execution, or package registry access is required.".to_string(),
             "Full semantic analysis, full DI graph, EF/Dapper analysis, and WPF/XAML intelligence are deferred.".to_string(),
+        ],
+    }
+}
+
+pub fn go_static_backend_metadata() -> LanguageBackendMetadata {
+    LanguageBackendMetadata {
+        backend_id: LanguageBackendId("static-go".to_string()),
+        language_id: LanguageId("go".to_string()),
+        language_name: LanguageName("Go".to_string()),
+        kind: LanguageBackendKind::StaticConfig,
+        support_level: LanguageSupportLevel::Basic,
+        capabilities: vec![
+            LanguageBackendCapability::DetectFile,
+            LanguageBackendCapability::Parse,
+            LanguageBackendCapability::ExtractSymbols,
+            LanguageBackendCapability::ExtractImports,
+            LanguageBackendCapability::ExtractRelationships,
+            LanguageBackendCapability::ExtractRoutes,
+        ],
+        available: true,
+        notes: vec![
+            "Basic local static Go extraction for packages, imports, functions, methods, structs, interfaces, type declarations, const/var declarations, and conservative route hints.".to_string(),
+            "No Go toolchain, go command, compiler/type checker, module download, package registry, runtime execution, or external API is required.".to_string(),
+            "Full Go semantic analysis, interface implementation analysis, deep framework intelligence, and gRPC intelligence are deferred.".to_string(),
         ],
     }
 }
@@ -317,6 +341,24 @@ fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
                 "planned-static-compose",
             ))
         }
+        "go.mod" => Some(LanguageDetectionResult {
+            language_id: Some(LanguageId("go".to_string())),
+            language_name: Some(LanguageName("Go".to_string())),
+            support_level: LanguageSupportLevel::Basic,
+            matched_by: "filename".to_string(),
+            backend_ids: vec![LanguageBackendId("static-go".to_string())],
+            notes: vec![
+                "go.mod is parsed statically for module, require, and replace metadata; no go command is executed.".to_string(),
+            ],
+        }),
+        "go.sum" | "go.work" => Some(LanguageDetectionResult {
+            language_id: Some(LanguageId("go".to_string())),
+            language_name: Some(LanguageName("Go".to_string())),
+            support_level: LanguageSupportLevel::Basic,
+            matched_by: "filename".to_string(),
+            backend_ids: vec![LanguageBackendId("static-go".to_string())],
+            notes: vec!["Detected as Go project metadata; registry/module resolution is not performed.".to_string()],
+        }),
         _ => None,
     }
 }
@@ -345,6 +387,18 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 ],
             });
         }
+        "go" => {
+            return Some(LanguageDetectionResult {
+                language_id: Some(LanguageId("go".to_string())),
+                language_name: Some(LanguageName("Go".to_string())),
+                support_level: LanguageSupportLevel::Basic,
+                matched_by: "extension".to_string(),
+                backend_ids: vec![LanguageBackendId("static-go".to_string())],
+                notes: vec![
+                    "Go files are parsed with basic local static extraction; no Go toolchain or module download is required.".to_string(),
+                ],
+            });
+        }
         "ts" => ("typescript", "TypeScript", "planned-lsp-typescript"),
         "tsx" => ("tsx", "TSX", "planned-lsp-typescript-react"),
         "js" => ("javascript", "JavaScript", "planned-lsp-javascript"),
@@ -359,7 +413,6 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
         "xaml" => ("xaml", "XAML", "planned-static-xaml"),
         "py" => ("python", "Python", "planned-lsp-python"),
         "java" => ("java", "Java", "planned-lsp-java"),
-        "go" => ("go", "Go", "planned-lsp-go"),
         "php" => ("php", "PHP", "planned-lsp-php"),
         "rb" => ("ruby", "Ruby", "planned-lsp-ruby"),
         "c" | "h" => ("c", "C", "planned-lsp-c"),
@@ -430,6 +483,7 @@ fn known_language_samples() -> Vec<LanguageDetectionResult> {
         "script.py",
         "Main.java",
         "main.go",
+        "go.mod",
         "index.php",
         "app.rb",
         "lib.c",
@@ -498,6 +552,17 @@ mod tests {
             .capabilities
             .contains(&LanguageBackendCapability::ExtractRoutes));
         assert!(csharp.notes.iter().any(|note| note.contains("No Roslyn")));
+        let go = registry
+            .backends
+            .iter()
+            .find(|backend| backend.language_id.as_str() == "go")
+            .expect("go");
+        assert_eq!(go.support_level, LanguageSupportLevel::Basic);
+        assert!(go.available);
+        assert!(go
+            .capabilities
+            .contains(&LanguageBackendCapability::ExtractImports));
+        assert!(go.notes.iter().any(|note| note.contains("No Go toolchain")));
     }
 
     #[test]

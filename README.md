@@ -94,14 +94,15 @@ Completed:
 - Phase 9.2.7 - Realtime / Socket Intelligence
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
+- Phase 9.2.10 - Go Language Support
 
 Next:
 
-- Phase 9.2.10 - Go Language Support
+- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. LSP remains local-only and disabled by default, and Go, scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. LSP remains local-only and disabled by default, and scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
 
 ---
 
@@ -147,8 +148,10 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   are deferred.
 - Rust has the strongest implemented parser backend.
 - JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
-- XAML, Python, Java, Go, and other planned languages are
+- XAML, Python, Java, and other planned languages are
   detect-only or unsupported until their phases land.
+- Go is basic/static/local and does not require the Go toolchain, `go build`,
+  `go test`, `go list`, module downloads, or package registry access.
 - Embeddings, semantic search, Qdrant, session memory, symbolic editing, and
   domain-specific intelligence are deferred.
 - LSP exists as a local backend foundation and is disabled by default.
@@ -381,8 +384,9 @@ Registry use is optional. Existing single-project commands still work without
 
 Phase 9.0 adds shared language backend contracts, local detection, support
 levels, and capability discovery. Rust reports an available tree-sitter backend
-with symbol/import/relationship extraction. Planned languages are detected where
-possible but only report detect-file support until later phases.
+with symbol/import/relationship extraction. Go reports an available basic
+static backend. Planned languages are detected where possible but only report
+detect-file support until later phases.
 
 ## Control Server Usage
 
@@ -464,10 +468,11 @@ Recently completed:
 - Phase 9.2.7 - Realtime / Socket Intelligence
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
+- Phase 9.2.10 - Go Language Support
 
 Next:
 
-- Phase 9.2.10 - Go Language Support
+- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 
 See `PLAN.md` for the full roadmap.
 

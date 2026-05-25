@@ -115,7 +115,8 @@ deferred to a later UI pass. Current capability truth is Rust implemented,
 JavaScript/TypeScript/JSX/TSX basic indexing, Node REST basic static route
 metadata, React/TSX basic static component metadata, Next.js basic static route
 and boundary metadata, Angular basic static decorator/route/component metadata,
-C# detect-only, and LSP disabled by default.
+C# basic static Web API metadata, Go basic static symbols/imports/route hints,
+and LSP disabled by default.
 
 ## Logs / Events
 
@@ -266,6 +267,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
   available through `GET /api/messaging`.
 - Dedicated cloud/infrastructure views are deferred; infrastructure metadata is
   currently available through `GET /api/infrastructure`.
+- Dedicated Go views are deferred; Go symbols use existing symbol/query
+  surfaces and Go route hints are available through `GET /api/routes`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after
