@@ -8,6 +8,7 @@
 
 mod csharp;
 mod data_access;
+mod infrastructure;
 pub mod lsp;
 mod messaging;
 mod realtime;
@@ -21,6 +22,8 @@ pub(crate) use data_access::data_access_metadata_value;
 pub use data_access::{
     detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
 };
+#[cfg(test)]
+pub(crate) use infrastructure::infrastructure_metadata_value;
 #[cfg(test)]
 pub(crate) use messaging::messaging_metadata_value;
 pub use messaging::{
@@ -332,6 +335,29 @@ pub struct MessagingMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InfrastructureMetadata {
+    pub technology: String,
+    pub kind: String,
+    pub name: Option<String>,
+    pub resource_type: Option<String>,
+    pub provider: Option<String>,
+    pub image: Option<String>,
+    pub service_name: Option<String>,
+    pub container_name: Option<String>,
+    pub namespace: Option<String>,
+    pub ports: Vec<String>,
+    pub env_keys: Vec<String>,
+    pub labels: Vec<String>,
+    pub selectors: Vec<String>,
+    pub file_path: String,
+    pub symbol_id: Option<SymbolId>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TechnologyKind {
     Language,
     WebBackend,
@@ -363,6 +389,7 @@ pub enum TechnologyCapability {
     ExtractComponents,
     ExtractRealtime,
     ExtractMessaging,
+    ExtractInfrastructure,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1648,6 +1675,10 @@ pub struct DefaultLanguagePack;
 
 impl TreeSitterParser for DefaultLanguagePack {
     fn parse(&self, input: ParseInput) -> ContractResult<ParsedFile> {
+        if infrastructure::is_infrastructure_file(&input.path, &input.source) {
+            return infrastructure::parse(input);
+        }
+
         match language_from_path(&input.path).as_deref() {
             Some("rs") => RustLanguagePack.parse(input),
             Some("javascript" | "jsx" | "typescript" | "tsx") => WebLanguagePack.parse(input),

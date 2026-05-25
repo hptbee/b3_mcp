@@ -1,4 +1,4 @@
-﻿# Requirements
+# Requirements
 
 ## Product Vision
 
@@ -613,6 +613,45 @@ Must defer:
   rename/refactor, embeddings, semantic search, and cross-project architecture
   intelligence
 
+## Cloud / Infrastructure Intelligence
+
+Phase 9.2.9 adds basic static cloud/infrastructure intelligence.
+
+Must support:
+- local file detection for Dockerfile, Docker Compose, Kubernetes YAML, and
+  Terraform files
+- Dockerfile base image, exposed port, environment key, command, and entrypoint
+  metadata
+- Docker Compose service, image/build context, port, environment key, and
+  `depends_on` metadata
+- Kubernetes kind, name, namespace, labels, selectors, container names, images,
+  ports, Service/Ingress backend hints, and GKE-oriented annotation metadata
+- Terraform provider, resource, module, variable, output, resource type, and
+  simple literal field metadata
+- GCP/GKE classification from visible Terraform `google_*` resource types and
+  Kubernetes GKE annotations
+- read-only infrastructure listing through `GET /api/infrastructure`
+- metadata cleanup through normal deleted-file index cleanup
+
+Must not require:
+- Docker daemon, Docker Compose, Kubernetes cluster, Terraform binary, `gcloud`,
+  cloud credentials, registries, cloud APIs, network, telemetry, or paid
+  dependencies
+- `docker`, `kubectl`, `terraform`, `gcloud`, provider/module downloads, app
+  code, package managers, or infrastructure command execution
+
+Must defer:
+- runtime cloud inventory
+- cluster discovery
+- Terraform plan/apply behavior
+- Helm/Kustomize rendering and CRD semantics
+- security scanning
+- cost estimation
+- policy enforcement
+- cross-project deployment/service matching
+- Go, scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
+  embeddings, semantic search, and cross-project architecture intelligence
+
 ## Graph Requirements
 
 Node types:
@@ -768,10 +807,10 @@ Avoid:
 - Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
+- Phase 9.2.9: Cloud / Infrastructure Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence

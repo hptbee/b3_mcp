@@ -277,4 +277,17 @@ message contract intelligence, schema registry calls, RabbitMQ binding runtime
 models, Kafka partition/runtime semantics, Google Pub/Sub IAM/project discovery,
 or cross-project producer/consumer matching.
 
-Do not start Cloud / Infrastructure Intelligence until Phase 9.2.9.
+## Cloud / Infrastructure Boundaries
+
+Phase 9.2.9 Cloud / Infrastructure intelligence is completed as basic local
+static analysis only. It may detect Dockerfile, Docker Compose, Kubernetes
+YAML, Terraform, and visible GCP/GKE hints, including obvious images, services,
+workloads, ports, environment keys, providers, resources, modules, variables,
+and outputs, but it must not run Docker, Docker Compose, `kubectl`, Terraform,
+`gcloud`, provider/module downloads, registry calls, cloud APIs, cloud
+credentials, package managers, or app code. It does not implement runtime cloud
+inventory, cluster discovery, Terraform plan/apply behavior, Helm/Kustomize
+rendering, CRD semantic expansion, security scanning, cost estimation, policy
+enforcement, or cross-project deployment matching.
+
+Do not start Go Language Support until Phase 9.2.10.

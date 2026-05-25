@@ -1,4 +1,4 @@
-﻿# B3 Control Server
+# B3 Control Server
 
 The control server is local developer tooling for the future localhost UI. It is an adapter over the core contracts and local SQLite storage; it can trigger the indexer, but it does not own indexing logic, generate embeddings, run semantic search, or handle MCP protocol traffic.
 
@@ -117,6 +117,7 @@ Diagnostics and config:
 - `GET /api/data-access`
 - `GET /api/realtime`
 - `GET /api/messaging`
+- `GET /api/infrastructure`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -155,6 +156,10 @@ Current truth:
   RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging package/use detection
   plus obvious producer/consumer callsites and literal topics, queues,
   exchanges, routing keys, and patterns.
+- Cloud/infrastructure intelligence is `Basic`, static, and local for
+  Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and visible GCP/GKE
+  hints, including images, services, workloads, ports, env keys, providers,
+  resources, modules, variables, and outputs.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
@@ -198,6 +203,15 @@ Responses include technology, kind, direction, topic/queue/exchange/routing key
 /pattern where available, file, symbol, class/function/method name, line range,
 confidence, and source kind.
 
+`GET /api/infrastructure` returns locally indexed static cloud/infrastructure
+metadata from symbols with `infrastructure.*` metadata. Optional filters include
+`project_id`, `branch_id`, `technology`, `kind`, `name`, and `limit`.
+Supported technology values include `docker`, `docker_compose`, `kubernetes`,
+`terraform`, `gcp`, and `gke`. Responses include technology, kind, name,
+resource type, provider, image, service/container name, namespace,
+ports/env keys/labels/selectors where available, file, symbol, line range,
+confidence, and source kind.
+
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
 runtime routing. It does not infer deep middleware order, Nest module graphs,
@@ -239,6 +253,7 @@ curl http://127.0.0.1:7777/api/routes?framework=aspnetcore
 curl http://127.0.0.1:7777/api/data-access?technology=ef_core
 curl http://127.0.0.1:7777/api/realtime?technology=socketio
 curl http://127.0.0.1:7777/api/messaging?technology=kafka
+curl http://127.0.0.1:7777/api/infrastructure?technology=kubernetes
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 
@@ -290,6 +305,8 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   through `GET /api/realtime`.
 - Dedicated messaging browser UI is deferred; messaging metadata is exposed
   through `GET /api/messaging`.
+- Dedicated cloud/infrastructure browser UI is deferred; infrastructure
+  metadata is exposed through `GET /api/infrastructure`.
 - Manual indexing is synchronous for this phase; `GET /api/index/status`
   reports the current or last run for the current server process.
 

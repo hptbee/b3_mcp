@@ -537,6 +537,32 @@ pub struct StoredMessaging {
     pub source_kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredInfrastructure {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub technology: String,
+    pub kind: String,
+    pub name: Option<String>,
+    pub resource_type: Option<String>,
+    pub provider: Option<String>,
+    pub image: Option<String>,
+    pub service_name: Option<String>,
+    pub container_name: Option<String>,
+    pub namespace: Option<String>,
+    pub ports: Vec<String>,
+    pub env_keys: Vec<String>,
+    pub labels: Vec<String>,
+    pub selectors: Vec<String>,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1493,6 +1519,48 @@ impl SqliteStorage {
         }
         if let Some(routing_key) = routing_key {
             records.retain(|record| record.routing_key.as_deref() == Some(routing_key));
+        }
+        Ok(records)
+    }
+
+    pub fn infrastructure(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        technology: Option<&str>,
+        kind: Option<&str>,
+        name: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredInfrastructure>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%infrastructure.technology=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![project_id, branch_id, limit as i64],
+                infrastructure_from_row,
+            )
+            .map_err(to_contract_error)?;
+        let mut records = collect_rows(rows)?;
+        if let Some(technology) = technology {
+            records.retain(|record| record.technology == technology);
+        }
+        if let Some(kind) = kind {
+            records.retain(|record| record.kind.eq_ignore_ascii_case(kind));
+        }
+        if let Some(name) = name {
+            records.retain(|record| record.name.as_deref() == Some(name));
         }
         Ok(records)
     }
@@ -2977,12 +3045,75 @@ fn messaging_from_row(row: &Row<'_>) -> rusqlite::Result<StoredMessaging> {
     })
 }
 
+fn infrastructure_from_row(row: &Row<'_>) -> rusqlite::Result<StoredInfrastructure> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    Ok(StoredInfrastructure {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        technology: infrastructure_metadata_value(&metadata, "technology")
+            .unwrap_or_else(|| "unknown".to_string()),
+        kind: infrastructure_metadata_value(&metadata, "kind")
+            .unwrap_or_else(|| "Unknown".to_string()),
+        name: infrastructure_metadata_value(&metadata, "name"),
+        resource_type: infrastructure_metadata_value(&metadata, "resource_type"),
+        provider: infrastructure_metadata_value(&metadata, "provider"),
+        image: infrastructure_metadata_value(&metadata, "image"),
+        service_name: infrastructure_metadata_value(&metadata, "service_name"),
+        container_name: infrastructure_metadata_value(&metadata, "container_name"),
+        namespace: infrastructure_metadata_value(&metadata, "namespace"),
+        ports: metadata_list(&metadata, "ports"),
+        env_keys: metadata_list(&metadata, "env_keys"),
+        labels: metadata_list(&metadata, "labels"),
+        selectors: metadata_list(&metadata, "selectors"),
+        file_path: infrastructure_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        line_start: infrastructure_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: infrastructure_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: infrastructure_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: infrastructure_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("route.{key}=");
     metadata.split(';').find_map(|part| {
         part.strip_prefix(&full_key)
             .map(|value| value.replace("%3B", ";"))
     })
+}
+
+fn infrastructure_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("infrastructure.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
+    })
+}
+
+fn metadata_list(metadata: &str, key: &str) -> Vec<String> {
+    infrastructure_metadata_value(metadata, key)
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn component_metadata_value(metadata: &str, key: &str) -> Option<String> {
@@ -3687,6 +3818,69 @@ mod tests {
         assert!(storage
             .messaging("project", "main", None, None, None, None, None, 10)
             .expect("messaging after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn infrastructure_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("infra-file"),
+                project_id: project_id.clone(),
+                path: "deploy/k8s.yaml".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("kubernetes".to_string()),
+            size_bytes: 32,
+            content: "kind: Deployment".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("infra-symbol"),
+                file_id: FileId::new("infra-file"),
+                name: "Kubernetes Deployment".to_string(),
+                kind: NodeKind::ConfigKey,
+                start_byte: 0,
+                end_byte: 16,
+                start_line: 1,
+                start_column: 0,
+                end_line: 12,
+                end_column: 0,
+                visibility: Some("infrastructure.technology=kubernetes;infrastructure.kind=Deployment;infrastructure.name=api;infrastructure.resource_type=Deployment;infrastructure.provider=google;infrastructure.image=my-api:latest;infrastructure.service_name=api;infrastructure.container_name=api;infrastructure.namespace=default;infrastructure.ports=8080;infrastructure.env_keys=NODE_ENV;infrastructure.labels=app=api;infrastructure.selectors=app=api;infrastructure.file=deploy/k8s.yaml;infrastructure.source=KubernetesDeployment;infrastructure.line_start=1;infrastructure.line_end=12;infrastructure.confidence=9000".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first infrastructure upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second infrastructure upsert");
+        let records = storage
+            .infrastructure(
+                "project",
+                "main",
+                Some("kubernetes"),
+                Some("deployment"),
+                Some("api"),
+                10,
+            )
+            .expect("infrastructure");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].image.as_deref(), Some("my-api:latest"));
+        assert_eq!(records[0].ports, vec!["8080"]);
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .infrastructure("project", "main", None, None, None, 10)
+            .expect("infrastructure after cleanup")
             .is_empty());
     }
 

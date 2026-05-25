@@ -283,6 +283,27 @@ API calls, runtime topic/queue discovery, payload schema inference, schema
 registry calls, package managers, package registries, external APIs, and
 telemetry.
 
+### Basic Cloud / Infrastructure Intelligence
+
+Phase 9.2.9 adds conservative static cloud/infrastructure extraction:
+
+1. detect Dockerfile, Docker Compose, Kubernetes YAML, and Terraform files by
+   local path/content heuristics
+2. scan Dockerfiles for `FROM`, `EXPOSE`, `ENV`, `CMD`, and `ENTRYPOINT`
+3. scan Compose YAML for services, images/build contexts, ports, environment
+   keys, and `depends_on` names
+4. scan Kubernetes YAML for common kinds, metadata, labels, selectors,
+   containers, images, ports, ingress/service backend hints, and GKE annotations
+5. scan Terraform text for provider/resource/module/variable/output blocks and
+   classify visible `google_*` resources as GCP/GKE where safe
+6. encode records as existing symbols with `infrastructure.*` metadata and
+   expose them through `GET /api/infrastructure`
+
+The extractor intentionally avoids Docker, Docker Compose, `kubectl`,
+Terraform, `gcloud`, registry calls, provider/module downloads, cloud API
+calls, credential loading, runtime discovery, security scanning, cost
+estimation, cross-project deployment matching, external APIs, and telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.

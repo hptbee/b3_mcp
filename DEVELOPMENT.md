@@ -200,12 +200,15 @@ static analysis only and is exposed through `GET /api/realtime` without network
 connections, socket server startup, package managers, protocol execution, or app
 code. Messaging/event-driven intelligence is basic static analysis only and is
 exposed through `GET /api/messaging` without broker connections, broker startup,
-cloud API calls, package managers, protocol execution, or app code. Phase
+cloud API calls, package managers, protocol execution, or app code.
+Cloud/infrastructure intelligence is basic static analysis only and is exposed
+through `GET /api/infrastructure` without Docker, Kubernetes, Terraform,
+`gcloud`, cloud APIs, credentials, registries, package managers, or app code. Phase
 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.8; the next planned
-implementation phase is Phase 9.2.9 - Cloud / Infrastructure Intelligence.
+current roadmap is completed through Phase 9.2.9; the next planned
+implementation phase is Phase 9.2.10 - Go Language Support.
 
 ## Offline-First Expectations
 
@@ -268,6 +271,10 @@ External integrations must remain:
   RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging detection must not open
   broker connections, start brokers, call cloud APIs, run `node`, `npm`,
   `dotnet`, package managers, package registries, or app code.
+- Cloud/infrastructure intelligence is basic static analysis only; Dockerfile,
+  Docker Compose, Kubernetes, Terraform, GCP, and GKE extraction must not run
+  Docker, Docker Compose, `kubectl`, Terraform, `gcloud`, cloud APIs, registry
+  calls, provider/module downloads, credentials, package managers, or app code.
 - Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
   orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
   indexer unit tests live in `crates/b3-indexer/src/tests.rs`.

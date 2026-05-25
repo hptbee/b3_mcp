@@ -36,8 +36,8 @@ use b3_indexer::{
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
-    StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredMessaging,
-    StoredParseFailure, StoredRealtime, StoredRoute,
+    StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredInfrastructure,
+    StoredMessaging, StoredParseFailure, StoredRealtime, StoredRoute,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -269,6 +269,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/data-access", get(data_access))
         .route("/api/realtime", get(realtime))
         .route("/api/messaging", get(messaging))
+        .route("/api/infrastructure", get(infrastructure))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -1062,6 +1063,25 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "payload_schema_inference": false,
                 "cross_project_matching": false
             },
+            "infrastructure": {
+                "available": true,
+                "support": "basic_static",
+                "technologies": {
+                    "docker": "basic",
+                    "docker_compose": "basic",
+                    "kubernetes": "basic",
+                    "terraform": "basic",
+                    "gcp": "basic",
+                    "gke": "basic"
+                },
+                "docker_execution_required": false,
+                "kubectl_execution_required": false,
+                "terraform_execution_required": false,
+                "gcloud_execution_required": false,
+                "cloud_api_required": false,
+                "runtime_discovery": false,
+                "cross_project_matching": false
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -1083,6 +1103,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "data_access": true,
             "realtime": true,
             "messaging": true,
+            "infrastructure": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1343,6 +1364,38 @@ async fn messaging(
         project_id,
         branch_id,
         messaging: records,
+    }))
+}
+
+async fn infrastructure(
+    State(state): State<ControlState>,
+    Query(query): Query<InfrastructureQuery>,
+) -> Result<Json<InfrastructureResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let records = state
+        .storage
+        .lock()
+        .await
+        .infrastructure(
+            &project_id,
+            &branch_id,
+            query.technology.as_deref(),
+            query.kind.as_deref(),
+            query.name.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(InfrastructureDto::from)
+        .collect();
+
+    Ok(Json(InfrastructureResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        infrastructure: records,
     }))
 }
 
@@ -2145,6 +2198,24 @@ struct MessagingResponse {
     messaging: Vec<MessagingDto>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct InfrastructureQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    technology: Option<String>,
+    kind: Option<String>,
+    name: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct InfrastructureResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    infrastructure: Vec<InfrastructureDto>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct DataAccessDto {
     id: String,
@@ -2203,6 +2274,30 @@ struct MessagingDto {
     class_name: Option<String>,
     function_name: Option<String>,
     method_name: Option<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct InfrastructureDto {
+    id: String,
+    technology: String,
+    kind: String,
+    name: Option<String>,
+    resource_type: Option<String>,
+    provider: Option<String>,
+    image: Option<String>,
+    service_name: Option<String>,
+    container_name: Option<String>,
+    namespace: Option<String>,
+    ports: Vec<String>,
+    env_keys: Vec<String>,
+    labels: Vec<String>,
+    selectors: Vec<String>,
+    file_path: String,
+    symbol_id: String,
     line_start: usize,
     line_end: usize,
     confidence: u16,
@@ -2352,6 +2447,33 @@ impl From<StoredMessaging> for MessagingDto {
             class_name: value.class_name,
             function_name: value.function_name,
             method_name: value.method_name,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredInfrastructure> for InfrastructureDto {
+    fn from(value: StoredInfrastructure) -> Self {
+        Self {
+            id: value.id,
+            technology: value.technology,
+            kind: value.kind,
+            name: value.name,
+            resource_type: value.resource_type,
+            provider: value.provider,
+            image: value.image,
+            service_name: value.service_name,
+            container_name: value.container_name,
+            namespace: value.namespace,
+            ports: value.ports,
+            env_keys: value.env_keys,
+            labels: value.labels,
+            selectors: value.selectors,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
             line_start: value.line_start,
             line_end: value.line_end,
             confidence: value.confidence,
@@ -3192,6 +3314,51 @@ mod tests {
         ))
     }
 
+    fn infrastructure_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("infra-file"),
+                        project_id: project_id.clone(),
+                        path: "deploy/k8s.yaml".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("kubernetes".to_string()),
+                    size_bytes: 32,
+                    content: "kind: Deployment".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("infra-symbol"),
+                        file_id: FileId::new("infra-file"),
+                        name: "Kubernetes Deployment".to_string(),
+                        kind: NodeKind::ConfigKey,
+                        start_byte: 0,
+                        end_byte: 16,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 16,
+                        visibility: Some("infrastructure.technology=kubernetes;infrastructure.kind=Deployment;infrastructure.name=api;infrastructure.resource_type=Deployment;infrastructure.image=my-api:latest;infrastructure.service_name=api;infrastructure.container_name=api;infrastructure.namespace=default;infrastructure.ports=8080;infrastructure.env_keys=NODE_ENV;infrastructure.labels=app=api;infrastructure.selectors=app=api;infrastructure.file=deploy/k8s.yaml;infrastructure.source=KubernetesDeployment;infrastructure.line_start=1;infrastructure.line_end=12;infrastructure.confidence=9000".to_string()),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("infrastructure file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+    }
+
     fn graph_app(with_centrality: bool, with_other_branch: bool) -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         seed_graph(&storage, "project", "main", with_centrality);
@@ -4002,6 +4169,133 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn index_api_exposes_static_infrastructure_metadata() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("deploy")).expect("deploy");
+        fs::write(
+            root.join("Dockerfile"),
+            "FROM node:20\nENV NODE_ENV=production\nEXPOSE 3000\nCMD [\"npm\", \"start\"]\n",
+        )
+        .expect("dockerfile");
+        fs::write(
+            root.join("compose.yaml"),
+            r#"
+services:
+  api:
+    image: my-api:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - db
+"#,
+        )
+        .expect("compose");
+        fs::write(
+            root.join("deploy").join("k8s.yaml"),
+            r#"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: default
+  labels:
+    app: api
+spec:
+  selector:
+    matchLabels:
+      app: api
+  template:
+    spec:
+      containers:
+        - name: api
+          image: my-api:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 80
+      targetPort: 8080
+"#,
+        )
+        .expect("kubernetes");
+        fs::write(
+            root.join("main.tf"),
+            r#"
+provider "google" {
+  project = "demo"
+  region = "asia-southeast1"
+}
+
+resource "google_container_cluster" "primary" {
+  name = "b3-cluster"
+  location = "asia-southeast1"
+}
+
+module "network" {
+  source = "./modules/network"
+}
+
+variable "project_id" {}
+output "cluster_name" {
+  value = google_container_cluster.primary.name
+}
+"#,
+        )
+        .expect("terraform");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let compose_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/infrastructure?technology=docker_compose&name=api")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(compose_response.status(), StatusCode::OK);
+        let compose_body = response_json(compose_response).await;
+        assert!(compose_body["infrastructure"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["image"] == "my-api:latest"));
+
+        let gke_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/infrastructure?technology=gke&kind=cluster&name=primary")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(gke_response.status(), StatusCode::OK);
+        let gke_body = response_json(gke_response).await;
+        assert!(gke_body["infrastructure"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["source_kind"] == "GkeTerraformCluster"));
+    }
+
+    #[tokio::test]
     async fn components_endpoint_returns_indexed_react_components_and_filters() {
         let response = component_app()
             .oneshot(
@@ -4086,6 +4380,37 @@ mod tests {
         assert_eq!(body["messaging"][0]["kind"], "Producer");
         assert_eq!(body["messaging"][0]["topic"], "orders");
         assert_eq!(body["messaging"][0]["source_kind"], "KafkaProducerSend");
+    }
+
+    #[tokio::test]
+    async fn infrastructure_endpoint_returns_indexed_metadata_and_filters() {
+        let response = infrastructure_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/infrastructure?technology=kubernetes&kind=deployment&name=api")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(
+            body["infrastructure"]
+                .as_array()
+                .expect("infrastructure")
+                .len(),
+            1
+        );
+        assert_eq!(body["infrastructure"][0]["technology"], "kubernetes");
+        assert_eq!(body["infrastructure"][0]["kind"], "Deployment");
+        assert_eq!(body["infrastructure"][0]["name"], "api");
+        assert_eq!(
+            body["infrastructure"][0]["source_kind"],
+            "KubernetesDeployment"
+        );
     }
 
     #[tokio::test]

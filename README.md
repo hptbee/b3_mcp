@@ -1,4 +1,4 @@
-﻿# B3 MCP Code Intelligence
+# B3 MCP Code Intelligence
 
 B3 is a local-first, offline-first, free-by-default code intelligence platform
 for MCP-compatible coding agents such as Codex and Cursor.
@@ -93,14 +93,15 @@ Completed:
 - Phase 9.2.6 - ORM / Database Access Intelligence
 - Phase 9.2.7 - Realtime / Socket Intelligence
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Phase 9.2.9 - Cloud / Infrastructure Intelligence
 
 Next:
 
-- Phase 9.2.9 - Cloud / Infrastructure Intelligence
+- Phase 9.2.10 - Go Language Support
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. LSP remains local-only and disabled by default, and cloud, Go, scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. LSP remains local-only and disabled by default, and Go, scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
 
 ---
 
@@ -146,7 +147,7 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   are deferred.
 - Rust has the strongest implemented parser backend.
 - JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
-- C#, Dockerfile, XAML, Python, Java, Go, and other planned languages are
+- XAML, Python, Java, Go, and other planned languages are
   detect-only or unsupported until their phases land.
 - Embeddings, semantic search, Qdrant, session memory, symbolic editing, and
   domain-specific intelligence are deferred.
@@ -181,13 +182,20 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   Kafka, Google Pub/Sub, and NestJS messaging packages/imports/usings plus
   obvious producers, consumers, topics, queues, exchanges, routing keys, and
   message patterns.
+- Cloud/infrastructure extraction is basic/static/local for Dockerfile,
+  Docker Compose, Kubernetes manifests, Terraform blocks, and obvious GCP/GKE
+  resource hints, including images, services, workloads, ports, env keys,
+  providers, resources, modules, variables, and outputs.
 - Deep middleware order, runtime routing, Nest module graphs, guards/interceptors,
   deep dependency injection, Angular compiler behavior, template type checking,
   RxJS/NgRx flow, Roslyn semantics, full DI graphs, EF/Dapper query analysis,
   full LINQ/SQL semantics, database connections, migrations, middleware
   pipeline analysis, runtime realtime or broker flow, payload schema inference,
   message contract analysis, cross-project producer/consumer matching,
-  WPF/XAML intelligence, and request lifecycle inference are deferred.
+  runtime infrastructure discovery, Docker/Kubernetes/Terraform/gcloud
+  execution, cloud API calls, cloud credentials, security scanning, cost
+  estimation, WPF/XAML intelligence, and request lifecycle inference are
+  deferred.
 - Manual project init/index workflow is planned for Phase 8.5.1.
 - MCP tool profiles start in Phase 8.6.
 - Multi-repo registry and project groups are planned for Phase 8.8.
@@ -455,10 +463,11 @@ Recently completed:
 - Phase 9.2.6 - ORM / Database Access Intelligence
 - Phase 9.2.7 - Realtime / Socket Intelligence
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Phase 9.2.9 - Cloud / Infrastructure Intelligence
 
 Next:
 
-- Phase 9.2.9 - Cloud / Infrastructure Intelligence
+- Phase 9.2.10 - Go Language Support
 
 See `PLAN.md` for the full roadmap.
 
