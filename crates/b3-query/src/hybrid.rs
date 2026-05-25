@@ -275,8 +275,7 @@ where
 
         match self.vector_candidates(&request) {
             Ok(hits) if hits.is_empty() => warnings.push(
-                "vector search returned no candidates; ranking used lexical/metadata signals"
-                    .to_string(),
+                "No vector data available; returned lexical/metadata fallback results.".to_string(),
             ),
             Ok(hits) => {
                 for hit in hits {
@@ -888,7 +887,7 @@ mod tests {
         assert!(response
             .warnings
             .iter()
-            .any(|warning| warning.contains("vector search returned no candidates")));
+            .any(|warning| warning.contains("No vector data available")));
     }
 
     #[test]

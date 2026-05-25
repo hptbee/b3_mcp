@@ -631,8 +631,8 @@ truncated at a configured character boundary before tokenization.
 The provider requires no model file, API key, network access, hosted vector
 database, telemetry endpoint, or paid dependency. It is suitable for offline
 chunk/vector generation, but it is not a neural semantic model. MCP/control
-semantic integration remains Phase 10.4, and quality benchmarking remains Phase
-10.5.
+semantic integration is available from Phase 10.4, and quality benchmarking
+remains Phase 10.5.
 
 ### Phase 10.2 SQLite Vector Search
 
@@ -664,9 +664,21 @@ metadata `0.1`; custom weights are validated and normalized before scoring.
 Results are sorted deterministically by final score, vector score, lexical
 score, path, line, and document id. Optional explanations include component
 scores, matched terms, boosts, vector provider/dimension, filters, and fallback
-warnings. This is an internal reusable ranking layer only: it does not add an
-MCP semantic search tool, hosted vector database, cloud provider, model
-download, telemetry, or quality benchmark dataset.
+warnings.
+
+### Phase 10.4 MCP / Control Integration
+
+Phase 10.4 exposes the Phase 10.3 ranking layer through thin local adapters:
+`POST /api/search/hybrid` in `b3-control` and the MCP `semantic_search` tool in
+`b3-mcp-runtime`. The adapters validate query text, limits, weights, min score,
+source kind, and relative path prefixes, then delegate to `b3-query`; they do
+not implement ranking, embedding generation, or SQLite search directly.
+
+The integration remains local/offline. It uses `local_hash` plus SQLite vector
+data when available and returns lexical/metadata fallback warnings when vector
+data is missing. It does not add hosted vector databases, cloud providers,
+model downloads, telemetry, cross-project semantic search, or benchmark quality
+claims.
 
 ## Additional Planned Algorithms
 

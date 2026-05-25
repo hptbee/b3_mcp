@@ -26,12 +26,12 @@ Completed:
 - Phase 10.1 — Local Embedding Provider MVP
 - Phase 10.2 — SQLite Vector Storage / Search Index
 - Phase 10.3 - Hybrid Search Ranking
-
-Current / Next:
 - Phase 10.4 - MCP / Control API Integration
 
+Current / Next:
+- Phase 10.5 - Benchmark + Quality Evaluation
+
 Upcoming (major):
-- Phase 10.5 — Benchmark + Quality Evaluation
 - Phase 11 — Cross-Project Architecture Intelligence
 - Phase 12 — Symbolic Editing MVP
 - Phase 13 — Rename / Refactor MVP
@@ -67,7 +67,8 @@ Application intelligence (static hints):
 Vector foundation:
 - `local_hash` embeddings and SQLite vector persistence/search (local/offline raw vector search).
 - Hybrid ranking combines lexical, vector, and metadata signals inside `b3-query`.
-- Production-grade neural embedding providers and MCP semantic tools are planned in later phases.
+- Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
+- Production-grade neural embedding providers and quality benchmarks are planned in later phases.
 
 ---
 
@@ -75,8 +76,7 @@ Vector foundation:
 
 - Support for non-Rust stacks is mostly conservative/static/local, not full semantic analysis.
 - `local_hash` embeddings are lexical/hash-based, not neural semantic-quality vectors.
-- Hybrid ranking is implemented as an internal ranking layer; MCP/control semantic integration is Phase 10.4.
-- MCP semantic search tool: Phase 10.4.
+- MCP/control semantic search is local/offline and uses lexical/hash-based `local_hash`, not neural semantic vectors.
 - Quality evaluation / benchmarks: Phase 10.5.
 - Cross-project architecture intelligence: Phase 11.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
@@ -105,8 +105,8 @@ Vector foundation:
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Usable now, basic/static/local |
 | Local embeddings & SQLite vector search | Usable now, local/offline raw vector search |
-| Hybrid semantic ranking | Internal ranking layer implemented |
-| MCP semantic search tool | Phase 10.4 |
+| Hybrid semantic ranking | Usable now, local/offline |
+| MCP semantic search tool | Usable now, local/offline |
 | Cross-project architecture intelligence | Phase 11 |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 

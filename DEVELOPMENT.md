@@ -92,13 +92,14 @@ The CI skeleton mirrors these commands with:
 - `cargo check --workspace`
 - `cargo test --workspace`
 
-Phase 10.3 hybrid ranking is verified by the Rust workspace tests.
+Phase 10.4 MCP/control hybrid search integration is verified by the Rust workspace tests.
 The default provider id is `local_hash`, embeddings remain disabled by default,
 and vector search runs as local SQLite candidate loading plus Rust cosine
 scoring. Hybrid ranking combines lexical, vector, and metadata signals inside
-`b3-query`. It works without internet access, API keys, hosted vector databases,
-Qdrant, native SQLite vector extensions, model downloads, Node.js, Python,
-Docker, `dotnet`, or Go. MCP semantic search tools remain deferred.
+`b3-query`. `POST /api/search/hybrid` and the MCP `semantic_search` tool are
+thin read-only adapters over that ranking layer. They work without internet
+access, API keys, hosted vector databases, Qdrant, native SQLite vector
+extensions, model downloads, Node.js, Python, Docker, `dotnet`, or Go.
 
 ## Benchmark Commands
 

@@ -2394,6 +2394,45 @@ impl VectorStore for SqliteStorage {
     }
 }
 
+impl VectorStore for &SqliteStorage {
+    fn upsert_documents(&self, documents: &[VectorDocument]) -> ContractResult<()> {
+        (*self).upsert_documents(documents)
+    }
+
+    fn upsert_vectors(&self, vectors: &[EmbeddingVector]) -> ContractResult<()> {
+        (*self).upsert_vectors(vectors)
+    }
+
+    fn delete_by_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file_id: &FileId,
+    ) -> ContractResult<usize> {
+        (*self).delete_by_file(project_id, branch_id, file_id)
+    }
+
+    fn delete_by_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<usize> {
+        (*self).delete_by_project_branch(project_id, branch_id)
+    }
+
+    fn search(&self, request: VectorSearchRequest) -> ContractResult<Vec<VectorSearchHit>> {
+        (*self).search(request)
+    }
+
+    fn get_document(&self, document_id: &str) -> ContractResult<Option<VectorDocument>> {
+        (*self).get_document(document_id)
+    }
+
+    fn stats(&self) -> ContractResult<VectorStoreStats> {
+        (*self).stats()
+    }
+}
+
 impl FileRepository for SqliteStorage {
     fn get_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
         self.connection

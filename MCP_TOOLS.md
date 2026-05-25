@@ -31,6 +31,11 @@ Phase 10.3 adds hybrid ranking inside `b3-query` by combining lexical, vector,
 and metadata signals. It still does not add a semantic search MCP tool, change
 MCP profiles, or move ranking into the MCP runtime.
 
+Phase 10.4 adds the read-only MCP `semantic_search` tool. The tool is a thin
+adapter over `b3-query` hybrid ranking and local SQLite/vector storage. It uses
+`local_hash` plus existing SQLite vectors, never calls external APIs, and falls
+back to lexical/metadata results with a warning when vector data is unavailable.
+
 ## Local Stdio Server
 
 Run the local stdio server with:
@@ -102,13 +107,13 @@ suggestion to use `full` or `debug` when appropriate.
 | Profile | Tools | Count |
 |---|---|---:|
 | `tiny` | `search_code`, `find_symbol`, `get_context_pack`, `compact_command_output`, `savings_report` | 5 |
-| `optimized` | `find_symbol`, `search_code`, `related_symbols`, `impact_analysis`, `get_context_pack`, `compact_command_output`, `savings_report` | 7 |
-| `full` | all current tools | 11 |
-| `debug` | all current tools | 11 |
-| `readonly` | all current tools for now; future mutation tools must be hidden | 11 |
-| `editing` | same as `optimized` for now; reserved for future symbolic editing tools | 7 |
-| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, Go, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, data access metadata, realtime/socket metadata, messaging metadata, and infrastructure metadata | 7 |
-| `enterprise` | `find_symbol`, `search_code`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 9 |
+| `optimized` | `find_symbol`, `search_code`, `semantic_search`, `related_symbols`, `impact_analysis`, `get_context_pack`, `compact_command_output`, `savings_report` | 8 |
+| `full` | all current tools | 12 |
+| `debug` | all current tools | 12 |
+| `readonly` | all current read-only tools; future mutation tools must be hidden | 12 |
+| `editing` | same as `optimized` for now; reserved for future symbolic editing tools | 8 |
+| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, Go, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, data access metadata, realtime/socket metadata, messaging metadata, and infrastructure metadata | 8 |
+| `enterprise` | `find_symbol`, `search_code`, `semantic_search`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 10 |
 
 Future mutation tools such as `preview_edit`, `apply_edit`, and `rename_symbol`
 must remain hidden from `readonly` and appear only in `editing`, `full`, or
@@ -141,6 +146,15 @@ including nested scope fields:
 - Example: `{"scope":{"project_id":"p","branch_id":"main"},"query":"helper call","limit":20,"include_trace":false}`
 - Token saving: returns ranked symbol snippets, not full files.
 - Trace: optional FTS/ranking trace.
+
+### `semantic_search`
+- Purpose: local offline hybrid semantic/code search over indexed data.
+- Input: `SemanticSearchRequest`
+- Output: `SemanticSearchToolResponse`
+- Example: `{"scope":{"project_id":"p","branch_id":"main"},"query":"find order creation flow","limit":10,"language":"typescript","explain":true}`
+- Ranking: combines lexical overlap, local SQLite vector cosine scores, and metadata boosts through `b3-query`.
+- Fallback: returns lexical/metadata results with a warning when vector data is unavailable.
+- Safety: read-only, local-only, no external APIs, no model downloads, no hosted vector DB, and no implicit repo-wide embedding/indexing.
 
 ### `find_callers`
 - Purpose: inbound `CALLS` graph lookup.

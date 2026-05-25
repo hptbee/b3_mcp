@@ -9,9 +9,12 @@ use b3_compaction::{compact_command_output, CommandOutputInput, CommandOutputSum
 use b3_core::{
     BranchId, ContextPackResponse, ContractError, EdgeKind, FindCalleesResponse,
     FindCallersResponse, FindSymbolResponse, ImpactAnalysisResponse, ProjectId, QueryScope,
-    RelatedSymbolsResponse, SearchCodeResponse, SymbolId,
+    RelatedSymbolsResponse, SearchCodeResponse, SourceKind, SymbolId,
 };
-use b3_query::{DependencyPath, LocalQueryEngine, QueryEngineConfig};
+use b3_query::{
+    hybrid::{HybridRankingExplanation, HybridSearchRequest, HybridSearchResponse},
+    DependencyPath, LocalQueryEngine, QueryEngineConfig,
+};
 use b3_storage::SqliteStorage;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -30,6 +33,8 @@ const MAX_TOKEN_BUDGET: usize = 64_000;
 const MAX_CYCLE_NODES: usize = 2_000;
 const JSONRPC_VERSION: &str = "2.0";
 const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
+const LOCAL_SEMANTIC_PROVIDER_ID: &str = "local_hash";
+const LOCAL_SEMANTIC_DIMENSION: usize = 384;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeInfo {
@@ -173,6 +178,7 @@ pub enum QueryToolName {
     DetectCycles,
     SavingsReport,
     CompactCommandOutput,
+    SemanticSearch,
 }
 
 impl QueryToolName {
@@ -189,6 +195,7 @@ impl QueryToolName {
             Self::DetectCycles => "detect_cycles",
             Self::SavingsReport => "savings_report",
             Self::CompactCommandOutput => "compact_command_output",
+            Self::SemanticSearch => "semantic_search",
         }
     }
 
@@ -205,6 +212,7 @@ impl QueryToolName {
             "detect_cycles" => Some(Self::DetectCycles),
             "savings_report" => Some(Self::SavingsReport),
             "compact_command_output" => Some(Self::CompactCommandOutput),
+            "semantic_search" => Some(Self::SemanticSearch),
             _ => None,
         }
     }
@@ -307,6 +315,7 @@ impl ToolProfileConfig {
             ToolProfileName::Optimized | ToolProfileName::Editing | ToolProfileName::WebApp => &[
                 QueryToolName::FindSymbol,
                 QueryToolName::SearchCode,
+                QueryToolName::SemanticSearch,
                 QueryToolName::RelatedSymbols,
                 QueryToolName::ImpactAnalysis,
                 QueryToolName::GetContextPack,
@@ -325,10 +334,12 @@ impl ToolProfileConfig {
                 QueryToolName::DetectCycles,
                 QueryToolName::SavingsReport,
                 QueryToolName::CompactCommandOutput,
+                QueryToolName::SemanticSearch,
             ],
             ToolProfileName::Enterprise => &[
                 QueryToolName::FindSymbol,
                 QueryToolName::SearchCode,
+                QueryToolName::SemanticSearch,
                 QueryToolName::RelatedSymbols,
                 QueryToolName::ImpactAnalysis,
                 QueryToolName::GetContextPack,
@@ -379,6 +390,24 @@ pub struct SearchCodeRequest {
     pub query: String,
     pub limit: Option<usize>,
     pub include_trace: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticSearchRequest {
+    pub scope: ScopeDto,
+    pub query: String,
+    pub limit: Option<usize>,
+    pub language: Option<String>,
+    pub framework: Option<String>,
+    pub source_kind: Option<String>,
+    pub path_prefix: Option<String>,
+    pub explain: Option<bool>,
+    pub min_score: Option<f32>,
+    pub lexical_weight: Option<f32>,
+    pub vector_weight: Option<f32>,
+    pub metadata_weight: Option<f32>,
+    pub provider_id: Option<String>,
+    pub dimension: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -473,6 +502,45 @@ pub struct SavingsReportResponse {
     pub trace_included: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticSearchToolResponse {
+    pub results: Vec<SemanticSearchToolResult>,
+    pub warnings: Vec<String>,
+    pub local_only: bool,
+    pub provider_id: String,
+    pub dimension: usize,
+    pub ranking_mode: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticSearchToolResult {
+    pub path: String,
+    pub start_line: usize,
+    pub end_line: usize,
+    pub snippet: String,
+    pub final_score: f32,
+    pub lexical_score: f32,
+    pub vector_score: f32,
+    pub metadata_score: f32,
+    pub source_kind: String,
+    pub symbol_id: Option<String>,
+    pub explanation: Option<HybridRankingExplanationDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HybridRankingExplanationDto {
+    pub final_score: f32,
+    pub lexical_score: f32,
+    pub vector_score: f32,
+    pub metadata_score: f32,
+    pub matched_terms: Vec<String>,
+    pub boosts: Vec<String>,
+    pub vector_provider: Option<String>,
+    pub vector_dimension: Option<usize>,
+    pub fallback_reason: Option<String>,
+    pub filters: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolDefinition {
     pub name: String,
@@ -504,6 +572,10 @@ pub type McpToolResult<T> = Result<T, McpToolError>;
 pub trait QueryToolExecutor {
     fn find_symbol(&self, request: FindSymbolRequest) -> McpToolResult<FindSymbolResponse>;
     fn search_code(&self, request: SearchCodeRequest) -> McpToolResult<SearchCodeResponse>;
+    fn semantic_search(
+        &self,
+        request: SemanticSearchRequest,
+    ) -> McpToolResult<SemanticSearchToolResponse>;
     fn find_callers(&self, request: FindCallersRequest) -> McpToolResult<FindCallersResponse>;
     fn find_callees(&self, request: FindCalleesRequest) -> McpToolResult<FindCalleesResponse>;
     fn related_symbols(
@@ -564,6 +636,24 @@ where
         validate_limit(request.limit.unwrap_or(20))?;
         validate_scope(&request.scope)?;
         self.executor.search_code(request)
+    }
+
+    pub fn semantic_search(
+        &self,
+        request: SemanticSearchRequest,
+    ) -> McpToolResult<SemanticSearchToolResponse> {
+        validate_text("query", &request.query)?;
+        validate_limit(request.limit.unwrap_or(10))?;
+        validate_scope(&request.scope)?;
+        validate_optional_weight("lexical_weight", request.lexical_weight)?;
+        validate_optional_weight("vector_weight", request.vector_weight)?;
+        validate_optional_weight("metadata_weight", request.metadata_weight)?;
+        validate_min_score(request.min_score)?;
+        validate_path_prefix(request.path_prefix.as_deref())?;
+        if let Some(source_kind) = &request.source_kind {
+            parse_source_kind(source_kind)?;
+        }
+        self.executor.semantic_search(request)
     }
 
     pub fn find_callers(&self, request: FindCallersRequest) -> McpToolResult<FindCallersResponse> {
@@ -660,7 +750,10 @@ where
 
 impl<R> QueryToolExecutor for LocalQueryEngine<R>
 where
-    R: b3_core::QueryRepository + b3_core::TokenSavingsRepository + b3_core::CentralityRepository,
+    R: b3_core::QueryRepository
+        + b3_core::TokenSavingsRepository
+        + b3_core::CentralityRepository
+        + b3_core::VectorStore,
 {
     fn find_symbol(&self, request: FindSymbolRequest) -> McpToolResult<FindSymbolResponse> {
         self.find_symbol_response(
@@ -679,6 +772,21 @@ where
             request.include_trace,
         )
         .map_err(tool_error)
+    }
+
+    fn semantic_search(
+        &self,
+        request: SemanticSearchRequest,
+    ) -> McpToolResult<SemanticSearchToolResponse> {
+        let provider_id = request
+            .provider_id
+            .clone()
+            .unwrap_or_else(|| LOCAL_SEMANTIC_PROVIDER_ID.to_string());
+        let dimension = request.dimension.unwrap_or(LOCAL_SEMANTIC_DIMENSION);
+        let response = self
+            .hybrid_search_response(to_hybrid_request(request)?)
+            .map_err(tool_error)?;
+        Ok(semantic_tool_response(response, provider_id, dimension))
     }
 
     fn find_callers(&self, request: FindCallersRequest) -> McpToolResult<FindCallersResponse> {
@@ -811,6 +919,13 @@ pub fn registered_tools() -> Vec<ToolDefinition> {
             r#"{"scope":{"project_id":"p","branch_id":"main"},"query":"helper call","limit":20,"include_trace":false}"#,
         ),
         tool_doc(
+            "semantic_search",
+            "Local offline hybrid semantic/code search using lexical, local vector, and metadata ranking.",
+            "SemanticSearchRequest",
+            "SemanticSearchToolResponse",
+            r#"{"scope":{"project_id":"p","branch_id":"main"},"query":"find order creation flow","limit":10,"language":"typescript","explain":true}"#,
+        ),
+        tool_doc(
             "find_callers",
             "Find bounded inbound CALLS graph neighbors.",
             "FindCallersRequest",
@@ -941,6 +1056,7 @@ where
     let response = match name {
         "find_symbol" => serde_json::to_value(router.find_symbol(decode(arguments)?)?),
         "search_code" => serde_json::to_value(router.search_code(decode(arguments)?)?),
+        "semantic_search" => serde_json::to_value(router.semantic_search(decode(arguments)?)?),
         "find_callers" => serde_json::to_value(router.find_callers(decode(arguments)?)?),
         "find_callees" => serde_json::to_value(router.find_callees(decode(arguments)?)?),
         "related_symbols" => serde_json::to_value(router.related_symbols(decode(arguments)?)?),
@@ -996,6 +1112,35 @@ fn input_schema_for_tool(name: &str, title: &str) -> Value {
             );
             properties.insert("include_trace".to_string(), json!({ "type": "boolean" }));
             required.extend(["query", "include_trace"]);
+        }
+        "semantic_search" => {
+            properties.insert("query".to_string(), json!({ "type": "string" }));
+            properties.insert(
+                "limit".to_string(),
+                json!({ "type": "integer", "minimum": 1, "maximum": MAX_LIMIT }),
+            );
+            properties.insert("language".to_string(), json!({ "type": "string" }));
+            properties.insert("framework".to_string(), json!({ "type": "string" }));
+            properties.insert("source_kind".to_string(), json!({ "type": "string" }));
+            properties.insert("path_prefix".to_string(), json!({ "type": "string" }));
+            properties.insert("explain".to_string(), json!({ "type": "boolean" }));
+            properties.insert(
+                "min_score".to_string(),
+                json!({ "type": "number", "minimum": 0, "maximum": 1 }),
+            );
+            properties.insert(
+                "lexical_weight".to_string(),
+                json!({ "type": "number", "minimum": 0, "maximum": 1 }),
+            );
+            properties.insert(
+                "vector_weight".to_string(),
+                json!({ "type": "number", "minimum": 0, "maximum": 1 }),
+            );
+            properties.insert(
+                "metadata_weight".to_string(),
+                json!({ "type": "number", "minimum": 0, "maximum": 1 }),
+            );
+            required.push("query");
         }
         "find_callers" | "find_callees" | "related_symbols" => {
             properties.insert("symbol_id".to_string(), json!({ "type": "string" }));
@@ -1184,6 +1329,44 @@ fn validate_limit(value: usize) -> McpToolResult<()> {
     }
 }
 
+fn validate_optional_weight(field: &str, value: Option<f32>) -> McpToolResult<()> {
+    if let Some(value) = value {
+        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+            return Err(validation_error(&format!(
+                "{field} must be a finite value between 0.0 and 1.0"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_min_score(value: Option<f32>) -> McpToolResult<()> {
+    if let Some(value) = value {
+        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+            return Err(validation_error(
+                "min_score must be a finite value between 0.0 and 1.0",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_path_prefix(value: Option<&str>) -> McpToolResult<()> {
+    if let Some(value) = value {
+        if value.trim().is_empty()
+            || value.contains("..")
+            || value.starts_with('/')
+            || value.starts_with('\\')
+            || value.contains(':')
+        {
+            return Err(validation_error(
+                "path_prefix must be a relative path prefix without traversal",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_depth(value: usize) -> McpToolResult<()> {
     if value == 0 {
         Err(validation_error("max_depth must be greater than zero"))
@@ -1260,6 +1443,99 @@ fn parse_edge_kind(value: &str) -> McpToolResult<EdgeKind> {
         "touches" => Ok(EdgeKind::Touches),
         "decides" => Ok(EdgeKind::Decides),
         _ => Err(validation_error("unknown edge filter")),
+    }
+}
+
+fn parse_source_kind(value: &str) -> McpToolResult<SourceKind> {
+    match value {
+        "FileChunk" | "file" | "file_chunk" => Ok(SourceKind::FileChunk),
+        "SymbolChunk" | "symbol" | "symbol_chunk" => Ok(SourceKind::SymbolChunk),
+        "RouteChunk" | "route" | "route_chunk" => Ok(SourceKind::RouteChunk),
+        "ComponentChunk" | "component" | "component_chunk" => Ok(SourceKind::ComponentChunk),
+        "DataAccessChunk" | "data_access" | "data_access_chunk" => Ok(SourceKind::DataAccessChunk),
+        "RealtimeChunk" | "realtime" | "realtime_chunk" => Ok(SourceKind::RealtimeChunk),
+        "MessagingChunk" | "messaging" | "messaging_chunk" => Ok(SourceKind::MessagingChunk),
+        "InfrastructureChunk" | "infrastructure" | "infrastructure_chunk" => {
+            Ok(SourceKind::InfrastructureChunk)
+        }
+        "WpfChunk" | "wpf" | "wpf_chunk" => Ok(SourceKind::WpfChunk),
+        "GoChunk" | "go" | "go_chunk" => Ok(SourceKind::GoChunk),
+        _ => Err(validation_error("unknown source_kind")),
+    }
+}
+
+fn to_hybrid_request(request: SemanticSearchRequest) -> McpToolResult<HybridSearchRequest> {
+    let mut hybrid = HybridSearchRequest::new(scope(&request.scope), request.query);
+    if let Some(limit) = request.limit {
+        hybrid.limit = limit;
+    }
+    hybrid.language = request.language;
+    hybrid.framework = request.framework;
+    hybrid.source_kind = request
+        .source_kind
+        .as_deref()
+        .map(parse_source_kind)
+        .transpose()?;
+    hybrid.path_prefix = request.path_prefix;
+    hybrid.explain = request.explain.unwrap_or(false);
+    hybrid.min_score = request.min_score;
+    if let Some(weight) = request.lexical_weight {
+        hybrid.lexical_weight = weight;
+    }
+    if let Some(weight) = request.vector_weight {
+        hybrid.vector_weight = weight;
+    }
+    if let Some(weight) = request.metadata_weight {
+        hybrid.metadata_weight = weight;
+    }
+    hybrid.provider_id = request.provider_id;
+    hybrid.dimension = request.dimension;
+    Ok(hybrid)
+}
+
+fn semantic_tool_response(
+    response: HybridSearchResponse,
+    provider_id: String,
+    dimension: usize,
+) -> SemanticSearchToolResponse {
+    SemanticSearchToolResponse {
+        results: response
+            .results
+            .into_iter()
+            .map(|result| SemanticSearchToolResult {
+                path: result.path,
+                start_line: result.start_line,
+                end_line: result.end_line,
+                snippet: result.text_preview,
+                final_score: result.final_score,
+                lexical_score: result.lexical_score,
+                vector_score: result.vector_score,
+                metadata_score: result.metadata_score,
+                source_kind: result.source_kind.as_str().to_string(),
+                symbol_id: result.symbol_id.map(|symbol| symbol.as_str().to_string()),
+                explanation: result.explanation.map(explanation_dto),
+            })
+            .collect(),
+        warnings: response.warnings,
+        local_only: true,
+        provider_id,
+        dimension,
+        ranking_mode: "hybrid".to_string(),
+    }
+}
+
+fn explanation_dto(explanation: HybridRankingExplanation) -> HybridRankingExplanationDto {
+    HybridRankingExplanationDto {
+        final_score: explanation.final_score,
+        lexical_score: explanation.lexical_score,
+        vector_score: explanation.vector_score,
+        metadata_score: explanation.metadata_score,
+        matched_terms: explanation.matched_terms,
+        boosts: explanation.boosts,
+        vector_provider: explanation.vector_provider,
+        vector_dimension: explanation.vector_dimension,
+        fallback_reason: explanation.fallback_reason,
+        filters: explanation.filters,
     }
 }
 
@@ -1352,6 +1628,45 @@ mod tests {
                 symbols: vec![symbol("search")],
                 trace_id: "trace-search".to_string(),
                 trace: request.include_trace.then_some(trace("search_code")),
+            })
+        }
+
+        fn semantic_search(
+            &self,
+            request: SemanticSearchRequest,
+        ) -> McpToolResult<SemanticSearchToolResponse> {
+            Ok(SemanticSearchToolResponse {
+                results: vec![SemanticSearchToolResult {
+                    path: "src/orders.rs".to_string(),
+                    start_line: 1,
+                    end_line: 3,
+                    snippet: request.query,
+                    final_score: 0.9,
+                    lexical_score: 0.8,
+                    vector_score: 0.7,
+                    metadata_score: 0.2,
+                    source_kind: "FileChunk".to_string(),
+                    symbol_id: None,
+                    explanation: request.explain.unwrap_or(false).then_some(
+                        HybridRankingExplanationDto {
+                            final_score: 0.9,
+                            lexical_score: 0.8,
+                            vector_score: 0.7,
+                            metadata_score: 0.2,
+                            matched_terms: vec!["order".to_string()],
+                            boosts: vec!["compact_chunk".to_string()],
+                            vector_provider: Some(LOCAL_SEMANTIC_PROVIDER_ID.to_string()),
+                            vector_dimension: Some(LOCAL_SEMANTIC_DIMENSION),
+                            fallback_reason: None,
+                            filters: vec!["project_id=project".to_string()],
+                        },
+                    ),
+                }],
+                warnings: Vec::new(),
+                local_only: true,
+                provider_id: LOCAL_SEMANTIC_PROVIDER_ID.to_string(),
+                dimension: LOCAL_SEMANTIC_DIMENSION,
+                ranking_mode: "hybrid".to_string(),
             })
         }
 
@@ -1593,8 +1908,9 @@ mod tests {
     #[test]
     fn documents_all_tools() {
         let docs = registered_tools();
-        assert_eq!(docs.len(), 11);
+        assert_eq!(docs.len(), 12);
         assert!(docs.iter().any(|tool| tool.name == "get_context_pack"));
+        assert!(docs.iter().any(|tool| tool.name == "semantic_search"));
         assert!(docs
             .iter()
             .any(|tool| tool.name == "compact_command_output"));
@@ -1616,20 +1932,20 @@ mod tests {
     #[test]
     fn default_profile_is_optimized() {
         assert_eq!(ToolProfileName::default(), ToolProfileName::Optimized);
-        assert_eq!(ToolProfileConfig::default().enabled_tools().len(), 7);
+        assert_eq!(ToolProfileConfig::default().enabled_tools().len(), 8);
     }
 
     #[test]
     fn profiles_expose_expected_tool_counts() {
         let expected = [
             (ToolProfileName::Tiny, 5),
-            (ToolProfileName::Optimized, 7),
-            (ToolProfileName::Full, 11),
-            (ToolProfileName::Debug, 11),
-            (ToolProfileName::Readonly, 11),
-            (ToolProfileName::Editing, 7),
-            (ToolProfileName::WebApp, 7),
-            (ToolProfileName::Enterprise, 9),
+            (ToolProfileName::Optimized, 8),
+            (ToolProfileName::Full, 12),
+            (ToolProfileName::Debug, 12),
+            (ToolProfileName::Readonly, 12),
+            (ToolProfileName::Editing, 8),
+            (ToolProfileName::WebApp, 8),
+            (ToolProfileName::Enterprise, 10),
         ];
 
         for (profile, count) in expected {
@@ -1642,7 +1958,7 @@ mod tests {
     #[test]
     fn readonly_profile_currently_exposes_only_readonly_tools() {
         let config = ToolProfileConfig::new(ToolProfileName::Readonly);
-        assert_eq!(config.enabled_tools().len(), 11);
+        assert_eq!(config.enabled_tools().len(), 12);
         assert!(config
             .enabled_tools()
             .iter()
@@ -1657,8 +1973,10 @@ mod tests {
 
         assert_eq!(tiny.len(), 5);
         assert!(tiny.iter().any(|tool| tool.name == "search_code"));
+        assert!(!tiny.iter().any(|tool| tool.name == "semantic_search"));
         assert!(!tiny.iter().any(|tool| tool.name == "impact_analysis"));
-        assert_eq!(enterprise.len(), 9);
+        assert_eq!(enterprise.len(), 10);
+        assert!(enterprise.iter().any(|tool| tool.name == "semantic_search"));
         assert!(enterprise
             .iter()
             .any(|tool| tool.name == "trace_dependency"));
@@ -1682,7 +2000,7 @@ mod tests {
                 .as_array()
                 .expect("tools")
                 .len(),
-            7
+            8
         );
         assert_eq!(list_response["result"]["profile"], "optimized");
         assert!(call
@@ -1710,7 +2028,7 @@ mod tests {
 
         assert_eq!(
             full_response["result"]["tools"].as_array().unwrap().len(),
-            11
+            12
         );
         assert_eq!(
             tiny_response["result"]["tools"].as_array().unwrap().len(),
@@ -1759,15 +2077,16 @@ mod tests {
         let calls = [
             r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_symbol","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","limit":10,"include_trace":false}}}"#,
             r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_code","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","limit":10,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"find_callers","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"find_callees","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"related_symbols","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"impact_analysis","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_context_pack","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","token_budget":100,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"trace_dependency","arguments":{"scope":{"project_id":"project","branch_id":"main"},"source_symbol_id":"a","target_symbol_id":"b","edge_filters":["calls"],"max_depth":2,"min_confidence":0,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"detect_cycles","arguments":{"scope":{"project_id":"project","branch_id":"main"},"edge_filters":["calls"],"max_nodes":10,"min_confidence":0,"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"savings_report","arguments":{"scope":{"project_id":"project","branch_id":"main"},"include_trace":false}}}"#,
-            r#"{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"compact_command_output","arguments":{"command":"cargo test","stdout":"test result: ok","stderr":"done","exit_code":0,"max_bytes":1000}}}"#,
+            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"semantic_search","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"order flow","limit":10,"explain":true}}}"#,
+            r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"find_callers","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"find_callees","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"related_symbols","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","max_depth":1,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"impact_analysis","arguments":{"scope":{"project_id":"project","branch_id":"main"},"symbol_id":"symbol-run","include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"get_context_pack","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"run","token_budget":100,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"trace_dependency","arguments":{"scope":{"project_id":"project","branch_id":"main"},"source_symbol_id":"a","target_symbol_id":"b","edge_filters":["calls"],"max_depth":2,"min_confidence":0,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"detect_cycles","arguments":{"scope":{"project_id":"project","branch_id":"main"},"edge_filters":["calls"],"max_nodes":10,"min_confidence":0,"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"savings_report","arguments":{"scope":{"project_id":"project","branch_id":"main"},"include_trace":false}}}"#,
+            r#"{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"compact_command_output","arguments":{"command":"cargo test","stdout":"test result: ok","stderr":"done","exit_code":0,"max_bytes":1000}}}"#,
         ];
 
         for call in calls {
@@ -1795,6 +2114,47 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("compacted_output"));
+    }
+
+    #[test]
+    fn semantic_search_is_local_readonly_and_explainable() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let response = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"semantic_search","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"order flow","limit":5,"language":"rust","explain":true}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+        let text = response["result"]["content"][0]["text"]
+            .as_str()
+            .expect("text");
+
+        assert!(text.contains("\"ranking_mode\":\"hybrid\""));
+        assert!(text.contains("\"local_only\":true"));
+        assert!(text.contains("\"explanation\""));
+    }
+
+    #[test]
+    fn semantic_search_validates_request_shape() {
+        let router = McpQueryToolRouter::new(MockExecutor);
+        let empty_query = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"semantic_search","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"","limit":5}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+        let bad_path = handle_json_rpc_line(
+            &router,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"semantic_search","arguments":{"scope":{"project_id":"project","branch_id":"main"},"query":"order","path_prefix":"../outside"}}}"#,
+        )
+        .expect("call")
+        .response
+        .expect("response");
+
+        assert_eq!(empty_query["error"]["data"]["code"], "invalid_request");
+        assert_eq!(bad_path["error"]["data"]["code"], "invalid_request");
     }
 
     #[test]

@@ -248,10 +248,10 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Advanced graph layouts and whole-repo visual analysis are deferred.
 - Centrality requires a cached snapshot; it is not computed automatically by the UI.
 - Query trace quality depends on trace fields returned by the control server query endpoints.
-- Phase 10.3 hybrid ranking is available internally through `b3-query` on top of SQLite-backed
-  storage and read-only local control API status/providers/stats endpoints, but
-  no Web UI redesign or semantic search UI is included. MCP/control semantic
-  integration remains deferred.
+- Phase 10.4 exposes local hybrid search through `POST /api/search/hybrid` and
+  the MCP `semantic_search` tool on top of SQLite-backed storage and `b3-query`
+  ranking, but no Web UI redesign or dedicated semantic search UI is included.
+  Quality benchmarking remains deferred to Phase 10.5.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - A dedicated Node.js REST route browser is deferred; route metadata is
   currently available through `GET /api/routes`.

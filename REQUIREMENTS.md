@@ -112,7 +112,7 @@ Indexing:
 Search:
 - `find_symbol`
 - `search_code`
-- `semantic_search` (planned; not exposed in Phase 10.1)
+- `semantic_search` (local/offline hybrid search from Phase 10.4)
 - `search_code_graph`
 
 Graph:
@@ -915,10 +915,14 @@ Avoid:
 - Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
+- Phase 10.0: Local Embeddings + Vector Search Architecture
+- Phase 10.1: Local Embedding Provider MVP
+- Phase 10.2: SQLite Vector Storage / Search Index
+- Phase 10.3: Hybrid Search Ranking
+- Phase 10.4: MCP / Control API Integration
 
 ### Planned Phases
 
-- Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11: Cross-Project Architecture Intelligence
 - Phase 12: Symbolic Editing MVP

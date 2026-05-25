@@ -894,14 +894,14 @@ Completed:
 - Phase 10.1 - Local Embedding Provider MVP
 - Phase 10.2 - SQLite Vector Storage / Search Index
 - Phase 10.3 - Hybrid Search Ranking
+- Phase 10.4 - MCP / Control API Integration
 
 Current/Next:
 
-- Phase 10.4 - MCP / Control API Integration
+- Phase 10.5 - Benchmark + Quality Evaluation
 
 Upcoming:
 
-- Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
@@ -1023,13 +1023,26 @@ Rules:
 
 ## Phase 10.4 - MCP / Control API Integration
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- expose semantic/vector capabilities only after local provider and storage are ready
-- keep MCP runtime thin
-- do not change MCP profiles until tools are genuinely usable
+- added read-only `POST /api/search/hybrid` for local hybrid search
+- updated vector/capability status to report local hybrid readiness truthfully
+- added MCP `semantic_search` as a thin adapter over `b3-query`
+- exposed `semantic_search` in optimized, full, debug, readonly, editing, web-app, and enterprise profiles
+- kept `tiny` intentionally small without `semantic_search`
+- added request validation for query, limit, weights, min score, source kind, and path prefix
+- preserved lexical/metadata fallback when vector data is unavailable
+- supported compact explanations through both Control API and MCP
+
+Rules:
+
+- no benchmark/quality claims
+- no cross-project semantic search
+- no hosted vector database requirement
+- no OpenAI/cloud embedding API integration
+- no telemetry, SaaS auth, API keys, model downloads, or internet requirement
 
 ---
 

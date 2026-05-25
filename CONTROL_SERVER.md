@@ -128,6 +128,7 @@ Query adapter endpoints:
 - `POST /api/query/context-pack`
 - `POST /api/query/trace-dependency`
 - `POST /api/query/detect-cycles`
+- `POST /api/search/hybrid`
 
 Graph adapter endpoints:
 
@@ -214,10 +215,11 @@ Current truth:
   stats endpoints. Phase 10.2 adds SQLite vector persistence and local
   brute-force cosine search over filtered SQLite candidates. Embeddings remain
   disabled by default, `vector_search_ready` is true for raw local vector
-  search. Phase 10.3 adds hybrid ranking inside `b3-query`, but
-  `semantic_search_ready` remains false until MCP/control semantic integration
-  lands in Phase 10.4.
-- Semantic search and deeper framework intelligence remain deferred.
+  search. Phase 10.3 adds hybrid ranking inside `b3-query`, and Phase 10.4
+  exposes local hybrid search through `POST /api/search/hybrid` plus the MCP
+  `semantic_search` tool. `semantic_search_ready` is true for this local/offline
+  hybrid path; benchmark quality evaluation remains Phase 10.5.
+- Cross-project semantic search and deeper framework intelligence remain deferred.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

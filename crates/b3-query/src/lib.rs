@@ -19,8 +19,10 @@ use b3_core::{
     QueryIntent, QueryRepository, QueryRequest, QueryResult, QuerySavingsEstimate,
     QuerySavingsEstimateDto, QueryScope, QuerySymbol, QueryTraceDto, RankingWeights,
     RelatedSymbolsResponse, RelatedTestDto, RetrievalConfig, SearchCodeResponse, SymbolDto,
-    SymbolId, TokenSavingsRecord, TokenSavingsRepository, TraversalStepDto,
+    SymbolId, TokenSavingsRecord, TokenSavingsRepository, TraversalStepDto, VectorStore,
 };
+
+use crate::hybrid::{HybridSearchEngine, HybridSearchRequest, HybridSearchResponse};
 
 pub use b3_core::{
     FtsSearchHit as LexicalSearchHit, GraphDirection as TraversalDirection,
@@ -1443,6 +1445,18 @@ where
             avoided_file_reads: estimate.avoided_file_reads,
             avoided_search_calls: estimate.avoided_search_calls,
         })
+    }
+}
+
+impl<R> LocalQueryEngine<R>
+where
+    R: QueryRepository + VectorStore,
+{
+    pub fn hybrid_search_response(
+        &self,
+        request: HybridSearchRequest,
+    ) -> ContractResult<HybridSearchResponse> {
+        HybridSearchEngine::new(&self.repository, &self.repository).search(request)
     }
 }
 

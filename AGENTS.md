@@ -386,3 +386,15 @@ benchmark/quality datasets, hosted vector database integrations, OpenAI/cloud
 embedding providers, model downloads, telemetry, API-key requirements,
 cross-project semantic search, symbolic editing, rename/refactor, session
 memory, or cross-project architecture intelligence.
+
+Phase 10.4 is completed as MCP / Control API integration only. It may expose
+local hybrid search through `POST /api/search/hybrid` and the MCP
+`semantic_search` tool, update read-only capability/status reporting, validate
+requests, and return compact explanations and lexical/metadata fallback
+warnings.
+
+It must not implement benchmark/quality datasets, neural embedding providers,
+hosted vector database integrations, OpenAI/cloud embedding providers, model
+downloads, telemetry, API-key requirements, cross-project semantic search,
+symbolic editing, rename/refactor, session memory, or cross-project
+architecture intelligence.

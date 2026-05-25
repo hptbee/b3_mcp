@@ -27,8 +27,8 @@ use axum::{
 use b3_core::{
     default_language_backend_registry, AppConfig, BranchId, BranchMetadata, ContractError,
     ContractResult, EventBus, IndexScope, IndexScopeKind, IndexSummary, Indexer,
-    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, ScopePreview, SymbolRepository,
-    PRODUCT_NAME,
+    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, QueryScope as CoreQueryScope,
+    ScopePreview, SourceKind, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     lsp::LspBackend,
@@ -37,6 +37,7 @@ use b3_indexer::{
     WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
+use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
     StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredInfrastructure,
@@ -273,6 +274,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/index/reindex", post(index_reindex))
         .route("/api/index/status", get(index_status))
         .route("/api/query/:operation", post(query_operation))
+        .route("/api/search/hybrid", post(hybrid_search))
         .route("/api/graph/summary", get(graph_summary))
         .route("/api/graph/neighbors", post(graph_neighbors))
         .route("/api/graph/path", post(graph_path))
@@ -459,6 +461,79 @@ async fn query_operation(
         "detect-cycles" => placeholder_query(operation, request),
         _ => Err(ControlError::not_found("unknown query operation")),
     }
+}
+
+async fn hybrid_search(
+    State(state): State<ControlState>,
+    payload: Result<Json<HybridSearchApiRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<Value>, ControlError> {
+    let request = payload
+        .map_err(|rejection| ControlError::bad_request(rejection.body_text()))?
+        .0;
+    request.validate()?;
+
+    let provider_id = request
+        .provider_id
+        .clone()
+        .unwrap_or_else(|| state.app_config.embedding.provider_id.as_str().to_string());
+    let dimension = request
+        .dimension
+        .unwrap_or(state.app_config.embedding.dimension);
+    let mut hybrid = HybridSearchRequest::new(
+        CoreQueryScope::new(
+            ProjectId::new(
+                request
+                    .project_id
+                    .clone()
+                    .unwrap_or_else(|| "default".to_string()),
+            ),
+            BranchId::new(
+                request
+                    .branch_id
+                    .clone()
+                    .unwrap_or_else(|| "main".to_string()),
+            ),
+        ),
+        request.query.clone(),
+    );
+    hybrid.provider_id = Some(provider_id.clone());
+    hybrid.dimension = Some(dimension);
+    hybrid.language = request.language.clone();
+    hybrid.framework = request.framework.clone();
+    hybrid.source_kind = request
+        .source_kind
+        .as_deref()
+        .map(parse_source_kind)
+        .transpose()?;
+    hybrid.path_prefix = request.path_prefix.clone();
+    hybrid.limit = request.limit.unwrap_or(10);
+    hybrid.explain = request.explain.unwrap_or(false);
+    hybrid.min_score = request.min_score;
+    if let Some(weight) = request.lexical_weight {
+        hybrid.lexical_weight = weight;
+    }
+    if let Some(weight) = request.vector_weight {
+        hybrid.vector_weight = weight;
+    }
+    if let Some(weight) = request.metadata_weight {
+        hybrid.metadata_weight = weight;
+    }
+
+    let storage = state.storage.lock().await;
+    let response = HybridSearchEngine::new(&*storage, &*storage)
+        .search(hybrid)
+        .map_err(ControlError::from)?;
+
+    Ok(Json(json!({
+        "query": request.query,
+        "results": response.results.into_iter().map(hybrid_result_json).collect::<Vec<_>>(),
+        "warnings": response.warnings,
+        "provider_id": provider_id,
+        "dimension": dimension,
+        "local_only": true,
+        "semantic_search_ready": true,
+        "hybrid_ranking": true
+    })))
 }
 
 async fn find_symbol(
@@ -1286,9 +1361,14 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
         "telemetry_enabled": false,
         "vector_search": {
             "architecture_available": true,
-            "semantic_search_available": false,
-            "semantic_search_ready": false,
+            "semantic_search_available": true,
+            "semantic_search_ready": true,
             "vector_search_ready": true,
+            "hybrid_ranking_available": true,
+            "local_hybrid_search_api_available": true,
+            "mcp_semantic_search_tool_available": true,
+            "quality_benchmark_ready": false,
+            "cross_project_semantic_search": false,
             "storage_available": true,
             "provider": state.app_config.embedding.provider_id.as_str(),
             "enabled": state.app_config.embedding.enabled,
@@ -1299,7 +1379,9 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "openai_api_required": false,
             "cloud_embedding_api_required": false,
             "real_local_provider_phase": "10.1",
-            "sqlite_vector_storage_phase": "10.2"
+            "sqlite_vector_storage_phase": "10.2",
+            "hybrid_ranking_phase": "10.3",
+            "control_mcp_integration_phase": "10.4"
         },
         "mcp_runtime": RuntimeSummary::default(),
         "language_backend": {
@@ -1461,6 +1543,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "vector_status": true,
             "vector_providers": true,
             "vector_stats": true,
+            "hybrid_search": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1488,9 +1571,14 @@ async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>,
         "local_hash_provider_available": local_hash_available,
         "storage_available": true,
         "external_plugins_enabled": state.app_config.embedding.external_plugins_enabled,
-        "semantic_search_available": false,
-        "semantic_search_ready": false,
+        "semantic_search_available": true,
+        "semantic_search_ready": true,
         "vector_search_ready": true,
+        "hybrid_ranking_available": true,
+        "local_hybrid_search_api_available": true,
+        "mcp_semantic_search_tool_available": true,
+        "quality_benchmark_ready": false,
+        "cross_project_semantic_search": false,
         "hosted_vector_database_required": false,
         "openai_api_required": false,
         "cloud_embedding_api_required": false,
@@ -2311,6 +2399,47 @@ struct ProjectDetail {
 }
 
 #[derive(Debug, Deserialize)]
+struct HybridSearchApiRequest {
+    query: String,
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    language: Option<String>,
+    framework: Option<String>,
+    source_kind: Option<String>,
+    path_prefix: Option<String>,
+    limit: Option<usize>,
+    lexical_weight: Option<f32>,
+    vector_weight: Option<f32>,
+    metadata_weight: Option<f32>,
+    min_score: Option<f32>,
+    explain: Option<bool>,
+    provider_id: Option<String>,
+    dimension: Option<usize>,
+}
+
+impl HybridSearchApiRequest {
+    fn validate(&self) -> Result<(), ControlError> {
+        validate_non_empty("query", &self.query)?;
+        if let Some(limit) = self.limit {
+            if limit == 0 || limit > MAX_LIMIT {
+                return Err(ControlError::bad_request(format!(
+                    "limit must be between 1 and {MAX_LIMIT}"
+                )));
+            }
+        }
+        validate_optional_weight("lexical_weight", self.lexical_weight)?;
+        validate_optional_weight("vector_weight", self.vector_weight)?;
+        validate_optional_weight("metadata_weight", self.metadata_weight)?;
+        validate_min_score(self.min_score)?;
+        validate_path_prefix(self.path_prefix.as_deref())?;
+        if let Some(source_kind) = &self.source_kind {
+            parse_source_kind(source_kind)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct QueryApiRequest {
     query: Option<String>,
     symbol: Option<String>,
@@ -2508,6 +2637,108 @@ fn validate_optional_id(value: Option<&str>, field: &str) -> Result<(), ControlE
         )));
     }
     Ok(())
+}
+
+fn validate_non_empty(field: &str, value: &str) -> Result<(), ControlError> {
+    if value.trim().is_empty() {
+        Err(ControlError::bad_request(format!(
+            "{field} must not be empty"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_optional_weight(field: &str, value: Option<f32>) -> Result<(), ControlError> {
+    if let Some(value) = value {
+        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+            return Err(ControlError::bad_request(format!(
+                "{field} must be a finite value between 0.0 and 1.0"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_min_score(value: Option<f32>) -> Result<(), ControlError> {
+    if let Some(value) = value {
+        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+            return Err(ControlError::bad_request(
+                "min_score must be a finite value between 0.0 and 1.0",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_path_prefix(value: Option<&str>) -> Result<(), ControlError> {
+    if let Some(value) = value {
+        if value.trim().is_empty()
+            || value.contains("..")
+            || value.starts_with('/')
+            || value.starts_with('\\')
+            || value.contains(':')
+        {
+            return Err(ControlError::bad_request(
+                "path_prefix must be a relative path prefix without traversal",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn parse_source_kind(value: &str) -> Result<SourceKind, ControlError> {
+    match value {
+        "FileChunk" | "file" | "file_chunk" => Ok(SourceKind::FileChunk),
+        "SymbolChunk" | "symbol" | "symbol_chunk" => Ok(SourceKind::SymbolChunk),
+        "RouteChunk" | "route" | "route_chunk" => Ok(SourceKind::RouteChunk),
+        "ComponentChunk" | "component" | "component_chunk" => Ok(SourceKind::ComponentChunk),
+        "DataAccessChunk" | "data_access" | "data_access_chunk" => Ok(SourceKind::DataAccessChunk),
+        "RealtimeChunk" | "realtime" | "realtime_chunk" => Ok(SourceKind::RealtimeChunk),
+        "MessagingChunk" | "messaging" | "messaging_chunk" => Ok(SourceKind::MessagingChunk),
+        "InfrastructureChunk" | "infrastructure" | "infrastructure_chunk" => {
+            Ok(SourceKind::InfrastructureChunk)
+        }
+        "WpfChunk" | "wpf" | "wpf_chunk" => Ok(SourceKind::WpfChunk),
+        "GoChunk" | "go" | "go_chunk" => Ok(SourceKind::GoChunk),
+        _ => Err(ControlError::bad_request("unknown source_kind")),
+    }
+}
+
+fn hybrid_result_json(result: b3_query::hybrid::HybridSearchResult) -> Value {
+    json!({
+        "document_id": result.document_id,
+        "file_id": result.file_id.as_str(),
+        "symbol_id": result.symbol_id.as_ref().map(|symbol| symbol.as_str().to_string()),
+        "path": result.path,
+        "text_preview": result.text_preview,
+        "snippet": result.text_preview,
+        "language": result.language,
+        "framework": result.framework,
+        "source_kind": result.source_kind.as_str(),
+        "start_line": result.start_line,
+        "end_line": result.end_line,
+        "final_score": result.final_score,
+        "lexical_score": result.lexical_score,
+        "vector_score": result.vector_score,
+        "metadata_score": result.metadata_score,
+        "explanation": result.explanation.map(hybrid_explanation_json)
+    })
+}
+
+fn hybrid_explanation_json(explanation: HybridRankingExplanation) -> Value {
+    json!({
+        "final_score": explanation.final_score,
+        "lexical_score": explanation.lexical_score,
+        "vector_score": explanation.vector_score,
+        "metadata_score": explanation.metadata_score,
+        "matched_terms": explanation.matched_terms,
+        "boosts": explanation.boosts,
+        "vector_provider": explanation.vector_provider,
+        "vector_dimension": explanation.vector_dimension,
+        "fallback_reason": explanation.fallback_reason,
+        "filters": explanation.filters
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -4159,7 +4390,10 @@ mod tests {
             false
         );
         assert_eq!(body["vector_search"]["architecture_available"], true);
-        assert_eq!(body["vector_search"]["semantic_search_available"], false);
+        assert_eq!(body["vector_search"]["semantic_search_available"], true);
+        assert_eq!(body["vector_search"]["semantic_search_ready"], true);
+        assert_eq!(body["vector_search"]["hybrid_ranking_available"], true);
+        assert_eq!(body["control_api"]["hybrid_search"], true);
         assert_eq!(body["vector_search"]["local_only"], true);
         assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
@@ -4184,9 +4418,11 @@ mod tests {
         assert_eq!(status["provider"], "local_hash");
         assert_eq!(status["local_hash_provider_available"], true);
         assert_eq!(status["local_only"], true);
-        assert_eq!(status["semantic_search_available"], false);
-        assert_eq!(status["semantic_search_ready"], false);
+        assert_eq!(status["semantic_search_available"], true);
+        assert_eq!(status["semantic_search_ready"], true);
         assert_eq!(status["vector_search_ready"], true);
+        assert_eq!(status["hybrid_ranking_available"], true);
+        assert_eq!(status["quality_benchmark_ready"], false);
 
         let providers_response = app
             .clone()
@@ -4218,6 +4454,51 @@ mod tests {
         assert_eq!(stats["vectors"], 0);
         assert_eq!(stats["providers"].as_array().expect("providers").len(), 0);
         assert_eq!(stats["hosted_vector_database_required"], false);
+    }
+
+    #[tokio::test]
+    async fn hybrid_search_endpoint_returns_local_fallback_and_explanation_shape() {
+        let response = post_json(
+            empty_app(),
+            "/api/search/hybrid",
+            r#"{"query":"order flow","project_id":"default","branch_id":"main","limit":5,"explain":true}"#,
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["query"], "order flow");
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["semantic_search_ready"], true);
+        assert_eq!(body["hybrid_ranking"], true);
+        assert_eq!(body["provider_id"], "local_hash");
+        assert!(body["results"].as_array().expect("results").is_empty());
+        assert!(body["warnings"]
+            .as_array()
+            .expect("warnings")
+            .iter()
+            .any(|warning| warning
+                .as_str()
+                .is_some_and(|text| text.contains("No vector data available"))));
+    }
+
+    #[tokio::test]
+    async fn hybrid_search_endpoint_validates_invalid_requests() {
+        let empty_query = post_json(
+            empty_app(),
+            "/api/search/hybrid",
+            r#"{"query":"","limit":5}"#,
+        )
+        .await;
+        let bad_path = post_json(
+            empty_app(),
+            "/api/search/hybrid",
+            r#"{"query":"order","path_prefix":"../outside"}"#,
+        )
+        .await;
+
+        assert_eq!(empty_query.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(bad_path.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
