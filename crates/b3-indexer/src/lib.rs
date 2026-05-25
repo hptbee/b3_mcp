@@ -7,12 +7,18 @@
 //! or MCP request handling.
 
 mod csharp;
+mod data_access;
 pub mod lsp;
 mod web;
 
 pub use csharp::detect_csproj_technologies as detect_dotnet_project_technologies;
 #[cfg(test)]
 pub(crate) use csharp::{aspnet_metadata_value, detect_csproj_technologies};
+#[cfg(test)]
+pub(crate) use data_access::data_access_metadata_value;
+pub use data_access::{
+    detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
+};
 #[cfg(test)]
 pub(crate) use web::{angular_metadata_value, component_metadata_value, route_metadata_value};
 pub use web::{
@@ -246,6 +252,25 @@ pub struct ComponentMetadata {
     pub props_type_name: Option<String>,
     pub hooks: Vec<String>,
     pub usages: Vec<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataAccessMetadata {
+    pub technology: String,
+    pub kind: String,
+    pub file_path: String,
+    pub symbol_id: Option<SymbolId>,
+    pub class_name: Option<String>,
+    pub method_name: Option<String>,
+    pub entity_name: Option<String>,
+    pub context_name: Option<String>,
+    pub repository_name: Option<String>,
+    pub operation: Option<String>,
+    pub query_text: Option<String>,
     pub line_start: usize,
     pub line_end: usize,
     pub confidence: u16,

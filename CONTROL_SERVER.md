@@ -114,6 +114,7 @@ Diagnostics and config:
 - `GET /api/lsp/servers`
 - `GET /api/routes`
 - `GET /api/components`
+- `GET /api/data-access`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -143,6 +144,9 @@ Current truth:
 - ASP.NET Core / C# Web API intelligence is `Basic`, static, and local for
   `.csproj` ASP.NET Core detection, controllers, common route attributes,
   composed action routes, and constructor DI type names.
+- ORM/database access intelligence is `Basic`, static, and local for EF Core,
+  Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious
+  query callsites and operations.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
@@ -163,6 +167,12 @@ metadata from `Route` symbols. Optional filters include `project_id`,
 component symbols. Optional filters include `project_id`, `branch_id`,
 `framework`, `name`, `file`, and `limit`.
 
+`GET /api/data-access` returns locally indexed static data access metadata from
+symbols with `data_access.*` metadata. Optional filters include `project_id`,
+`branch_id`, `technology`, `kind`, `operation`, `file`, and `limit`. Supported
+technology values are `ef_core`, `dapper`, `prisma`, `typeorm`, `sequelize`,
+and `raw_sql` for driver/raw-SQL hints.
+
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
 runtime routing. It does not infer deep middleware order, Nest module graphs,
@@ -170,6 +180,12 @@ guards/interceptors/pipes, deep dependency injection, or request lifecycles.
 For Next.js it also does not run `next dev`, `next build`, package scripts, or
 deployment tooling and does not infer full RSC semantics, middleware execution
 order, Vercel behavior, auth behavior, or deep data fetching semantics.
+
+Data access support is intentionally basic and static. It does not connect to
+databases, execute SQL, run migrations, run `dotnet`, `node`, `npm`, Prisma
+generate, TypeORM CLI, Sequelize CLI, package registries, app code, or runtime
+ORM behavior. It does not infer full SQL semantics, full LINQ semantics,
+schema introspection, or cross-project data lineage.
 For Angular it also does not run `ng`, the Angular compiler, package scripts,
 or app code and does not infer full template type semantics, lifecycle runtime,
 deep DI/module graph behavior, RxJS/NgRx flow, guards, or resolvers.
@@ -195,6 +211,7 @@ curl http://127.0.0.1:7777/api/lsp/status
 curl http://127.0.0.1:7777/api/routes?framework=express
 curl http://127.0.0.1:7777/api/routes?framework=nextjs
 curl http://127.0.0.1:7777/api/routes?framework=aspnetcore
+curl http://127.0.0.1:7777/api/data-access?technology=ef_core
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 

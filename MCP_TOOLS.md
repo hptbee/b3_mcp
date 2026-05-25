@@ -82,7 +82,7 @@ suggestion to use `full` or `debug` when appropriate.
 | `debug` | all current tools | 11 |
 | `readonly` | all current tools for now; future mutation tools must be hidden | 11 |
 | `editing` | same as `optimized` for now; reserved for future symbolic editing tools | 7 |
-| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, and components | 7 |
+| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, and data access metadata | 7 |
 | `enterprise` | `find_symbol`, `search_code`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 9 |
 
 Future mutation tools such as `preview_edit`, `apply_edit`, and `rename_symbol`

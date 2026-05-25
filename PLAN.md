@@ -22,7 +22,8 @@ Current roadmap status:
 - Completed: Phase 9.2.4 - Angular Intelligence
 - Completed: Phase 9.2.4.1 - Web Module Split / Refactor Checkpoint C
 - Completed: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
-- Next: Phase 9.2.6 - ORM / Database Access Intelligence
+- Completed: Phase 9.2.6 - ORM / Database Access Intelligence
+- Next: Phase 9.2.7 - Realtime / Socket Intelligence
 
 ---
 
@@ -1256,7 +1257,7 @@ consumers see the same graph shape without new tools or profile changes.
 
 ### Purpose
 
-Understand common data access patterns.
+Understand common data access patterns through basic static/local metadata.
 
 ### Scope
 
@@ -1265,9 +1266,14 @@ Understand common data access patterns.
 - Prisma
 - TypeORM
 - Sequelize
-- repository/service relationships
-- query callsites
-- data model references where safe
+- package/project detection
+- EF Core DbContext and DbSet detection
+- Dapper Query/Execute callsite detection
+- PrismaClient and model operation detection
+- TypeORM entity/repository call detection
+- Sequelize model/query call detection
+- read-only `GET /api/data-access` endpoint
+- query callsite metadata and data model references where safe
 
 ### Out of Scope
 
@@ -1275,6 +1281,20 @@ Understand common data access patterns.
 - DB connection execution
 - schema migration execution
 - runtime query tracing
+- full LINQ expression semantics
+- full SQL parsing
+- full TypeScript or C# type checking
+- Prisma generate, TypeORM CLI, or Sequelize CLI
+- cross-project data lineage
+
+### Completion Notes
+
+Implemented as focused `crates/b3-indexer/src/data_access/` static extraction.
+Data access records are encoded on existing symbols with `data_access.*`
+metadata and exposed through storage/control adapters without a schema
+migration. The implementation does not connect to databases, execute SQL,
+run migrations, execute app code, run `dotnet`, `node`, `npm`, Prisma, TypeORM,
+or Sequelize tooling, call package registries, or use external services.
 
 ---
 
@@ -1882,7 +1902,7 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | Architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, and basic static ASP.NET Core / C# Web API route intelligence. Broader real-world app-stack intelligence depends on Phase 9.2.6 and later.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, basic static ASP.NET Core / C# Web API route intelligence, and basic static ORM/database access metadata. Broader real-world app-stack intelligence depends on Phase 9.2.7 and later.
 
 ---
 

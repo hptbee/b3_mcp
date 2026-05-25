@@ -494,11 +494,49 @@ Must defer:
 - full Microsoft DI container graph resolution
 - middleware pipeline analysis
 - minimal API analysis beyond future low-risk static work
-- ORM/database, Entity Framework, and Dapper query analysis
+- ORM/database behavior beyond basic static data access callsite metadata
 - WPF/XAML and .NET desktop intelligence
 - realtime/socket, messaging/event-driven, cloud/infrastructure, Go,
   symbolic editing, rename/refactor, embeddings, semantic search, and
   cross-project intelligence
+
+## ORM / Database Access Intelligence
+
+Phase 9.2.6 adds basic static ORM/database access intelligence.
+
+Must support:
+- local package/project detection for Entity Framework Core, Dapper, Prisma,
+  TypeORM, Sequelize, and selected SQL driver hints
+- EF Core `DbContext` and `DbSet<T>` detection
+- EF Core obvious query/change callsite detection with coarse operations
+- Dapper `Query*` and `Execute*` detection with direct literal SQL capture
+  where visible
+- Prisma `PrismaClient` construction and `prisma.<model>.<operation>()`
+  detection
+- TypeORM `@Entity` and obvious repository/manager calls
+- Sequelize model declarations and model query calls
+- read-only data access listing through `GET /api/data-access`
+- metadata cleanup through normal deleted-file index cleanup
+
+Must not require:
+- database connections
+- SQL execution
+- migration execution
+- `dotnet restore`, `dotnet build`, `dotnet run`, or `dotnet test`
+- `npm install`, `node`, Prisma generate, TypeORM CLI, or Sequelize CLI
+- package registry access, cloud databases, external APIs, telemetry, or
+  paid/proprietary dependencies
+
+Must defer:
+- full SQL parsing and query optimization
+- full LINQ expression semantics
+- full C# or TypeScript type checking
+- schema introspection from live databases
+- runtime DB/ORM behavior
+- cross-project data lineage
+- realtime/socket, messaging/event-driven, cloud/infrastructure, Go,
+  WPF/XAML, symbolic editing, rename/refactor, embeddings, semantic search, and
+  cross-project architecture intelligence
 
 ## Graph Requirements
 
@@ -652,10 +690,10 @@ Avoid:
 - Phase 9.2.3: Next.js Intelligence
 - Phase 9.2.4: Angular Intelligence
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6: ORM / Database Access Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence

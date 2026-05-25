@@ -233,7 +233,20 @@ controller/action routes, and constructor DI type names, but it must not run
 `dotnet`, restore packages, call NuGet, require Roslyn, launch Visual Studio,
 Rider, OmniSharp, or C# language servers, run app code, or use cloud parsers.
 It does not implement full semantic C# analysis, full DI container graphs,
-middleware pipeline analysis, EF/Dapper/ORM query analysis, minimal API
-intelligence, WPF/XAML, or .NET desktop intelligence.
+middleware pipeline analysis, minimal API intelligence, WPF/XAML, or .NET
+desktop intelligence.
 
-Do not start ORM / Database Access Intelligence until Phase 9.2.6.
+## ORM / Database Access Boundaries
+
+Phase 9.2.6 ORM / Database Access intelligence is completed as basic local
+static analysis only. It may detect EF Core, Dapper, Prisma, TypeORM, and
+Sequelize packages/imports/usings, EF Core DbContext/DbSet declarations,
+obvious query/execute callsites, model/entity/context names, operations, and
+direct literal SQL snippets where visible, but it must not connect to databases,
+execute SQL, run migrations, run `dotnet`, `node`, `npm`, Prisma generate,
+TypeORM CLI, Sequelize CLI, package registries, app code, or cloud parsers. It
+does not implement full SQL parsing, full LINQ semantics, full TypeScript/C#
+type checking, runtime DB behavior, schema introspection, or cross-project data
+lineage.
+
+Do not start Realtime / Socket Intelligence until Phase 9.2.7.

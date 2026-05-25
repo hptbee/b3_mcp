@@ -209,10 +209,34 @@ Phase 9.2.5 adds conservative static C# Web API extraction outside the JS/TS
 8. record constructor dependency type names as basic metadata only
 
 The extractor intentionally avoids full C# semantic analysis, full DI container
-resolution, middleware pipeline analysis, minimal API expansion, EF/Dapper/ORM
-query analysis, WPF/XAML intelligence, runtime execution, package restore,
+resolution, middleware pipeline analysis, minimal API expansion, WPF/XAML
+intelligence, runtime execution, package restore,
 NuGet access, Roslyn, Visual Studio automation, OmniSharp, language servers,
 cloud parsers, and telemetry.
+
+### ORM / Database Access Static Extraction
+
+Phase 9.2.6 adds conservative static data access extraction:
+
+1. detect EF Core and Dapper from local `.csproj` text and C# `using`
+   references
+2. detect Prisma, TypeORM, Sequelize, and selected SQL drivers from local
+   `package.json` dependency sections and imports
+3. inspect C# text for EF Core `DbContext`, `DbSet<T>`, obvious LINQ/DbSet
+   method calls, `SaveChanges`, and Dapper `Query*` / `Execute*` calls
+4. inspect JS/TS text for `new PrismaClient()`, `prisma.<model>.<operation>()`,
+   TypeORM `@Entity` and repository calls, and Sequelize model/query calls
+5. classify coarse operations as read, insert, update, delete, execute, or
+   raw_sql
+6. record literal SQL snippets only when directly visible in Dapper calls
+7. encode records as existing symbols with `data_access.*` metadata and expose
+   them through `GET /api/data-access`
+
+The extractor intentionally avoids database connections, SQL execution,
+migration execution, Prisma generate, TypeORM/Sequelize CLIs, package managers,
+full SQL parsing, full LINQ semantics, full TypeScript/C# type checking,
+runtime DB behavior, schema introspection, cross-project data lineage, cloud
+APIs, and telemetry.
 
 ### Relationship Extraction
 
@@ -422,15 +446,13 @@ Added requirements:
 - Phase 9.2: Web Application Priority Support A
 - Phase 9.2.1: Node.js / REST API Intelligence
 - Phase 9.2.2: React / TSX Component Intelligence
+- Phase 9.2.3: Next.js Intelligence
+- Phase 9.2.4: Angular Intelligence
+- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6: ORM / Database Access Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.3: Next.js Intelligence, including static file-system route and
-  route-handler extraction on top of React / TSX support
-- Phase 9.2.4: Angular Intelligence, including static decorator, component,
-  service, module, and route config extraction
-- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
-- Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence

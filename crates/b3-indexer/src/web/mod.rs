@@ -65,6 +65,7 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
     symbols.extend(nextjs_routes);
     let angular_routes = angular::collect_angular_routes(root, &input, &symbols);
     symbols.extend(angular_routes);
+    symbols.extend(data_access::collect_web_data_access(&input, &symbols));
     let relationships = collect_web_relationships(&symbols);
 
     Ok(ParsedFile {

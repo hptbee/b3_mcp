@@ -467,6 +467,28 @@ pub struct StoredComponent {
     pub source_kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredDataAccess {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub technology: String,
+    pub kind: String,
+    pub operation: Option<String>,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub class_name: Option<String>,
+    pub method_name: Option<String>,
+    pub entity_name: Option<String>,
+    pub context_name: Option<String>,
+    pub repository_name: Option<String>,
+    pub query_text: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1283,6 +1305,52 @@ impl SqliteStorage {
             components.retain(|component| component.file_path == file);
         }
         Ok(components)
+    }
+
+    pub fn data_access(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        technology: Option<&str>,
+        kind: Option<&str>,
+        operation: Option<&str>,
+        file: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredDataAccess>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%data_access.technology=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![project_id, branch_id, limit as i64],
+                data_access_from_row,
+            )
+            .map_err(to_contract_error)?;
+        let mut records = collect_rows(rows)?;
+        if let Some(technology) = technology {
+            records.retain(|record| record.technology == technology);
+        }
+        if let Some(kind) = kind {
+            records.retain(|record| record.kind == kind);
+        }
+        if let Some(operation) = operation {
+            records.retain(|record| record.operation.as_deref() == Some(operation));
+        }
+        if let Some(file) = file {
+            records.retain(|record| record.file_path == file);
+        }
+        Ok(records)
     }
 
     pub fn centrality_snapshot(
@@ -2638,6 +2706,47 @@ fn component_from_row(row: &Row<'_>) -> rusqlite::Result<StoredComponent> {
     })
 }
 
+fn data_access_from_row(row: &Row<'_>) -> rusqlite::Result<StoredDataAccess> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    Ok(StoredDataAccess {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        technology: data_access_metadata_value(&metadata, "technology")
+            .unwrap_or_else(|| "unknown".to_string()),
+        kind: data_access_metadata_value(&metadata, "kind")
+            .unwrap_or_else(|| "Unknown".to_string()),
+        operation: data_access_metadata_value(&metadata, "operation"),
+        file_path: data_access_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        class_name: data_access_metadata_value(&metadata, "class"),
+        method_name: data_access_metadata_value(&metadata, "method"),
+        entity_name: data_access_metadata_value(&metadata, "entity"),
+        context_name: data_access_metadata_value(&metadata, "context"),
+        repository_name: data_access_metadata_value(&metadata, "repository"),
+        query_text: data_access_metadata_value(&metadata, "query"),
+        line_start: data_access_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: data_access_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: data_access_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: data_access_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("route.{key}=");
     metadata.split(';').find_map(|part| {
@@ -2651,6 +2760,14 @@ fn component_metadata_value(metadata: &str, key: &str) -> Option<String> {
     metadata.split(';').find_map(|part| {
         part.strip_prefix(&full_key)
             .map(|value| value.replace("%3B", ";"))
+    })
+}
+
+fn data_access_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("data_access.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
     })
 }
 
@@ -3131,6 +3248,70 @@ mod tests {
         assert!(storage
             .components("project", "main", None, None, None, 10)
             .expect("components after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn data_access_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("data-file"),
+                project_id: project_id.clone(),
+                path: "src/data.ts".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("typescript".to_string()),
+            size_bytes: 32,
+            content: "prisma.user.findMany();".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("data-access-symbol"),
+                file_id: FileId::new("data-file"),
+                name: "Prisma read user".to_string(),
+                kind: NodeKind::Endpoint,
+                start_byte: 0,
+                end_byte: 23,
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 23,
+                visibility: Some("data_access.technology=prisma;data_access.kind=QueryCall;data_access.operation=read;data_access.file=src/data.ts;data_access.entity=user;data_access.method=listUsers;data_access.source=PrismaClientCall;data_access.line_start=1;data_access.line_end=1;data_access.confidence=8500".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first data access upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second data access upsert");
+        let records = storage
+            .data_access(
+                "project",
+                "main",
+                Some("prisma"),
+                Some("QueryCall"),
+                Some("read"),
+                Some("src/data.ts"),
+                10,
+            )
+            .expect("data access");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].entity_name.as_deref(), Some("user"));
+        assert_eq!(records[0].method_name.as_deref(), Some("listUsers"));
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .data_access("project", "main", None, None, None, None, 10)
+            .expect("data access after cleanup")
             .is_empty());
     }
 

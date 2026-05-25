@@ -36,7 +36,8 @@ use b3_indexer::{
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
-    StoredComponent, StoredGraphEdge, StoredGraphNode, StoredParseFailure, StoredRoute,
+    StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredParseFailure,
+    StoredRoute,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -265,6 +266,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/lsp/servers", get(lsp_servers))
         .route("/api/routes", get(routes))
         .route("/api/components", get(components))
+        .route("/api/data-access", get(data_access))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -1046,6 +1048,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "languages": true,
             "lsp_status": true,
             "routes": true,
+            "data_access": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1206,6 +1209,39 @@ async fn components(
         project_id,
         branch_id,
         components,
+    }))
+}
+
+async fn data_access(
+    State(state): State<ControlState>,
+    Query(query): Query<DataAccessQuery>,
+) -> Result<Json<DataAccessResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let records = state
+        .storage
+        .lock()
+        .await
+        .data_access(
+            &project_id,
+            &branch_id,
+            query.technology.as_deref(),
+            query.kind.as_deref(),
+            query.operation.as_deref(),
+            query.file.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(DataAccessDto::from)
+        .collect();
+
+    Ok(Json(DataAccessResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        data_access: records,
     }))
 }
 
@@ -1950,6 +1986,45 @@ struct ComponentsResponse {
     components: Vec<ComponentDto>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct DataAccessQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    technology: Option<String>,
+    kind: Option<String>,
+    operation: Option<String>,
+    file: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DataAccessResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    data_access: Vec<DataAccessDto>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DataAccessDto {
+    id: String,
+    technology: String,
+    kind: String,
+    operation: Option<String>,
+    file_path: String,
+    symbol_id: String,
+    class_name: Option<String>,
+    method_name: Option<String>,
+    entity_name: Option<String>,
+    context_name: Option<String>,
+    repository_name: Option<String>,
+    query_text: Option<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct ComponentDto {
     id: String,
@@ -2020,6 +2095,29 @@ impl From<StoredRoute> for RouteDto {
             handler_name: value.handler_name,
             class_name: value.class_name,
             function_name: value.function_name,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredDataAccess> for DataAccessDto {
+    fn from(value: StoredDataAccess) -> Self {
+        Self {
+            id: value.id,
+            technology: value.technology,
+            kind: value.kind,
+            operation: value.operation,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            class_name: value.class_name,
+            method_name: value.method_name,
+            entity_name: value.entity_name,
+            context_name: value.context_name,
+            repository_name: value.repository_name,
+            query_text: value.query_text,
             line_start: value.line_start,
             line_end: value.line_end,
             confidence: value.confidence,
@@ -3319,6 +3417,91 @@ mod tests {
         let body = response_json(routes_response).await;
         assert_eq!(body["routes"][0]["path"], "/api/users/{id}");
         assert_eq!(body["routes"][0]["handler_name"], "Get");
+    }
+
+    #[tokio::test]
+    async fn index_api_exposes_static_data_access_metadata() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::create_dir_all(root.join("Repositories")).expect("repositories");
+        fs::write(
+            root.join("Repositories").join("UserRepository.cs"),
+            r#"
+                using Microsoft.EntityFrameworkCore;
+                using Dapper;
+                public class AppDbContext : DbContext
+                {
+                    public DbSet<User> Users { get; set; }
+                }
+                public class UserRepository
+                {
+                    public Task<List<User>> List() => _context.Users.ToListAsync();
+                    public Task<User> Find(SqlConnection connection) =>
+                        connection.QueryFirstOrDefaultAsync<User>("SELECT * FROM Users");
+                }
+            "#,
+        )
+        .expect("csharp fixture");
+        fs::write(
+            root.join("src").join("data.ts"),
+            r#"
+                import { PrismaClient } from "@prisma/client";
+                import { Entity } from "typeorm";
+                import { Model } from "sequelize";
+                const prisma = new PrismaClient();
+                export async function load(repository) {
+                    await prisma.user.findMany();
+                    await repository.save(user);
+                    await User.findAll();
+                }
+                @Entity()
+                export class User {}
+                class AuditLog extends Model {}
+            "#,
+        )
+        .expect("web fixture");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let ef_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/data-access?technology=ef_core")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ef_response.status(), StatusCode::OK);
+        let ef_body = response_json(ef_response).await;
+        assert!(ef_body["data_access"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["kind"] == "DbContext" || record["operation"] == "read"));
+
+        let prisma_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/data-access?technology=prisma&operation=read")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(prisma_response.status(), StatusCode::OK);
+        let prisma_body = response_json(prisma_response).await;
+        assert!(prisma_body["data_access"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["entity_name"] == "user"));
     }
 
     #[tokio::test]

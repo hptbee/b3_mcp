@@ -47,6 +47,7 @@ fn parse_csharp_file(input: ParseInput) -> ContractResult<ParsedFile> {
         symbols.push(class_symbol(&input, class, controller.as_deref()));
         collect_class_members(&input, class, &mut symbols);
     }
+    symbols.extend(data_access::collect_csharp_data_access(&input, &symbols));
 
     let relationships = collect_csharp_relationships(&symbols);
     Ok(ParsedFile {
@@ -58,7 +59,10 @@ fn parse_csharp_file(input: ParseInput) -> ContractResult<ParsedFile> {
 }
 
 fn parse_csproj_file(input: ParseInput) -> ContractResult<ParsedFile> {
-    let technologies = detect_csproj_technologies(&input.source)?;
+    let mut technologies = detect_csproj_technologies(&input.source)?;
+    technologies.extend(data_access::detect_csproj_data_access_technologies(
+        &input.source,
+    )?);
     let mut symbols = vec![module_symbol(&input)];
     for technology in technologies {
         symbols.push(ExtractedSymbol {

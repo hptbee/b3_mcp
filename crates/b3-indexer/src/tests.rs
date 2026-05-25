@@ -586,7 +586,10 @@ fn detects_package_json_node_rest_technologies() {
                     "@angular/core": "^17.0.0",
                     "@angular/router": "^17.0.0",
                     "react": "^18.0.0",
-                    "react-dom": "^18.0.0"
+                    "react-dom": "^18.0.0",
+                    "@prisma/client": "^5.0.0",
+                    "typeorm": "^0.3.0",
+                    "sequelize": "^6.0.0"
                 },
                 "devDependencies": {
                     "typescript": "^5.0.0",
@@ -620,6 +623,9 @@ fn detects_package_json_node_rest_technologies() {
     assert!(angular
         .capabilities
         .contains(&TechnologyCapability::ExtractComponents));
+    assert!(detected.iter().any(|tech| tech.id == "prisma"));
+    assert!(detected.iter().any(|tech| tech.id == "typeorm"));
+    assert!(detected.iter().any(|tech| tech.id == "sequelize"));
     assert!(detected
         .iter()
         .any(|tech| tech.id == "typescript" && tech.kind == TechnologyKind::Language));
@@ -629,6 +635,197 @@ fn detects_package_json_node_rest_technologies() {
     assert!(detect_angular_config_path(Path::new("angular.json")).is_some());
     assert!(detect_angular_config_path(Path::new("tsconfig.app.json")).is_some());
     assert!(detect_angular_config_path(Path::new("next.config.js")).is_none());
+}
+
+#[test]
+fn detects_ef_core_and_dapper_project_technologies() {
+    let detected = detect_csproj_data_access_technologies(
+        r#"<Project>
+            <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8" />
+                <PackageReference Include="Dapper" Version="2" />
+            </ItemGroup>
+        </Project>"#,
+    )
+    .expect("detect data access csproj");
+
+    assert!(detected.iter().any(|tech| tech.id == "ef_core"));
+    assert!(detected.iter().any(|tech| tech.id == "dapper"));
+    assert!(detect_csproj_data_access_technologies("<Project><Broken").is_ok());
+}
+
+#[test]
+fn csharp_data_access_detects_ef_core_and_dapper_calls() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("data-csharp"),
+            path: PathBuf::from("Repositories/UserRepository.cs"),
+            source: r#"
+                using Microsoft.EntityFrameworkCore;
+                using Dapper;
+
+                public class AppDbContext : DbContext
+                {
+                    public DbSet<User> Users { get; set; }
+                }
+
+                public class UserRepository
+                {
+                    public async Task<List<User>> List()
+                    {
+                        return await _context.Users.Where(u => u.Active).ToListAsync();
+                    }
+
+                    public async Task Add(User user)
+                    {
+                        _context.Users.Add(user);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    public async Task<User> Find(SqlConnection connection, int id)
+                    {
+                        return await connection.QueryFirstOrDefaultAsync<User>("SELECT * FROM Users WHERE Id = @id", new { id });
+                    }
+
+                    public Task<int> Rename(SqlConnection connection)
+                    {
+                        return connection.ExecuteAsync("UPDATE Users SET Name = @name");
+                    }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse csharp data access");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            data_access_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "kind").as_deref() == Some("DbContext")
+            && data_access_metadata_value(metadata, "context").as_deref() == Some("AppDbContext")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "kind").as_deref() == Some("DbSet")
+            && data_access_metadata_value(metadata, "entity").as_deref() == Some("User")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "technology").as_deref() == Some("ef_core")
+            && data_access_metadata_value(metadata, "operation").as_deref() == Some("read")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "technology").as_deref() == Some("dapper")
+            && data_access_metadata_value(metadata, "query")
+                .unwrap_or_default()
+                .contains("SELECT * FROM Users")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "source").as_deref() == Some("DapperExecute")
+    }));
+}
+
+#[test]
+fn web_data_access_detects_prisma_typeorm_and_sequelize() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("data-web"),
+            path: PathBuf::from("src/data.ts"),
+            source: r#"
+                import { PrismaClient } from "@prisma/client";
+                import { Entity, Column } from "typeorm";
+                import { Model } from "sequelize";
+
+                const prisma = new PrismaClient();
+                export async function loadUsers(repository, dataSource) {
+                    await prisma.user.findMany();
+                    await prisma.user.create({ data: {} });
+                    await prisma.$queryRaw`SELECT * FROM users`;
+                    await dataSource.getRepository(User).find();
+                    await repository.save(user);
+                    await repository.delete(id);
+                    await User.findAll();
+                    await User.create({});
+                    await User.destroy({ where: { id } });
+                }
+
+                @Entity()
+                export class User {
+                    @Column()
+                    name: string;
+                }
+
+                class AuditLog extends Model {}
+                sequelize.define("Account", {});
+            "#
+            .to_string(),
+        })
+        .expect("parse web data access");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            data_access_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        data_access_metadata_value(
+            symbol.visibility.as_deref().unwrap_or_default(),
+            "technology",
+        )
+        .as_deref()
+            == Some("prisma")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "technology").as_deref() == Some("typeorm")
+            && data_access_metadata_value(metadata, "kind").as_deref() == Some("Entity")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        data_access_metadata_value(metadata, "technology").as_deref() == Some("sequelize")
+            && data_access_metadata_value(metadata, "operation").as_deref() == Some("delete")
+    }));
+}
+
+#[test]
+fn data_access_negative_cases_do_not_classify_plain_sql_words() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("plain"),
+            path: PathBuf::from("src/plain.ts"),
+            source: r#"
+                export function render() {
+                    const text = "SELECT users from a dropdown";
+                    return text;
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse plain");
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        data_access_metadata_value(
+            symbol.visibility.as_deref().unwrap_or_default(),
+            "technology",
+        )
+        .is_some()
+    }));
 }
 
 #[test]

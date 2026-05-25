@@ -192,11 +192,14 @@ and `GET /api/routes`. Angular intelligence is basic static analysis only and
 is exposed through route/component/symbol metadata without invoking the Angular
 compiler. ASP.NET Core / C# Web API intelligence is basic static analysis only
 and is exposed through existing route/symbol metadata without invoking Roslyn,
-dotnet CLI, package restore, language servers, or app code. Phase 9.2.4.1 is a behavior-preserving web module split checkpoint:
+dotnet CLI, package restore, language servers, or app code. ORM/database access
+intelligence is basic static analysis only and is exposed through
+`GET /api/data-access` without database connections, SQL execution, migrations,
+package managers, ORM CLIs, or app code. Phase 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.5; the next planned
-implementation phase is Phase 9.2.6 - ORM / Database Access Intelligence.
+current roadmap is completed through Phase 9.2.6; the next planned
+implementation phase is Phase 9.2.7 - Realtime / Socket Intelligence.
 
 ## Offline-First Expectations
 
@@ -246,6 +249,11 @@ External integrations must remain:
   type-name extraction must not run `dotnet`, restore packages, require Roslyn,
   launch Visual Studio/Rider/OmniSharp/language servers, query NuGet, or execute
   app code.
+- ORM/database access intelligence is basic static analysis only; package
+  detection, DbContext/DbSet extraction, query callsite extraction, operation
+  classification, and literal SQL capture must not connect to databases, execute
+  SQL, run migrations, run `dotnet`, `node`, `npm`, Prisma generate, TypeORM
+  CLI, Sequelize CLI, package registries, or app code.
 - Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
   orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
   indexer unit tests live in `crates/b3-indexer/src/tests.rs`.

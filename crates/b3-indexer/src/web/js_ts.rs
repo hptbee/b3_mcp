@@ -226,6 +226,14 @@ pub fn detect_package_json_technologies(source: &str) -> ContractResult<Vec<Dete
             }
         }
     }
+    for technology in data_access::detect_package_json_data_access_technologies(source)? {
+        if !technologies
+            .iter()
+            .any(|existing: &DetectedTechnology| existing.id == technology.id)
+        {
+            technologies.push(technology);
+        }
+    }
     Ok(technologies)
 }
 
