@@ -611,7 +611,6 @@ Added requirements:
 
 ### Planned Phases
 
-- Phase 10.3: Hybrid Search Ranking
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11: Cross-Project Architecture Intelligence
@@ -631,9 +630,9 @@ truncated at a configured character boundary before tokenization.
 
 The provider requires no model file, API key, network access, hosted vector
 database, telemetry endpoint, or paid dependency. It is suitable for offline
-chunk/vector generation, but it is not a full semantic search implementation.
-Hybrid ranking remains Phase 10.3, MCP/control semantic integration remains
-Phase 10.4, and quality benchmarking remains Phase 10.5.
+chunk/vector generation, but it is not a neural semantic model. MCP/control
+semantic integration remains Phase 10.4, and quality benchmarking remains Phase
+10.5.
 
 ### Phase 10.2 SQLite Vector Search
 
@@ -653,6 +652,21 @@ chunk index ascending, and document id ascending. This phase requires no native
 SQLite vector extension, hosted vector database, approximate nearest neighbor
 index, API key, model download, cloud API, or telemetry. It is raw vector search,
 not final hybrid semantic ranking.
+
+### Phase 10.3 Hybrid Ranking
+
+Phase 10.3 adds deterministic ranking in `b3-query`. The ranking layer combines
+local lexical token overlap, SQLite vector cosine scores, and conservative
+metadata boosts for language, framework, source kind, path terms, symbol chunks,
+and compact chunks. Default weights are lexical `0.4`, vector `0.5`, and
+metadata `0.1`; custom weights are validated and normalized before scoring.
+
+Results are sorted deterministically by final score, vector score, lexical
+score, path, line, and document id. Optional explanations include component
+scores, matched terms, boosts, vector provider/dimension, filters, and fallback
+warnings. This is an internal reusable ranking layer only: it does not add an
+MCP semantic search tool, hosted vector database, cloud provider, model
+download, telemetry, or quality benchmark dataset.
 
 ## Additional Planned Algorithms
 

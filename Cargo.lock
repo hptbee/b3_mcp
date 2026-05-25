@@ -204,6 +204,7 @@ name = "b3-query"
 version = "0.1.0"
 dependencies = [
  "b3-core",
+ "b3-embeddings",
  "b3-indexer",
  "b3-storage",
  "serde_json",

@@ -18,57 +18,69 @@ Quick links:
 - A localhost control server and a local Next.js web UI for inspection and manual workflows.
 - Scoped indexing and conservative, explainable static intelligence for supported stacks.
 
-## Roadmap (short)
+## Current Status
+
+Completed:
+- Phase 9.2.12 — .NET Desktop / WPF Intelligence
+- Phase 10.0 — Local Embeddings + Vector Search Architecture
+- Phase 10.1 — Local Embedding Provider MVP
+- Phase 10.2 — SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
 
 Current / Next:
-- Phase 10.3 — Hybrid Search Ranking (current/next)
+- Phase 10.4 - MCP / Control API Integration
 
-Upcoming major phases:
-- Phase 10.4 — MCP / Control API Integration
+Upcoming (major):
 - Phase 10.5 — Benchmark + Quality Evaluation
 - Phase 11 — Cross-Project Architecture Intelligence
-- Phase 12–20 — Symbolic editing, refactor assistant, additional language and UI work
+- Phase 12 — Symbolic Editing MVP
+- Phase 13 — Rename / Refactor MVP
 
 See `PLAN.md` for the full, authoritative roadmap and phase details.
 
 ---
 
-## What Works Today (concise)
+## What Works Today
 
+Core platform:
 - Repository indexing into `.b3/b3.db` (local project model).
-- MCP runtime (stdio) and curated MCP tool profiles for agent testing.
+- MCP runtime (stdio) with curated tool profiles.
 - Local control server (`http://127.0.0.1:7777`) and local web UI (`http://127.0.0.1:8888`).
-- Scoped indexing (path / file / glob / language / framework filters).
-- Registry and project-groups metadata (local only, metadata-first).
-- Language & technology support (basic/static/local):
-  - Rust (best support)
-  - JavaScript / TypeScript / JSX / TSX
-  - Node.js REST (Express / NestJS / Fastify)
-  - React / Next.js / Angular (basic static extraction)
-  - ASP.NET Core / C# Web API
-  - ORM / data-access hints (EF Core, Dapper, Prisma, TypeORM, Sequelize)
-  - Realtime / Socket hints (WebSocket, Socket.IO, SignalR)
-  - Messaging/event-driven hints (AMQP/RabbitMQ, Kafka, Google Pub/Sub)
-  - Cloud/infrastructure hints (Docker, Compose, Kubernetes, Terraform)
-  - Go (basic static support)
-  - C# WPF / XAML (basic static/local)
+- Scoped indexing (path/file/glob/language/framework).
+- Local registry and metadata-first project groups (local JSON registry).
 
-- Local embeddings & vectors (Phase 10 work): `local_hash` embeddings and
-  SQLite vector storage/search are implemented (local/offline raw vector search);
-  production semantic embedding providers, hybrid ranking, and MCP semantic tools
-  are staged in later phases.
+Language and framework intelligence (basic/static/local):
+- Rust (best support)
+- JavaScript / TypeScript / JSX / TSX
+- Node.js REST (Express / NestJS / Fastify)
+- React / Next.js / Angular (static extraction)
+- ASP.NET Core / C# Web API
+- Go (basic static support)
+
+Application intelligence (static hints):
+- ORM / data-access (EF Core, Dapper, Prisma, TypeORM, Sequelize)
+- Realtime / Socket (WebSocket, Socket.IO, SignalR)
+- Messaging/event-driven (AMQP/RabbitMQ, Kafka, Google Pub/Sub)
+- Cloud / infrastructure hints (Docker, Compose, Kubernetes, Terraform)
+- C# WPF / XAML (basic static/local)
+
+Vector foundation:
+- `local_hash` embeddings and SQLite vector persistence/search (local/offline raw vector search).
+- Hybrid ranking combines lexical, vector, and metadata signals inside `b3-query`.
+- Production-grade neural embedding providers and MCP semantic tools are planned in later phases.
 
 ---
 
-## Current Limitations (short)
+## Current Limitations
 
-- Most non-Rust stacks are supported with conservative, static extraction (not full semantic analysis).
+- Support for non-Rust stacks is mostly conservative/static/local, not full semantic analysis.
 - `local_hash` embeddings are lexical/hash-based, not neural semantic-quality vectors.
-- Hybrid ranking and semantic integration are in Phase 10.3–10.4 (not yet general-purpose).
-- Quality benchmarking and user-facing quality reports are Phase 10.5.
-- Cross-project architecture intelligence is Phase 11.
-- Symbolic editing and rename/refactor are Phase 12 / Phase 13.
-- B3 does not execute code, call cloud APIs, or connect to external brokers/databases by default.
+- Hybrid ranking is implemented as an internal ranking layer; MCP/control semantic integration is Phase 10.4.
+- MCP semantic search tool: Phase 10.4.
+- Quality evaluation / benchmarks: Phase 10.5.
+- Cross-project architecture intelligence: Phase 11.
+- Symbolic editing / rename & refactor: Phase 12 / Phase 13.
+- B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
 ---
 
@@ -93,7 +105,7 @@ See `PLAN.md` for the full, authoritative roadmap and phase details.
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Usable now, basic/static/local |
 | Local embeddings & SQLite vector search | Usable now, local/offline raw vector search |
-| Hybrid semantic ranking | Phase 10.3 |
+| Hybrid semantic ranking | Internal ranking layer implemented |
 | MCP semantic search tool | Phase 10.4 |
 | Cross-project architecture intelligence | Phase 11 |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
@@ -139,8 +151,6 @@ npm install
 npm run dev
 # web UI: http://127.0.0.1:8888
 ```
-
----
 
 ## Project Model (ASCII)
 

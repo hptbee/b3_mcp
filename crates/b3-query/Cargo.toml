@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 b3-core = { path = "../b3-core" }
+b3-embeddings = { path = "../b3-embeddings" }
 
 [dev-dependencies]
 b3-indexer = { path = "../b3-indexer" }

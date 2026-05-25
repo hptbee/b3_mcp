@@ -27,6 +27,10 @@ Phase 10.2 adds SQLite vector storage and raw local cosine vector search outside
 the MCP runtime. It still does not add a semantic search MCP tool, change MCP
 profiles, or move vector scoring into the MCP hot path.
 
+Phase 10.3 adds hybrid ranking inside `b3-query` by combining lexical, vector,
+and metadata signals. It still does not add a semantic search MCP tool, change
+MCP profiles, or move ranking into the MCP runtime.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

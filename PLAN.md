@@ -893,14 +893,14 @@ Completed:
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
 - Phase 10.2 - SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
 
 Current/Next:
 
-- Phase 10.3 - Hybrid Search Ranking
+- Phase 10.4 - MCP / Control API Integration
 
 Upcoming:
 
-- Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence
 - Phase 12 - Symbolic Editing MVP
@@ -999,13 +999,25 @@ Rules:
 
 ## Phase 10.3 - Hybrid Search Ranking
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- combine FTS/BM25, graph proximity, exact symbol signals, and vector similarity
-- keep semantic signal secondary to AST/graph/FTS
-- benchmark quality impact before tuning
+- added reusable `b3-query::hybrid` ranking module
+- added `HybridSearchRequest`, `HybridSearchResult`, compact explanations, and warnings
+- combined local lexical token overlap, SQLite vector cosine scores, and metadata boosts
+- added deterministic score normalization, weight validation, fallback behavior, and tie-breaking
+- added local_hash query embedding for vector scoring without external calls
+- added lexical-only, vector-only, merged, filtered, and explained ranking tests
+
+Rules:
+
+- no MCP semantic search tool
+- no full control semantic integration
+- no benchmark/quality dataset
+- no hosted vector database requirement
+- no OpenAI/cloud embedding API integration
+- no telemetry, SaaS auth, API keys, model downloads, or internet requirement
 
 ---
 

@@ -918,7 +918,6 @@ Avoid:
 
 ### Planned Phases
 
-- Phase 10.3: Hybrid Search Ranking
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11: Cross-Project Architecture Intelligence

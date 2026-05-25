@@ -375,3 +375,14 @@ extensions as required dependencies, OpenAI/cloud embedding providers, model
 downloads, telemetry, API-key requirements, cross-project semantic search,
 symbolic editing, rename/refactor, session memory, or cross-project
 architecture intelligence.
+
+Phase 10.3 is completed as hybrid ranking only. It may provide reusable
+`b3-query` ranking that combines lexical overlap, local SQLite vector cosine
+scores, metadata boosts, deterministic score normalization/tie-breaking, and
+compact explanations.
+
+It must not implement MCP semantic search tools, final semantic search UX,
+benchmark/quality datasets, hosted vector database integrations, OpenAI/cloud
+embedding providers, model downloads, telemetry, API-key requirements,
+cross-project semantic search, symbolic editing, rename/refactor, session
+memory, or cross-project architecture intelligence.
