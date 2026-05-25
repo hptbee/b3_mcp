@@ -8,6 +8,7 @@
 
 mod csharp;
 mod data_access;
+mod dotnet_desktop;
 mod go;
 mod infrastructure;
 pub mod lsp;
@@ -24,6 +25,9 @@ pub(crate) use data_access::data_access_metadata_value;
 pub use data_access::{
     detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
 };
+pub use dotnet_desktop::detect_wpf_project_technologies;
+#[cfg(test)]
+pub(crate) use dotnet_desktop::wpf_metadata_value;
 #[cfg(test)]
 pub(crate) use go::{detect_go_mod_technologies, go_metadata_value};
 #[cfg(test)]
@@ -1739,11 +1743,25 @@ impl TreeSitterParser for DefaultLanguagePack {
         if infrastructure::is_infrastructure_file(&input.path, &input.source) {
             return infrastructure::parse(input);
         }
+        if dotnet_desktop::is_xaml_file(&input.path) {
+            return dotnet_desktop::parse(input);
+        }
 
         match language_from_path(&input.path).as_deref() {
             Some("rs") => RustLanguagePack.parse(input),
             Some("javascript" | "jsx" | "typescript" | "tsx") => WebLanguagePack.parse(input),
-            Some("csharp" | "csproj") => csharp::parse(input),
+            Some("csharp" | "csproj") => {
+                let include_desktop =
+                    dotnet_desktop::is_dotnet_desktop_file(&input.path, &input.source);
+                let desktop_input = include_desktop.then(|| input.clone());
+                let mut parsed = csharp::parse(input)?;
+                if let Some(desktop_input) = desktop_input {
+                    let desktop = dotnet_desktop::parse(desktop_input)?;
+                    parsed.symbols.extend(desktop.symbols);
+                    parsed.relationships.extend(desktop.relationships);
+                }
+                Ok(parsed)
+            }
             Some("go" | "gomod") => go::parse(input),
             _ => NoopTreeSitterParser.parse(input),
         }
@@ -2144,6 +2162,7 @@ fn language_from_path(path: &Path) -> Option<String> {
             "tsx" => "tsx",
             "cs" => "csharp",
             "csproj" => "csproj",
+            "xaml" => "xaml",
             other => other,
         }
         .to_string(),

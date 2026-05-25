@@ -271,6 +271,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
   currently available through `GET /api/infrastructure`.
 - Dedicated Go views are deferred; Go symbols use existing symbol/query
   surfaces and Go route hints are available through `GET /api/routes`.
+- Dedicated WPF/XAML views are deferred; WPF metadata is currently available
+  through `GET /api/wpf`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after

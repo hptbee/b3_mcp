@@ -430,6 +430,7 @@ fn detect_frameworks_for_file(relative_path: &str, source: &str) -> Vec<String> 
         || path.ends_with("next.config.js")
         || path.ends_with("angular.json");
     let is_csharp_family = path.ends_with(".cs") || path.ends_with(".csproj");
+    let is_xaml_family = path.ends_with(".xaml") || path.ends_with(".xaml.cs");
 
     if path.ends_with("dockerfile") {
         frameworks.insert("docker".to_string());
@@ -500,6 +501,17 @@ fn detect_frameworks_for_file(relative_path: &str, source: &str) -> Vec<String> 
     }
 
     if is_csharp_family {
+        if source_lower.contains("<usewpf>true</usewpf>")
+            || source_lower.contains("microsoft.net.sdk.windowsdesktop")
+            || source_lower.contains("presentationframework")
+            || source_lower.contains("windowsbase")
+            || source_lower.contains(": window")
+            || source_lower.contains(": usercontrol")
+            || source_lower.contains(": page")
+        {
+            frameworks.insert("wpf".to_string());
+            frameworks.insert("dotnet_desktop".to_string());
+        }
         if source_lower.contains("microsoft.aspnetcore") || source_lower.contains("[apicontroller]")
         {
             frameworks.insert("aspnetcore".to_string());
@@ -516,6 +528,17 @@ fn detect_frameworks_for_file(relative_path: &str, source: &str) -> Vec<String> 
                 frameworks.insert(id.to_string());
             }
         }
+    }
+    if is_xaml_family
+        && (source_lower.contains("x:class")
+            || source_lower.contains("<window")
+            || source_lower.contains("<usercontrol")
+            || source_lower.contains("<page")
+            || source_lower.contains("<application")
+            || source_lower.contains("<resourcedictionary"))
+    {
+        frameworks.insert("wpf".to_string());
+        frameworks.insert("dotnet_desktop".to_string());
     }
 
     frameworks.into_iter().collect()
@@ -702,6 +725,7 @@ fn known_languages() -> BTreeSet<&'static str> {
         "jsx",
         "csharp",
         "csproj",
+        "xaml",
         "go",
         "gomod",
         "yaml",
@@ -723,6 +747,8 @@ fn known_frameworks() -> BTreeSet<&'static str> {
         "nextjs",
         "angular",
         "aspnetcore",
+        "wpf",
+        "dotnet_desktop",
         "gcp",
         "gke",
     ]);

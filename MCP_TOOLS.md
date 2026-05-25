@@ -10,6 +10,11 @@ Scoped indexing from Phase 9.2.11 is exposed through the local control
 server/CLI only. It does not add MCP tools, change MCP profile counts, or move
 indexing logic into the MCP runtime.
 
+WPF/XAML intelligence from Phase 9.2.12 is indexed as local symbol metadata and
+exposed through existing query tools plus the local control server
+`GET /api/wpf` endpoint. It does not add MCP tools, change MCP profile counts,
+or move WPF/XAML extraction into the MCP runtime.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

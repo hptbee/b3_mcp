@@ -221,12 +221,18 @@ through `GET /api/infrastructure` without Docker, Kubernetes, Terraform,
 language support is basic static analysis only and is exposed through existing
 symbol metadata, `/api/languages`, `/api/capabilities`, and `/api/routes` for
 route hints without the Go toolchain, `go` commands, module downloads,
-registries, package managers, or app code. Phase
+registries, package managers, or app code. .NET Desktop / WPF intelligence is
+basic static analysis only and is exposed through existing symbol metadata,
+`/api/languages`, `/api/capabilities`, and `GET /api/wpf`; it detects WPF
+project hints, XAML views/resources, code-behind hints, binding paths, command
+bindings, resource references, DataContext hints, and ViewModel naming hints
+without Visual Studio, MSBuild, `dotnet`, Windows runtime, a XAML compiler,
+designer integration, or app execution. Phase
 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.11; the next planned
-implementation phase is Phase 9.2.12 - .NET Desktop / WPF Intelligence.
+current roadmap is completed through Phase 9.2.12; the next planned
+implementation phase is Phase 10 - Local Embeddings + Vector Search.
 
 ## Offline-First Expectations
 

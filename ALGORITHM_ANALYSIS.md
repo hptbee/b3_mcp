@@ -343,6 +343,29 @@ The extractor intentionally avoids `go build`, `go test`, `go run`, `go list`,
 checking, app execution, gRPC intelligence, deep framework intelligence,
 external APIs, and telemetry.
 
+### Basic .NET Desktop / WPF Extraction
+
+Phase 9.2.12 adds conservative static WPF/XAML extraction:
+
+1. detect modern and older WPF project hints from local `.csproj` text without
+   MSBuild evaluation
+2. detect `.xaml` files and classify obvious Application, Window, UserControl,
+   Page, ResourceDictionary, and NavigationWindow roots
+3. extract `x:Class`, obvious `.xaml.cs` code-behind paths, literal static
+   DataContext hints, and ViewModel naming hints
+4. extract simple `{Binding ...}` paths, command bindings, CommandParameter
+   paths, StaticResource/DynamicResource keys, resource definitions, and
+   ResourceDictionary source references
+5. scan local C# code-behind/ViewModel files for partial classes,
+   DataContext assignments, INotifyPropertyChanged, and ICommand properties
+6. encode records as existing symbols with `wpf.*` metadata and expose them
+   through `GET /api/wpf`
+
+The extractor intentionally avoids Visual Studio automation, MSBuild, `dotnet`,
+WPF app execution, XAML compilation, designer integration, full binding type
+checking, runtime DataContext inference, deep MVVM framework analysis,
+cross-project matching, external APIs, and telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.
@@ -560,10 +583,10 @@ Added requirements:
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
+- Phase 9.2.12: .NET Desktop / WPF Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 10: Local Embeddings + Vector Search
 - Phase 10.1: Semantic Context Upgrade
 - Phase 11: Architecture Intelligence

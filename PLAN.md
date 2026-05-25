@@ -58,9 +58,11 @@ Completed:
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
 - Phase 9.2.10 - Go Language Support
 - Phase 9.2.11 - Scoped Indexing + Intelligence Targets
+- Phase 9.2.12 - .NET Desktop / WPF Intelligence
 
 Next:
-- Phase 9.2.12 - .NET Desktop / WPF Intelligence
+- Phase 10 - Local Embeddings + Vector Search
+- Phase 11 - Cross-Project Architecture Intelligence
 
 Later:
 - Phase 9.3 — Symbolic Editing MVP
@@ -264,6 +266,7 @@ Current local APIs include:
 - `GET /api/realtime`
 - `GET /api/messaging`
 - `GET /api/infrastructure`
+- `GET /api/wpf`
 
 Registry control APIs are deferred. Registry management is currently CLI-only.
 
@@ -903,19 +906,36 @@ Status: Completed.
 
 ## Phase 9.2.12 — .NET Desktop / WPF Intelligence
 
-Status: Planned.
+Status: Completed.
 
 ### Scope
 
-- WPF/XAML file detection
-- basic XAML view and code-behind relationships where safe
-- MVVM naming/convention hints where conservative
+- Modern SDK-style WPF project detection from `<UseWPF>true</UseWPF>`,
+  WindowsDesktop SDK, `net*-windows`, and `WinExe` hints.
+- Older .NET Framework WPF project detection from PresentationCore,
+  PresentationFramework, WindowsBase, System.Xaml, `Page`, and
+  `ApplicationDefinition` project metadata.
+- XAML Application, Window, UserControl, Page, ResourceDictionary, and
+  NavigationWindow detection.
+- `x:Class`, obvious `.xaml.cs` code-behind path hints, static DataContext
+  hints, ViewModel naming hints, binding paths, command bindings,
+  StaticResource/DynamicResource keys, resource definitions, and
+  ResourceDictionary source extraction.
+- Read-only WPF metadata exposure through `GET /api/wpf`.
+- Scoped indexing integration for `language:xaml`, `framework:wpf`, and
+  `framework:dotnet_desktop`.
 
 ### Out of Scope
 
 - Visual Studio automation
+- MSBuild or `dotnet` execution
+- XAML compiler/designer integration
 - XAML runtime execution
-- full WPF binding semantics
+- full WPF binding type checking
+- runtime DataContext inference
+- deep MVVM framework analysis
+- symbolic editing, rename/refactor, embeddings, semantic search, and
+  cross-project architecture intelligence
 
 ---
 
@@ -1316,7 +1336,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Phase 9.2.9 |
 | Go language support | Usable now, basic/static |
 | Scoped indexing targets | Usable now |
-| C# WPF / XAML | Phase 9.2.12 |
+| C# WPF / XAML | Usable now, basic/static |
 | Three.js / WebGL | Deferred |
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
@@ -1326,9 +1346,9 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, and basic static Go language support.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
-WPF/XAML, local embeddings, and cross-project architecture intelligence depend on Phase 9.2.12 and later.
+Local embeddings, vector search, and cross-project architecture intelligence depend on Phase 10 and later.
 
 ---
 

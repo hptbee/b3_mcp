@@ -717,6 +717,45 @@ Must defer:
 - local embeddings and vector search
 - cross-project architecture intelligence
 
+## .NET Desktop / WPF Intelligence
+
+Phase 9.2.12 adds basic static/local .NET Desktop and WPF intelligence.
+
+Must support:
+- modern SDK-style WPF project detection from local `.csproj` text
+- older .NET Framework WPF project detection from local references and item
+  metadata
+- XAML Application, Window, UserControl, Page, ResourceDictionary, and
+  NavigationWindow detection
+- `x:Class`, obvious code-behind path hints, static DataContext hints, and
+  ViewModel naming hints
+- literal Binding paths, command bindings, CommandParameter paths,
+  StaticResource/DynamicResource keys, resource definitions, and
+  ResourceDictionary source references
+- code-behind partial class and ViewModel hints from local C# source where
+  obvious
+- read-only metadata through existing symbol storage and `GET /api/wpf`
+- scoped indexing compatibility for `language:xaml`, `framework:wpf`, and
+  `framework:dotnet_desktop`
+
+Must not require:
+- Visual Studio
+- MSBuild
+- `dotnet restore`, `dotnet build`, `dotnet run`, or `dotnet test`
+- Windows runtime
+- XAML compiler or designer
+- app execution
+- external APIs, telemetry, paid services, or internet access
+
+Must defer:
+- full WPF binding type checking
+- runtime DataContext inference
+- designer integration
+- deep MVVM framework analysis
+- symbolic editing and rename/refactor
+- local embeddings, vector search, semantic search, and cross-project
+  architecture intelligence
+
 ## Graph Requirements
 
 Node types:
@@ -875,10 +914,10 @@ Avoid:
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
+- Phase 9.2.12: .NET Desktop / WPF Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 9.3/9.4: Symbolic editing and rename/refactor support
 - Phase 10: Local Embeddings + Vector Search
 - Phase 10.1: Semantic Context Upgrade

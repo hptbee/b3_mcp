@@ -792,6 +792,326 @@ fn local_indexer_indexes_small_aspnetcore_project_and_ignores_wpf_classification
 }
 
 #[test]
+fn wpf_project_detection_covers_modern_and_old_project_files() {
+    let modern = r#"
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <OutputType>WinExe</OutputType>
+            <TargetFramework>net8.0-windows</TargetFramework>
+            <UseWPF>true</UseWPF>
+          </PropertyGroup>
+        </Project>
+    "#;
+    let old = r#"
+        <Project ToolsVersion="15.0">
+          <PropertyGroup>
+            <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+          </PropertyGroup>
+          <ItemGroup>
+            <Reference Include="PresentationCore" />
+            <Reference Include="PresentationFramework" />
+            <Reference Include="WindowsBase" />
+            <Reference Include="System.Xaml" />
+            <ApplicationDefinition Include="App.xaml" />
+            <Page Include="Views/UserView.xaml" />
+            <Compile Include="Views/UserView.xaml.cs">
+              <DependentUpon>UserView.xaml</DependentUpon>
+            </Compile>
+          </ItemGroup>
+        </Project>
+    "#;
+
+    let technologies = detect_wpf_project_technologies(modern).expect("modern detection");
+    assert!(technologies.iter().any(|technology| technology.id == "wpf"));
+    assert!(technologies
+        .iter()
+        .any(|technology| technology.id == "dotnet_desktop"));
+
+    for (source, expected_kind) in [
+        (modern, "WpfProjectUseWpf"),
+        (old, "WpfProjectPresentationFramework"),
+    ] {
+        let parsed = DefaultLanguagePack
+            .parse(ParseInput {
+                file_id: FileId::new("project"),
+                path: PathBuf::from("Demo.csproj"),
+                source: source.to_string(),
+            })
+            .expect("parse project");
+        let project = parsed
+            .symbols
+            .iter()
+            .find(|symbol| {
+                wpf_metadata_value(symbol.visibility.as_deref().unwrap_or_default(), "kind")
+                    .as_deref()
+                    == Some("Project")
+            })
+            .expect("wpf project metadata");
+        let metadata = project.visibility.as_deref().unwrap_or_default();
+        assert_eq!(
+            wpf_metadata_value(metadata, "technology").as_deref(),
+            Some("wpf")
+        );
+        assert_eq!(
+            wpf_metadata_value(metadata, "kind").as_deref(),
+            Some("Project")
+        );
+        assert_eq!(
+            wpf_metadata_value(metadata, "source").as_deref(),
+            Some(expected_kind)
+        );
+    }
+
+    let aspnet = r#"<Project Sdk="Microsoft.NET.Sdk.Web"><ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup></Project>"#;
+    assert!(detect_wpf_project_technologies(aspnet)
+        .expect("aspnet detection")
+        .is_empty());
+}
+
+#[test]
+fn xaml_extraction_detects_views_bindings_commands_and_resources() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("main-window"),
+            path: PathBuf::from("Views/MainWindow.xaml"),
+            source: r#"
+                <Window x:Class="App.Views.MainWindow"
+                        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                        xmlns:vm="clr-namespace:App.ViewModels"
+                        Title="Orders">
+                    <Window.DataContext>
+                        <vm:MainViewModel />
+                    </Window.DataContext>
+                    <Window.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.MergedDictionaries>
+                                <ResourceDictionary Source="Themes/Colors.xaml" />
+                            </ResourceDictionary.MergedDictionaries>
+                            <SolidColorBrush x:Key="PrimaryBrush" Color="Red" />
+                        </ResourceDictionary>
+                    </Window.Resources>
+                    <TextBox Text="{Binding UserName}" />
+                    <Button Command="{Binding SaveCommand}" CommandParameter="{Binding SelectedUser}" />
+                    <TextBlock Foreground="{StaticResource PrimaryBrush}" Background="{DynamicResource AccentBrush}" />
+                </Window>
+            "#
+            .to_string(),
+        })
+        .expect("parse xaml");
+
+    assert_eq!(parsed.language.as_deref(), Some("xaml"));
+    let window = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "MainWindow")
+        .expect("window metadata");
+    let metadata = window.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        wpf_metadata_value(metadata, "kind").as_deref(),
+        Some("Window")
+    );
+    assert_eq!(
+        wpf_metadata_value(metadata, "x_class").as_deref(),
+        Some("App.Views.MainWindow")
+    );
+    assert_eq!(
+        wpf_metadata_value(metadata, "code_behind").as_deref(),
+        Some("Views/MainWindow.xaml.cs")
+    );
+    assert_eq!(
+        wpf_metadata_value(metadata, "data_context").as_deref(),
+        Some("MainViewModel")
+    );
+    assert_eq!(
+        wpf_metadata_value(metadata, "view_model").as_deref(),
+        Some("MainViewModel")
+    );
+    assert!(wpf_metadata_value(metadata, "binding_paths")
+        .unwrap_or_default()
+        .contains("UserName"));
+    assert!(wpf_metadata_value(metadata, "binding_paths")
+        .unwrap_or_default()
+        .contains("SelectedUser"));
+    assert!(wpf_metadata_value(metadata, "command_bindings")
+        .unwrap_or_default()
+        .contains("SaveCommand"));
+    assert!(wpf_metadata_value(metadata, "resource_sources")
+        .unwrap_or_default()
+        .contains("Themes/Colors.xaml"));
+    assert!(wpf_metadata_value(metadata, "resource_keys")
+        .unwrap_or_default()
+        .contains("PrimaryBrush"));
+    assert!(wpf_metadata_value(metadata, "resource_keys")
+        .unwrap_or_default()
+        .contains("AccentBrush"));
+}
+
+#[test]
+fn xaml_extraction_detects_common_wpf_roots_and_skips_random_xml() {
+    for (path, source, kind) in [
+        (
+            "App.xaml",
+            r#"<Application x:Class="App.App" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />"#,
+            "Application",
+        ),
+        (
+            "Views/UserView.xaml",
+            r#"<UserControl x:Class="App.Views.UserView" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />"#,
+            "UserControl",
+        ),
+        (
+            "Views/OrdersPage.xaml",
+            r#"<Page x:Class="App.Views.OrdersPage" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />"#,
+            "Page",
+        ),
+        (
+            "Themes/Colors.xaml",
+            r#"<ResourceDictionary xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Color x:Key="Primary">Red</Color></ResourceDictionary>"#,
+            "ResourceDictionary",
+        ),
+    ] {
+        let parsed = DefaultLanguagePack
+            .parse(ParseInput {
+                file_id: FileId::new(path),
+                path: PathBuf::from(path),
+                source: source.to_string(),
+            })
+            .expect("parse xaml root");
+        let metadata = parsed.symbols[0].visibility.as_deref().unwrap_or_default();
+        assert_eq!(wpf_metadata_value(metadata, "kind").as_deref(), Some(kind));
+    }
+
+    let random = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("random"),
+            path: PathBuf::from("random.xml"),
+            source: "<root><Window /></root>".to_string(),
+        })
+        .expect("parse random xml");
+    assert!(random.symbols.is_empty());
+
+    let invalid = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("invalid"),
+            path: PathBuf::from("Broken.xaml"),
+            source: "<Window x:Class=\"Broken.MainWindow\"><TextBlock".to_string(),
+        })
+        .expect("parse invalid xaml");
+    assert!(!invalid.symbols.is_empty());
+}
+
+#[test]
+fn wpf_csharp_extraction_detects_code_behind_and_view_model_hints() {
+    let code_behind = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("main-window-code-behind"),
+            path: PathBuf::from("Views/MainWindow.xaml.cs"),
+            source: r#"
+                public partial class MainWindow : Window
+                {
+                    public MainWindow()
+                    {
+                        this.DataContext = new MainViewModel();
+                    }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse code behind");
+    let symbol = code_behind
+        .symbols
+        .iter()
+        .find(|symbol| {
+            wpf_metadata_value(symbol.visibility.as_deref().unwrap_or_default(), "kind").as_deref()
+                == Some("CodeBehind")
+        })
+        .expect("code behind symbol");
+    let metadata = symbol.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        wpf_metadata_value(metadata, "kind").as_deref(),
+        Some("CodeBehind")
+    );
+    assert_eq!(
+        wpf_metadata_value(metadata, "data_context").as_deref(),
+        Some("MainViewModel")
+    );
+
+    let view_model = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("main-viewmodel"),
+            path: PathBuf::from("ViewModels/MainViewModel.cs"),
+            source: r#"
+                using System.ComponentModel;
+                using System.Windows.Input;
+                public class MainViewModel : INotifyPropertyChanged
+                {
+                    public ICommand SaveCommand { get; }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse view model");
+    let symbol = view_model
+        .symbols
+        .iter()
+        .find(|symbol| {
+            wpf_metadata_value(symbol.visibility.as_deref().unwrap_or_default(), "kind").as_deref()
+                == Some("ViewModel")
+        })
+        .expect("view model symbol");
+    let metadata = symbol.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        wpf_metadata_value(metadata, "kind").as_deref(),
+        Some("ViewModel")
+    );
+    assert!(wpf_metadata_value(metadata, "command_bindings")
+        .unwrap_or_default()
+        .contains("SaveCommand"));
+}
+
+#[test]
+fn framework_wpf_scope_matches_static_wpf_files() {
+    let root = std::env::temp_dir().join(format!("b3-wpf-scope-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("Views")).expect("views");
+    fs::write(
+        root.join("App.csproj"),
+        r#"<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><UseWPF>true</UseWPF><TargetFramework>net8.0-windows</TargetFramework></PropertyGroup></Project>"#,
+    )
+    .expect("csproj");
+    fs::write(
+        root.join("Views").join("MainWindow.xaml"),
+        r#"<Window x:Class="App.Views.MainWindow" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />"#,
+    )
+    .expect("xaml");
+    fs::write(root.join("lib.rs"), "fn untouched() {}\n").expect("rust");
+
+    let plan = scope::plan_scope(
+        &root,
+        "project",
+        "main",
+        scope::parse_scope("framework:wpf").expect("scope"),
+        &IndexerConfig::default().ignore,
+        &scope::EmptyScopeTargetProvider,
+    )
+    .expect("wpf scope");
+
+    assert_eq!(plan.preview.matched_files, 2);
+    assert!(plan
+        .preview
+        .matched_frameworks
+        .iter()
+        .any(|framework| framework == "wpf"));
+    assert!(plan
+        .preview
+        .sample_files
+        .iter()
+        .any(|file| file.ends_with("MainWindow.xaml")));
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
 fn web_language_pack_extracts_javascript_symbols_imports_and_commonjs_exports() {
     let parsed = WebLanguagePack
         .parse(ParseInput {

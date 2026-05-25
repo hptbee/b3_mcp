@@ -40,7 +40,7 @@ use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
     StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredInfrastructure,
-    StoredMessaging, StoredParseFailure, StoredRealtime, StoredRoute,
+    StoredMessaging, StoredParseFailure, StoredRealtime, StoredRoute, StoredWpf,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -290,6 +290,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/realtime", get(realtime))
         .route("/api/messaging", get(messaging))
         .route("/api/infrastructure", get(infrastructure))
+        .route("/api/wpf", get(wpf))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -1399,6 +1400,21 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "runtime_discovery": false,
                 "cross_project_matching": false
             },
+            "dotnet_desktop": {
+                "available": true,
+                "support": "basic_static",
+                "technologies": {
+                    "wpf": "basic",
+                    "xaml": "basic"
+                },
+                "visual_studio_required": false,
+                "msbuild_required": false,
+                "dotnet_execution_required": false,
+                "xaml_compiler_required": false,
+                "runtime_execution_required": false,
+                "binding_type_checking": false,
+                "deep_mvvm_analysis": false
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -1421,6 +1437,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "realtime": true,
             "messaging": true,
             "infrastructure": true,
+            "wpf": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1484,8 +1501,17 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "lsp": "configurable_local_server",
                 "support": "basic",
                 "backend": "static-csharp",
-                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractRoutes"],
-                "notes": "Basic local static C# and ASP.NET Core Web API extraction indexes controllers, route attributes, action methods, and constructor dependency type names; Roslyn, dotnet CLI execution, full semantic analysis, EF/Dapper, and WPF/XAML remain deferred."
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractRoutes", "ExtractWpfHints"],
+                "notes": "Basic local static C# and ASP.NET Core Web API extraction indexes controllers, route attributes, action methods, constructor dependency type names, and WPF code-behind/ViewModel hints; Roslyn, dotnet CLI execution, full semantic analysis, and full binding type checking are deferred."
+            },
+            {
+                "language_id": "xaml",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic_static",
+                "backend": "static-xaml",
+                "capabilities": ["DetectFile", "Parse", "ExtractWpfMetadata", "ExtractBindings", "ExtractResources"],
+                "notes": "Basic local static XAML extraction indexes WPF Application, Window, UserControl, Page, ResourceDictionary, x:Class, code-behind hints, DataContext hints, Binding paths, command bindings, and resource references without Visual Studio, MSBuild, dotnet, or a XAML compiler."
             },
             {
                 "language_id": "go",
@@ -1722,6 +1748,38 @@ async fn infrastructure(
         project_id,
         branch_id,
         infrastructure: records,
+    }))
+}
+
+async fn wpf(
+    State(state): State<ControlState>,
+    Query(query): Query<WpfQuery>,
+) -> Result<Json<WpfResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let records = state
+        .storage
+        .lock()
+        .await
+        .wpf(
+            &project_id,
+            &branch_id,
+            query.kind.as_deref(),
+            query.binding.as_deref(),
+            query.command.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(WpfDto::from)
+        .collect();
+
+    Ok(Json(WpfResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        wpf: records,
     }))
 }
 
@@ -2549,6 +2607,24 @@ struct InfrastructureResponse {
     infrastructure: Vec<InfrastructureDto>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct WpfQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    kind: Option<String>,
+    binding: Option<String>,
+    command: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct WpfResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    wpf: Vec<WpfDto>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct DataAccessDto {
     id: String,
@@ -2629,6 +2705,28 @@ struct InfrastructureDto {
     env_keys: Vec<String>,
     labels: Vec<String>,
     selectors: Vec<String>,
+    file_path: String,
+    symbol_id: String,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct WpfDto {
+    id: String,
+    technology: String,
+    kind: String,
+    name: Option<String>,
+    x_class: Option<String>,
+    code_behind: Option<String>,
+    view_model: Option<String>,
+    binding_paths: Vec<String>,
+    command_bindings: Vec<String>,
+    resource_keys: Vec<String>,
+    resource_sources: Vec<String>,
+    data_context: Option<String>,
     file_path: String,
     symbol_id: String,
     line_start: usize,
@@ -2805,6 +2903,31 @@ impl From<StoredInfrastructure> for InfrastructureDto {
             env_keys: value.env_keys,
             labels: value.labels,
             selectors: value.selectors,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredWpf> for WpfDto {
+    fn from(value: StoredWpf) -> Self {
+        Self {
+            id: value.id,
+            technology: value.technology,
+            kind: value.kind,
+            name: value.name,
+            x_class: value.x_class,
+            code_behind: value.code_behind,
+            view_model: value.view_model,
+            binding_paths: value.binding_paths,
+            command_bindings: value.command_bindings,
+            resource_keys: value.resource_keys,
+            resource_sources: value.resource_sources,
+            data_context: value.data_context,
             file_path: value.file_path,
             symbol_id: value.symbol_id,
             line_start: value.line_start,
@@ -3676,6 +3799,51 @@ mod tests {
                 },
             )
             .expect("infrastructure file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+    }
+
+    fn wpf_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("wpf-file"),
+                        project_id: project_id.clone(),
+                        path: "Views/MainWindow.xaml".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("xaml".to_string()),
+                    size_bytes: 32,
+                    content: "<Window />".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("wpf-symbol"),
+                        file_id: FileId::new("wpf-file"),
+                        name: "MainWindow".to_string(),
+                        kind: NodeKind::Endpoint,
+                        start_byte: 0,
+                        end_byte: 10,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 12,
+                        end_column: 0,
+                        visibility: Some("wpf.technology=wpf;wpf.kind=Window;wpf.name=MainWindow;wpf.x_class=App.Views.MainWindow;wpf.code_behind=Views/MainWindow.xaml.cs;wpf.view_model=MainWindowViewModel;wpf.binding_paths=UserName,SelectedUser;wpf.command_bindings=SaveCommand;wpf.resource_keys=PrimaryBrush;wpf.resource_sources=Themes/Colors.xaml;wpf.data_context=MainViewModel;wpf.file=Views/MainWindow.xaml;wpf.source=XamlWindow;wpf.line_start=1;wpf.line_end=12;wpf.confidence=9000".to_string()),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("wpf file");
         app(ControlState::from_storage(
             PathBuf::from("."),
             PathBuf::from(":memory:"),
@@ -4700,6 +4868,90 @@ output "cluster_name" {
     }
 
     #[tokio::test]
+    async fn index_api_exposes_static_wpf_metadata_and_scoped_preview() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("Views")).expect("views");
+        fs::create_dir_all(root.join("ViewModels")).expect("viewmodels");
+        fs::write(
+            root.join("App.csproj"),
+            r#"<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF></PropertyGroup></Project>"#,
+        )
+        .expect("csproj");
+        fs::write(
+            root.join("Views").join("MainWindow.xaml"),
+            r#"
+                <Window x:Class="App.Views.MainWindow"
+                        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                        xmlns:vm="clr-namespace:App.ViewModels">
+                    <Window.DataContext>
+                        <vm:MainViewModel />
+                    </Window.DataContext>
+                    <TextBox Text="{Binding UserName}" />
+                    <Button Command="{Binding SaveCommand}" />
+                    <ResourceDictionary Source="Themes/Colors.xaml" />
+                </Window>
+            "#,
+        )
+        .expect("xaml");
+        fs::write(
+            root.join("Views").join("MainWindow.xaml.cs"),
+            "public partial class MainWindow : Window { public MainWindow() { DataContext = new MainViewModel(); } }",
+        )
+        .expect("code behind");
+        fs::write(
+            root.join("ViewModels").join("MainViewModel.cs"),
+            "using System.Windows.Input; public class MainViewModel { public ICommand SaveCommand { get; } }",
+        )
+        .expect("viewmodel");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let wpf_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/wpf?kind=window&binding=UserName&command=SaveCommand")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(wpf_response.status(), StatusCode::OK);
+        let wpf_body = response_json(wpf_response).await;
+        assert!(wpf_body["wpf"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["x_class"] == "App.Views.MainWindow"));
+
+        let preview_response = post_json(
+            app,
+            "/api/index/preview",
+            r#"{"scope":"framework:wpf","dry_run":true}"#,
+        )
+        .await;
+        assert_eq!(preview_response.status(), StatusCode::OK);
+        let preview_body = response_json(preview_response).await;
+        assert!(
+            preview_body["matched_files"]
+                .as_u64()
+                .expect("matched files")
+                >= 2
+        );
+        assert!(preview_body["matched_frameworks"]
+            .as_array()
+            .expect("frameworks")
+            .iter()
+            .any(|framework| framework == "wpf"));
+    }
+
+    #[tokio::test]
     async fn components_endpoint_returns_indexed_react_components_and_filters() {
         let response = component_app()
             .oneshot(
@@ -4815,6 +5067,31 @@ output "cluster_name" {
             body["infrastructure"][0]["source_kind"],
             "KubernetesDeployment"
         );
+    }
+
+    #[tokio::test]
+    async fn wpf_endpoint_returns_indexed_metadata_and_filters() {
+        let response = wpf_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/wpf?kind=window&binding=UserName&command=SaveCommand")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["wpf"].as_array().expect("wpf").len(), 1);
+        assert_eq!(body["wpf"][0]["technology"], "wpf");
+        assert_eq!(body["wpf"][0]["kind"], "Window");
+        assert_eq!(body["wpf"][0]["x_class"], "App.Views.MainWindow");
+        assert_eq!(body["wpf"][0]["code_behind"], "Views/MainWindow.xaml.cs");
+        assert_eq!(body["wpf"][0]["binding_paths"][0], "UserName");
+        assert_eq!(body["wpf"][0]["command_bindings"][0], "SaveCommand");
+        assert_eq!(body["wpf"][0]["resource_sources"][0], "Themes/Colors.xaml");
     }
 
     #[tokio::test]

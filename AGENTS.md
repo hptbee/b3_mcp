@@ -317,5 +317,23 @@ the default when no scope is provided.
 It must not broaden invalid scopes to the whole project, execute commands,
 expand shell globs, run package managers or app code, connect to databases,
 brokers, clusters, cloud APIs, or external services, add embeddings or semantic
-search, perform symbolic editing or rename/refactor, implement WPF/XAML, or do
-cross-project scoped indexing/architecture matching.
+search, perform symbolic editing or rename/refactor, or do cross-project scoped
+indexing/architecture matching.
+
+## .NET Desktop / WPF Boundaries
+
+Phase 9.2.12 .NET Desktop / WPF intelligence is completed as basic local static
+analysis only. It may inspect local `.csproj`, `.xaml`, and `.xaml.cs`/`.cs`
+files, detect modern SDK-style WPF and older .NET Framework WPF project hints,
+classify obvious XAML Application, Window, UserControl, Page,
+ResourceDictionary, and NavigationWindow roots, extract `x:Class`, code-behind
+path hints, static DataContext hints, ViewModel naming hints, Binding paths,
+Command bindings, StaticResource/DynamicResource references, and
+ResourceDictionary sources.
+
+It must not run Visual Studio, MSBuild, `dotnet`, WPF applications, XAML
+compilers, designers, package restore, app code, external APIs, telemetry, or
+internet access. It does not implement full WPF binding type checking, runtime
+DataContext inference, deep MVVM framework analysis, symbolic editing,
+rename/refactor, embeddings, semantic search, or cross-project architecture
+intelligence.

@@ -151,6 +151,7 @@ Diagnostics and config:
 - `GET /api/realtime`
 - `GET /api/messaging`
 - `GET /api/infrastructure`
+- `GET /api/wpf`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -197,6 +198,11 @@ Current truth:
   detection, packages, imports, functions, receiver methods, structs,
   interfaces, type declarations, const/var declarations, local call edges, and
   conservative HTTP route hints.
+- .NET Desktop / WPF intelligence is `Basic`, static, and local for modern and
+  older WPF project hints, XAML Application/Window/UserControl/Page/
+  ResourceDictionary metadata, `x:Class`, code-behind hints, binding paths,
+  command bindings, resource references, static DataContext hints, and
+  ViewModel naming hints.
 - Scoped indexing is available for path/file/glob/language/framework scopes
   and for existing metadata targets such as routes, components, data access,
   realtime, messaging, and infrastructure.
@@ -254,6 +260,13 @@ resource type, provider, image, service/container name, namespace,
 ports/env keys/labels/selectors where available, file, symbol, line range,
 confidence, and source kind.
 
+`GET /api/wpf` returns locally indexed static .NET Desktop / WPF metadata from
+symbols with `wpf.*` metadata. Optional filters include `project_id`,
+`branch_id`, `kind`, `binding`, `command`, and `limit`. Responses include
+technology, kind, name, `x_class`, code-behind path, ViewModel hint, binding
+paths, command bindings, resource keys, resource sources, DataContext hint,
+file, symbol, line range, confidence, and source kind.
+
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
 runtime routing. It does not infer deep middleware order, Nest module graphs,
@@ -270,6 +283,11 @@ schema introspection, or cross-project data lineage.
 For Angular it also does not run `ng`, the Angular compiler, package scripts,
 or app code and does not infer full template type semantics, lifecycle runtime,
 deep DI/module graph behavior, RxJS/NgRx flow, guards, or resolvers.
+
+WPF support is intentionally basic and static. It does not run Visual Studio,
+MSBuild, `dotnet`, a WPF app, a XAML compiler, or designer tooling. It does not
+perform full binding type checking, runtime DataContext inference, deep MVVM
+framework analysis, or cross-project view/model matching.
 
 Component support is intentionally basic and static. It does not execute
 `npm`, `node`, `tsc`, `eslint`, React dev servers, package registries, app code,

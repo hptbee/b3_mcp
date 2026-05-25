@@ -563,6 +563,30 @@ pub struct StoredInfrastructure {
     pub source_kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredWpf {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub technology: String,
+    pub kind: String,
+    pub name: Option<String>,
+    pub x_class: Option<String>,
+    pub code_behind: Option<String>,
+    pub view_model: Option<String>,
+    pub binding_paths: Vec<String>,
+    pub command_bindings: Vec<String>,
+    pub resource_keys: Vec<String>,
+    pub resource_sources: Vec<String>,
+    pub data_context: Option<String>,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1561,6 +1585,45 @@ impl SqliteStorage {
         }
         if let Some(name) = name {
             records.retain(|record| record.name.as_deref() == Some(name));
+        }
+        Ok(records)
+    }
+
+    pub fn wpf(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        kind: Option<&str>,
+        binding: Option<&str>,
+        command: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredWpf>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%wpf.technology=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(params![project_id, branch_id, limit as i64], wpf_from_row)
+            .map_err(to_contract_error)?;
+        let mut records = collect_rows(rows)?;
+        if let Some(kind) = kind {
+            records.retain(|record| record.kind.eq_ignore_ascii_case(kind));
+        }
+        if let Some(binding) = binding {
+            records.retain(|record| record.binding_paths.iter().any(|value| value == binding));
+        }
+        if let Some(command) = command {
+            records.retain(|record| record.command_bindings.iter().any(|value| value == command));
         }
         Ok(records)
     }
@@ -3090,6 +3153,57 @@ fn infrastructure_from_row(row: &Row<'_>) -> rusqlite::Result<StoredInfrastructu
     })
 }
 
+fn wpf_from_row(row: &Row<'_>) -> rusqlite::Result<StoredWpf> {
+    let id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let fallback_name: String = row.get(3)?;
+    let symbol_id: String = row.get(4)?;
+    let file_path: String = row.get(5)?;
+    let fallback_line_start: usize = row.get(6)?;
+    let fallback_line_end: usize = row.get(7)?;
+    let metadata: String = row.get(8)?;
+
+    Ok(StoredWpf {
+        id,
+        project_id,
+        branch_id,
+        technology: wpf_metadata_value(&metadata, "technology")
+            .unwrap_or_else(|| "wpf".to_string()),
+        kind: wpf_metadata_value(&metadata, "kind").unwrap_or_else(|| "Unknown".to_string()),
+        name: wpf_metadata_value(&metadata, "name").or(Some(fallback_name)),
+        x_class: wpf_metadata_value(&metadata, "x_class"),
+        code_behind: wpf_metadata_value(&metadata, "code_behind"),
+        view_model: wpf_metadata_value(&metadata, "view_model"),
+        binding_paths: wpf_metadata_value(&metadata, "binding_paths")
+            .map(|value| split_metadata_list(&value))
+            .unwrap_or_default(),
+        command_bindings: wpf_metadata_value(&metadata, "command_bindings")
+            .map(|value| split_metadata_list(&value))
+            .unwrap_or_default(),
+        resource_keys: wpf_metadata_value(&metadata, "resource_keys")
+            .map(|value| split_metadata_list(&value))
+            .unwrap_or_default(),
+        resource_sources: wpf_metadata_value(&metadata, "resource_sources")
+            .map(|value| split_metadata_list(&value))
+            .unwrap_or_default(),
+        data_context: wpf_metadata_value(&metadata, "data_context"),
+        file_path: wpf_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        line_start: wpf_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(fallback_line_start),
+        line_end: wpf_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(fallback_line_end),
+        confidence: wpf_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(7000),
+        source_kind: wpf_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "WpfMetadata".to_string()),
+    })
+}
+
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("route.{key}=");
     metadata.split(';').find_map(|part| {
@@ -3103,6 +3217,14 @@ fn infrastructure_metadata_value(metadata: &str, key: &str) -> Option<String> {
     metadata.split(';').find_map(|part| {
         part.strip_prefix(&full_key)
             .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
+    })
+}
+
+fn wpf_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("wpf.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.trim().to_string())
     })
 }
 
@@ -3881,6 +4003,76 @@ mod tests {
         assert!(storage
             .infrastructure("project", "main", None, None, None, 10)
             .expect("infrastructure after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn wpf_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("wpf-file"),
+                project_id: project_id.clone(),
+                path: "Views/MainWindow.xaml".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("xaml".to_string()),
+            size_bytes: 32,
+            content: "<Window />".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("wpf-symbol"),
+                file_id: FileId::new("wpf-file"),
+                name: "MainWindow".to_string(),
+                kind: NodeKind::Endpoint,
+                start_byte: 0,
+                end_byte: 10,
+                start_line: 1,
+                start_column: 0,
+                end_line: 12,
+                end_column: 0,
+                visibility: Some("wpf.technology=wpf;wpf.kind=Window;wpf.name=MainWindow;wpf.x_class=App.Views.MainWindow;wpf.code_behind=Views/MainWindow.xaml.cs;wpf.view_model=MainWindowViewModel;wpf.binding_paths=UserName,SelectedUser;wpf.command_bindings=SaveCommand;wpf.resource_keys=PrimaryBrush;wpf.resource_sources=Themes/Colors.xaml;wpf.data_context=MainViewModel;wpf.file=Views/MainWindow.xaml;wpf.source=XamlWindow;wpf.line_start=1;wpf.line_end=12;wpf.confidence=9000".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first wpf upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second wpf upsert");
+        let records = storage
+            .wpf(
+                "project",
+                "main",
+                Some("window"),
+                Some("UserName"),
+                Some("SaveCommand"),
+                10,
+            )
+            .expect("wpf");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].x_class.as_deref(), Some("App.Views.MainWindow"));
+        assert_eq!(
+            records[0].code_behind.as_deref(),
+            Some("Views/MainWindow.xaml.cs")
+        );
+        assert_eq!(records[0].binding_paths, vec!["UserName", "SelectedUser"]);
+        assert_eq!(records[0].command_bindings, vec!["SaveCommand"]);
+        assert_eq!(records[0].resource_keys, vec!["PrimaryBrush"]);
+        assert_eq!(records[0].resource_sources, vec!["Themes/Colors.xaml"]);
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .wpf("project", "main", None, None, None, 10)
+            .expect("wpf after cleanup")
             .is_empty());
     }
 
