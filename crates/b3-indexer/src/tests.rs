@@ -1,0 +1,1639 @@
+use super::*;
+use b3_core::{ConfigReloaded, EventBus};
+use std::{collections::HashMap, fs};
+
+#[derive(Default)]
+struct MemoryStore {
+    files: Mutex<HashMap<String, FileRecord>>,
+    symbols: Mutex<Vec<SymbolRecord>>,
+    failures: Mutex<Vec<ParseFailureRecord>>,
+}
+
+impl IndexStore for MemoryStore {
+    fn ensure_project_branch(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+        _root_path: &str,
+    ) -> ContractResult<()> {
+        Ok(())
+    }
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
+        Ok(self
+            .files
+            .lock()
+            .map_err(|_| ContractError::new("files lock poisoned"))?
+            .get(file_id.as_str())
+            .cloned())
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+        _live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        Ok(())
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()> {
+        self.files
+            .lock()
+            .map_err(|_| ContractError::new("files lock poisoned"))?
+            .insert(file.file.id.as_str().to_string(), file.file);
+        self.symbols
+            .lock()
+            .map_err(|_| ContractError::new("symbols lock poisoned"))?
+            .extend(file.symbols);
+        Ok(())
+    }
+
+    fn remove_file(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+        path: &str,
+    ) -> ContractResult<()> {
+        self.files
+            .lock()
+            .map_err(|_| ContractError::new("files lock poisoned"))?
+            .retain(|_, file| file.path != path);
+        Ok(())
+    }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        self.failures
+            .lock()
+            .map_err(|_| ContractError::new("failures lock poisoned"))?
+            .push(failure);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct MemoryBus {
+    events: Mutex<Vec<DomainEvent>>,
+}
+
+impl EventBus for MemoryBus {
+    fn publish(&self, event: DomainEvent) -> ContractResult<()> {
+        self.events
+            .lock()
+            .map_err(|_| ContractError::new("events lock poisoned"))?
+            .push(event);
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct FailingParser {
+    remaining_failures: Arc<AtomicUsize>,
+}
+
+impl FailingParser {
+    fn new(failures: usize) -> Self {
+        Self {
+            remaining_failures: Arc::new(AtomicUsize::new(failures)),
+        }
+    }
+}
+
+impl TreeSitterParser for FailingParser {
+    fn parse(&self, input: ParseInput) -> ContractResult<ParsedFile> {
+        if self.remaining_failures.load(Ordering::SeqCst) > 0 {
+            self.remaining_failures.fetch_sub(1, Ordering::SeqCst);
+            return Err(ContractError::new("synthetic parse failure"));
+        }
+        NoopTreeSitterParser.parse(input)
+    }
+}
+
+#[test]
+fn queue_is_bounded() {
+    let queue = LocalIndexJobQueue::new(1);
+    let job = IndexJob {
+        project_id: ProjectId::new("project"),
+        root_path: ".".to_string(),
+    };
+
+    assert!(queue.enqueue(job.clone()).is_ok());
+    assert!(queue.enqueue(job).is_err());
+    assert!(queue.pop().expect("pop").is_some());
+}
+
+#[test]
+fn cancellation_token_can_cancel() {
+    let token = CancellationToken::default();
+    assert!(!token.is_cancelled());
+    token.cancel();
+    assert!(token.is_cancelled());
+}
+
+#[test]
+fn worker_pool_is_bounded() {
+    let pool = BoundedWorkerPool::new(2);
+    let items = [1, 2, 3, 4, 5];
+    let batches = pool.batches(&items);
+
+    assert_eq!(pool.max_workers(), 2);
+    assert_eq!(batches.len(), 2);
+}
+
+#[test]
+fn local_indexer_skips_ignored_and_unchanged_files() {
+    let root = std::env::temp_dir().join(format!("b3-indexer-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join(".git")).expect("create ignored dir");
+    fs::write(root.join("lib.rs"), "fn main() {}\n").expect("write file");
+    fs::write(root.join(".git").join("HEAD"), "ignored").expect("write ignored file");
+
+    let indexer = LocalIndexer::new(
+        NoopTreeSitterParser,
+        MemoryStore::default(),
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            ..IndexerConfig::default()
+        },
+    );
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index");
+
+    assert_eq!(summary.files_seen, 1);
+    assert_eq!(summary.files_parsed, 1);
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("second index");
+
+    assert_eq!(summary.files_seen, 1);
+    assert_eq!(summary.files_parsed, 0);
+
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn tree_sitter_pipeline_uses_extractor_contracts() {
+    let parser = TreeSitterPipelineParser::new(NoopSymbolExtractor, NoopRelationshipExtractor);
+    let parsed = parser
+        .parse(ParseInput {
+            file_id: FileId::new("file"),
+            path: PathBuf::from("lib.rs"),
+            source: "fn main() {}".to_string(),
+        })
+        .expect("parse");
+
+    assert_eq!(parsed.language.as_deref(), Some("rs"));
+    assert!(parsed.symbols.is_empty());
+    assert!(parsed.relationships.is_empty());
+}
+
+#[test]
+fn rust_language_pack_extracts_basic_symbols_and_calls() {
+    let parsed = RustLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("file"),
+            path: PathBuf::from("lib.rs"),
+            source: r#"
+                    use std::fmt;
+
+                    pub struct Runner;
+
+                    impl Runner {
+                        pub fn run(&self) {
+                            helper();
+                        }
+                    }
+
+                    fn helper() {}
+
+                    #[test]
+                    fn helper_test() {}
+                "#
+            .to_string(),
+        })
+        .expect("parse rust");
+
+    assert_eq!(parsed.language.as_deref(), Some("rust"));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Runner" && symbol.kind == NodeKind::Struct));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "run" && symbol.kind == NodeKind::Method));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "helper_test" && symbol.kind == NodeKind::Test));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::Calls));
+    assert!(!parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::References));
+}
+
+#[test]
+fn rust_language_pack_reports_backend_metadata() {
+    let metadata = RustLanguagePack::backend_metadata();
+
+    assert_eq!(metadata.backend_id.0, "tree-sitter-rust");
+    assert_eq!(metadata.language_id.as_str(), "rust");
+    assert!(metadata.available);
+    assert!(metadata
+        .capabilities
+        .contains(&b3_core::LanguageBackendCapability::ExtractSymbols));
+}
+
+#[test]
+fn web_language_detection_maps_js_ts_jsx_tsx_and_csharp() {
+    assert_eq!(
+        language_from_path(Path::new("app.js")).as_deref(),
+        Some("javascript")
+    );
+    assert_eq!(
+        language_from_path(Path::new("app.mjs")).as_deref(),
+        Some("javascript")
+    );
+    assert_eq!(
+        language_from_path(Path::new("app.cjs")).as_deref(),
+        Some("javascript")
+    );
+    assert_eq!(
+        language_from_path(Path::new("app.ts")).as_deref(),
+        Some("typescript")
+    );
+    assert_eq!(
+        language_from_path(Path::new("app.jsx")).as_deref(),
+        Some("jsx")
+    );
+    assert_eq!(
+        language_from_path(Path::new("app.tsx")).as_deref(),
+        Some("tsx")
+    );
+    assert_eq!(
+        language_from_path(Path::new("Program.cs")).as_deref(),
+        Some("csharp")
+    );
+}
+
+#[test]
+fn web_language_pack_extracts_javascript_symbols_imports_and_commonjs_exports() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("file"),
+            path: PathBuf::from("src/app.js"),
+            source: r#"
+                    import helper from "./helper";
+                    const fs = require("fs");
+
+                    export function run() {}
+
+                    class Runner {
+                        start() {}
+                    }
+
+                    const Widget = () => null;
+                    module.exports = { run };
+                "#
+            .to_string(),
+        })
+        .expect("parse javascript");
+
+    assert_eq!(parsed.language.as_deref(), Some("javascript"));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "run" && symbol.kind == NodeKind::Function));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Runner" && symbol.kind == NodeKind::Class));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "start" && symbol.kind == NodeKind::Method));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Widget" && symbol.kind == NodeKind::Function));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "./helper" && symbol.kind == NodeKind::Package));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "fs" && symbol.kind == NodeKind::Package));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "module.exports" && symbol.kind == NodeKind::Variable));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::Imports));
+}
+
+#[test]
+fn detects_package_json_node_rest_technologies() {
+    let detected = detect_package_json_technologies(
+        r#"{
+                "dependencies": {
+                    "express": "^4.18.0",
+                    "@nestjs/common": "^10.0.0",
+                    "fastify": "^4.0.0",
+                    "next": "^14.0.0",
+                    "@angular/core": "^17.0.0",
+                    "@angular/router": "^17.0.0",
+                    "react": "^18.0.0",
+                    "react-dom": "^18.0.0"
+                },
+                "devDependencies": {
+                    "typescript": "^5.0.0",
+                    "@types/react": "^18.0.0"
+                }
+            }"#,
+    )
+    .expect("detect package technologies");
+    assert!(detected.iter().any(|tech| tech.id == "express"));
+    assert!(detected.iter().any(|tech| tech.id == "nestjs"));
+    assert!(detected.iter().any(|tech| tech.id == "fastify"));
+    assert!(detected
+        .iter()
+        .any(|tech| tech.id == "react" && tech.kind == TechnologyKind::WebFrontend));
+    let nextjs = detected
+        .iter()
+        .find(|tech| tech.id == "nextjs")
+        .expect("nextjs detected");
+    assert_eq!(nextjs.support_level, TechnologySupportLevel::Basic);
+    assert!(nextjs
+        .capabilities
+        .contains(&TechnologyCapability::ExtractRoutes));
+    let angular = detected
+        .iter()
+        .find(|tech| tech.id == "angular")
+        .expect("angular detected");
+    assert_eq!(angular.support_level, TechnologySupportLevel::Basic);
+    assert!(angular
+        .capabilities
+        .contains(&TechnologyCapability::ExtractRoutes));
+    assert!(angular
+        .capabilities
+        .contains(&TechnologyCapability::ExtractComponents));
+    assert!(detected
+        .iter()
+        .any(|tech| tech.id == "typescript" && tech.kind == TechnologyKind::Language));
+    assert!(detect_package_json_technologies("{not-json").is_err());
+    assert!(detect_nextjs_config_path(Path::new("next.config.js")).is_some());
+    assert!(detect_nextjs_config_path(Path::new("vite.config.ts")).is_none());
+    assert!(detect_angular_config_path(Path::new("angular.json")).is_some());
+    assert!(detect_angular_config_path(Path::new("tsconfig.app.json")).is_some());
+    assert!(detect_angular_config_path(Path::new("next.config.js")).is_none());
+}
+
+#[test]
+fn detects_angular_components_decorators_and_template_metadata() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("angular-component"),
+            path: PathBuf::from("src/app/user-card.component.ts"),
+            source: r#"
+                    import { Component, Directive, Pipe } from "@angular/core";
+
+                    @Component({
+                        selector: "app-user-card",
+                        templateUrl: "./user-card.component.html",
+                        styleUrls: ["./user-card.component.scss"],
+                        standalone: true,
+                        imports: [CommonModule, UserBadgeComponent],
+                        providers: [UserService]
+                    })
+                    export class UserCardComponent {}
+
+                    @Component({
+                        selector: "app-inline",
+                        template: `<span>Inline</span>`,
+                        styleUrl: "./inline.css"
+                    })
+                    export class InlineComponent {}
+
+                    @Directive({ selector: "[appHighlight]" })
+                    export class HighlightDirective {}
+
+                    @Pipe({ name: "initials", standalone: true })
+                    export class InitialsPipe {}
+                "#
+            .to_string(),
+        })
+        .expect("parse angular component");
+
+    let user_card = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "UserCardComponent")
+        .expect("component symbol");
+    let metadata = user_card.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        component_metadata_value(metadata, "framework").as_deref(),
+        Some("angular")
+    );
+    assert_eq!(
+        angular_metadata_value(metadata, "selector").as_deref(),
+        Some("app-user-card")
+    );
+    assert_eq!(
+        angular_metadata_value(metadata, "template_url").as_deref(),
+        Some("./user-card.component.html")
+    );
+    assert!(angular_metadata_value(metadata, "style_urls")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("./user-card.component.scss"));
+    assert_eq!(
+        angular_metadata_value(metadata, "standalone").as_deref(),
+        Some("true")
+    );
+    assert!(angular_metadata_value(metadata, "imports")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("UserBadgeComponent"));
+    assert!(angular_metadata_value(metadata, "providers")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("UserService"));
+
+    let inline = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "InlineComponent")
+        .expect("inline component");
+    let inline_metadata = inline.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        angular_metadata_value(inline_metadata, "inline_template_present").as_deref(),
+        Some("true")
+    );
+    assert!(angular_metadata_value(inline_metadata, "style_urls")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("./inline.css"));
+
+    let directive = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "HighlightDirective")
+        .expect("directive");
+    assert_eq!(
+        angular_metadata_value(directive.visibility.as_deref().unwrap_or_default(), "kind")
+            .as_deref(),
+        Some("directive")
+    );
+    let pipe = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "InitialsPipe")
+        .expect("pipe");
+    assert_eq!(
+        angular_metadata_value(pipe.visibility.as_deref().unwrap_or_default(), "pipe_name")
+            .as_deref(),
+        Some("initials")
+    );
+}
+
+#[test]
+fn detects_angular_services_modules_routes_and_di() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("angular-router"),
+            path: PathBuf::from("src/app/app-routing.module.ts"),
+            source: r#"
+                    import { Injectable, NgModule, Component } from "@angular/core";
+                    import { HttpClient } from "@angular/common/http";
+                    import { RouterModule, Routes } from "@angular/router";
+
+                    @Component({ selector: "app-home", template: "<p>Home</p>" })
+                    export class HomeComponent {}
+                    @Component({ selector: "app-user-detail", template: "<p>User</p>" })
+                    export class UserDetailComponent {}
+                    export class CacheService {}
+
+                    @Injectable({ providedIn: "root" })
+                    export class UserService {
+                        constructor(private http: HttpClient, readonly cache: CacheService) {}
+                    }
+
+                    const routes: Routes = [
+                        { path: "", component: HomeComponent },
+                        { path: "users/:id", component: UserDetailComponent },
+                        { path: "admin", loadChildren: () => import("./admin/admin.module").then(m => m.AdminModule) },
+                        { path: "profile", loadComponent: () => import("./profile/profile.component").then(m => m.ProfileComponent) },
+                        { path: "**", redirectTo: "" }
+                    ];
+
+                    @NgModule({
+                        declarations: [HomeComponent, UserDetailComponent],
+                        imports: [RouterModule.forRoot(routes)],
+                        providers: [UserService],
+                        exports: [RouterModule],
+                        bootstrap: [HomeComponent]
+                    })
+                    export class AppRoutingModule {}
+                "#
+            .to_string(),
+        })
+        .expect("parse angular router");
+
+    let service = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "UserService")
+        .expect("service symbol");
+    let service_metadata = service.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        angular_metadata_value(service_metadata, "kind").as_deref(),
+        Some("service")
+    );
+    assert_eq!(
+        angular_metadata_value(service_metadata, "provided_in").as_deref(),
+        Some("root")
+    );
+    assert!(angular_metadata_value(service_metadata, "dependencies")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("HttpClient"));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| { edge.from_symbol == service.id && edge.kind == EdgeKind::References }));
+
+    let module = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "AppRoutingModule")
+        .expect("module symbol");
+    let module_metadata = module.visibility.as_deref().unwrap_or_default();
+    assert!(angular_metadata_value(module_metadata, "declarations")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("HomeComponent"));
+    assert!(angular_metadata_value(module_metadata, "imports")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("RouterModule.forRoot"));
+    assert!(angular_metadata_value(module_metadata, "providers")
+        .as_deref()
+        .unwrap_or_default()
+        .contains("UserService"));
+
+    let routes = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            symbol.kind == NodeKind::Route
+                && route_metadata_value(
+                    symbol.visibility.as_deref().unwrap_or_default(),
+                    "framework",
+                )
+                .as_deref()
+                    == Some("angular")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(routes.len(), 5);
+    assert!(routes.iter().any(|route| {
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        route_metadata_value(metadata, "path").as_deref() == Some("/users/:id")
+            && route_metadata_value(metadata, "class").as_deref() == Some("UserDetailComponent")
+    }));
+    assert!(routes.iter().any(|route| {
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        route_metadata_value(metadata, "path").as_deref() == Some("/admin")
+            && route_metadata_value(metadata, "source").as_deref() == Some("AngularLazyRoute")
+    }));
+    assert!(routes.iter().any(|route| {
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        route_metadata_value(metadata, "path").as_deref() == Some("/profile")
+            && route_metadata_value(metadata, "source").as_deref()
+                == Some("AngularLoadComponentRoute")
+    }));
+    assert!(routes.iter().any(|route| {
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        route_metadata_value(metadata, "path").as_deref() == Some("/**")
+            && route_metadata_value(metadata, "source").as_deref() == Some("AngularRedirectRoute")
+    }));
+    assert!(parsed.relationships.iter().any(|edge| {
+        edge.kind == EdgeKind::References
+            && routes.iter().any(|route| edge.from_symbol == route.id)
+            && parsed
+                .symbols
+                .iter()
+                .any(|symbol| symbol.id == edge.to_symbol && symbol.name == "HomeComponent")
+    }));
+}
+
+#[test]
+fn does_not_misclassify_plain_typescript_as_angular() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("plain-ts"),
+            path: PathBuf::from("src/plain.ts"),
+            source: r#"
+                    class Component {}
+                    export class PlainService {
+                        constructor(private value: string) {}
+                    }
+                    const routes = [{ path: "x", component: Component }];
+                "#
+            .to_string(),
+        })
+        .expect("parse plain ts");
+
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        angular_metadata_value(
+            symbol.visibility.as_deref().unwrap_or_default(),
+            "framework",
+        )
+        .as_deref()
+            == Some("angular")
+    }));
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        symbol.kind == NodeKind::Route
+            && route_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "framework",
+            )
+            .as_deref()
+                == Some("angular")
+    }));
+}
+
+#[test]
+fn detects_express_routes_and_handler_edges() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("express"),
+            path: PathBuf::from("src/server.js"),
+            source: r#"
+                    const express = require("express");
+                    const app = express();
+                    const router = express.Router();
+
+                    function listUsers(req, res) {}
+                    function createUser(req, res) {}
+
+                    app.get("/users", listUsers);
+                    app.post("/users", createUser);
+                    router.route("/users/:id").get(listUsers).post(createUser);
+                    app.use("/users", router);
+                "#
+            .to_string(),
+        })
+        .expect("parse express");
+
+    let routes = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.kind == NodeKind::Route)
+        .collect::<Vec<_>>();
+    assert!(routes.iter().any(|route| route.name == "GET /users"));
+    assert!(routes.iter().any(|route| route.name == "POST /users"));
+    assert!(routes.iter().any(|route| route.name == "GET /users/:id"));
+    assert!(routes.iter().any(|route| route.name == "ALL /users"));
+    assert!(routes.iter().any(|route| route
+        .visibility
+        .as_deref()
+        .unwrap_or_default()
+        .contains("route.framework=express")));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::References));
+}
+
+#[test]
+fn detects_nestjs_controller_routes_with_composed_paths() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("nest"),
+            path: PathBuf::from("src/users.controller.ts"),
+            source: r#"
+                    import { Controller, Get, Post } from "@nestjs/common";
+
+                    @Controller("users")
+                    export class UsersController {
+                        @Get()
+                        findAll() {}
+
+                        @Get(":id")
+                        findOne() {}
+
+                        @Post()
+                        create() {}
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse nest");
+
+    let route_names = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.kind == NodeKind::Route)
+        .map(|symbol| symbol.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(route_names.contains(&"GET /users"));
+    assert!(route_names.contains(&"GET /users/:id"));
+    assert!(route_names.contains(&"POST /users"));
+    assert!(parsed.symbols.iter().any(|symbol| {
+        symbol.kind == NodeKind::Route
+            && symbol
+                .visibility
+                .as_deref()
+                .unwrap_or_default()
+                .contains("route.framework=nestjs")
+    }));
+}
+
+#[test]
+fn detects_fastify_shorthand_and_route_object() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("fastify"),
+            path: PathBuf::from("src/server.ts"),
+            source: r#"
+                    import fastify from "fastify";
+                    const app = fastify();
+                    function listUsers() {}
+                    app.get("/users", listUsers);
+                    fastify.route({
+                        method: "POST",
+                        url: "/users",
+                        handler: listUsers
+                    });
+                "#
+            .to_string(),
+        })
+        .expect("parse fastify");
+
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.kind == NodeKind::Route && symbol.name == "GET /users"));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.kind == NodeKind::Route && symbol.name == "POST /users"));
+}
+
+#[test]
+fn detects_nextjs_app_router_routes_dynamic_segments_and_groups() {
+    let cases = [
+        ("app/page.tsx", "GET /", "NextAppPage", "page"),
+        ("app/users/page.tsx", "GET /users", "NextAppPage", "page"),
+        (
+            "app/users/[id]/page.tsx",
+            "GET /users/:id",
+            "NextAppPage",
+            "page",
+        ),
+        (
+            "app/blog/[...slug]/page.tsx",
+            "GET /blog/*slug",
+            "NextAppPage",
+            "page",
+        ),
+        (
+            "app/docs/[[...slug]]/page.tsx",
+            "GET /docs/*slug?",
+            "NextAppPage",
+            "page",
+        ),
+        ("app/(marketing)/page.tsx", "GET /", "NextAppPage", "page"),
+        ("app/layout.tsx", "GET /", "NextAppLayout", "layout"),
+        ("app/loading.tsx", "GET /", "NextAppLoading", "loading"),
+        ("app/error.tsx", "GET /", "NextAppError", "error"),
+        ("app/not-found.tsx", "GET /", "NextAppNotFound", "not_found"),
+    ];
+    for (path, name, source_kind, route_kind) in cases {
+        let parsed = WebLanguagePack
+            .parse(ParseInput {
+                file_id: FileId::new(path),
+                path: PathBuf::from(path),
+                source: "export default function Page() { return <main />; }".to_string(),
+            })
+            .expect("parse next app route");
+        let route = parsed
+            .symbols
+            .iter()
+            .find(|symbol| symbol.kind == NodeKind::Route && symbol.name == name)
+            .unwrap_or_else(|| panic!("route {name} for {path}"));
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        assert_eq!(
+            route_metadata_value(metadata, "framework").as_deref(),
+            Some("nextjs")
+        );
+        assert_eq!(
+            route_metadata_value(metadata, "source").as_deref(),
+            Some(source_kind)
+        );
+        assert_eq!(
+            route_metadata_value(metadata, "kind").as_deref(),
+            Some(route_kind)
+        );
+    }
+}
+
+#[test]
+fn detects_nextjs_app_route_handler_methods_and_edges() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("next-route"),
+            path: PathBuf::from("app/api/users/[id]/route.ts"),
+            source: r#"
+                    export async function GET() {
+                        return Response.json([]);
+                    }
+
+                    export const PATCH = async () => Response.json({});
+                    export function DELETE() {}
+                "#
+            .to_string(),
+        })
+        .expect("parse next route handler");
+    for name in [
+        "GET /api/users/:id",
+        "PATCH /api/users/:id",
+        "DELETE /api/users/:id",
+    ] {
+        let route = parsed
+            .symbols
+            .iter()
+            .find(|symbol| symbol.kind == NodeKind::Route && symbol.name == name)
+            .unwrap_or_else(|| panic!("route {name}"));
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        assert_eq!(
+            route_metadata_value(metadata, "framework").as_deref(),
+            Some("nextjs")
+        );
+        assert_eq!(
+            route_metadata_value(metadata, "source").as_deref(),
+            Some("NextAppRouteHandler")
+        );
+        assert_eq!(
+            route_metadata_value(metadata, "kind").as_deref(),
+            Some("api")
+        );
+    }
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::References));
+}
+
+#[test]
+fn detects_nextjs_pages_router_pages_and_api_routes() {
+    let cases = [
+        ("pages/index.tsx", "GET /", "NextPagesPage", "page"),
+        (
+            "pages/users/index.tsx",
+            "GET /users",
+            "NextPagesPage",
+            "page",
+        ),
+        (
+            "pages/users/[id].tsx",
+            "GET /users/:id",
+            "NextPagesPage",
+            "page",
+        ),
+        (
+            "pages/blog/[...slug].tsx",
+            "GET /blog/*slug",
+            "NextPagesPage",
+            "page",
+        ),
+        (
+            "pages/api/users.ts",
+            "GET /api/users",
+            "NextPagesApiRoute",
+            "api",
+        ),
+        (
+            "pages/api/users/[id].ts",
+            "GET /api/users/:id",
+            "NextPagesApiRoute",
+            "api",
+        ),
+    ];
+    for (path, name, source_kind, route_kind) in cases {
+        let parsed = WebLanguagePack
+            .parse(ParseInput {
+                file_id: FileId::new(path),
+                path: PathBuf::from(path),
+                source: "export default function Page() { return <main />; }".to_string(),
+            })
+            .expect("parse next pages route");
+        let route = parsed
+            .symbols
+            .iter()
+            .find(|symbol| symbol.kind == NodeKind::Route && symbol.name == name)
+            .unwrap_or_else(|| panic!("route {name} for {path}"));
+        let metadata = route.visibility.as_deref().unwrap_or_default();
+        assert_eq!(
+            route_metadata_value(metadata, "source").as_deref(),
+            Some(source_kind)
+        );
+        assert_eq!(
+            route_metadata_value(metadata, "kind").as_deref(),
+            Some(route_kind)
+        );
+    }
+    let special = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("app"),
+            path: PathBuf::from("pages/_app.tsx"),
+            source: "export default function App() { return null; }".to_string(),
+        })
+        .expect("parse pages special");
+    assert!(!special
+        .symbols
+        .iter()
+        .any(|symbol| symbol.kind == NodeKind::Route));
+}
+
+#[test]
+fn detects_react_tsx_components_props_hooks_and_usages() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("react"),
+            path: PathBuf::from("src/ProductCard.tsx"),
+            source: r#"
+                    import React, { useEffect, useState, memo } from "react";
+
+                    interface ProductCardProps {
+                        name: string;
+                    }
+
+                    type BadgeProps = {
+                        label: string;
+                    };
+
+                    export function ProductCard(props: ProductCardProps) {
+                        const [open, setOpen] = useState(false);
+                        useEffect(() => {}, []);
+                        return <Badge label={props.name} />;
+                    }
+
+                    const Badge = ({ label }: BadgeProps) => <span>{label}</span>;
+                    export default memo(ProductCard);
+
+                    function helper() {
+                        return "not jsx";
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse react tsx");
+
+    let product = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "ProductCard")
+        .expect("ProductCard symbol");
+    let product_metadata = product.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        component_metadata_value(product_metadata, "framework").as_deref(),
+        Some("react")
+    );
+    assert_eq!(
+        component_metadata_value(product_metadata, "props").as_deref(),
+        Some("ProductCardProps")
+    );
+    assert!(component_metadata_value(product_metadata, "hooks")
+        .unwrap_or_default()
+        .contains("useState"));
+    assert!(component_metadata_value(product_metadata, "usages")
+        .unwrap_or_default()
+        .contains("Badge"));
+
+    let badge = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "Badge")
+        .expect("Badge symbol");
+    assert_eq!(
+        component_metadata_value(badge.visibility.as_deref().unwrap_or_default(), "props")
+            .as_deref(),
+        Some("BadgeProps")
+    );
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        symbol.name == "helper"
+            && component_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "framework",
+            )
+            .is_some()
+    }));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::References));
+}
+
+#[test]
+fn detects_react_jsx_components_and_class_components() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("jsx"),
+            path: PathBuf::from("src/App.jsx"),
+            source: r#"
+                    import * as React from "react";
+
+                    class ProductCard extends React.Component {
+                        render() {
+                            return <section />;
+                        }
+                    }
+
+                    export const App = () => <ProductCard />;
+                    const value = () => "plain";
+                "#
+            .to_string(),
+        })
+        .expect("parse react jsx");
+
+    let app = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "App")
+        .expect("App symbol");
+    assert_eq!(
+        component_metadata_value(app.visibility.as_deref().unwrap_or_default(), "framework")
+            .as_deref(),
+        Some("react")
+    );
+    let product = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "ProductCard")
+        .expect("ProductCard symbol");
+    assert_eq!(
+        component_metadata_value(product.visibility.as_deref().unwrap_or_default(), "kind")
+            .as_deref(),
+        Some("class")
+    );
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        symbol.name == "value"
+            && component_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "framework",
+            )
+            .is_some()
+    }));
+}
+
+#[test]
+fn detects_nextjs_use_client_and_server_component_classification() {
+    let client = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("client"),
+            path: PathBuf::from("app/users/UserPanel.tsx"),
+            source: r#"
+                    "use client";
+                    export function UserPanel() {
+                        return <section />;
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse client component");
+    let client_component = client
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "UserPanel")
+        .expect("client component");
+    let client_metadata = client_component.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        component_metadata_value(client_metadata, "framework").as_deref(),
+        Some("nextjs")
+    );
+    assert_eq!(
+        component_metadata_value(client_metadata, "kind").as_deref(),
+        Some("client_component")
+    );
+
+    let server = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("server"),
+            path: PathBuf::from("app/users/UserList.tsx"),
+            source: r#"
+                    export default function UserList() {
+                        return <section />;
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse server component");
+    let server_component = server
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "UserList")
+        .expect("server component");
+    assert_eq!(
+        component_metadata_value(
+            server_component.visibility.as_deref().unwrap_or_default(),
+            "kind"
+        )
+        .as_deref(),
+        Some("server_component")
+    );
+}
+
+#[test]
+fn web_language_pack_extracts_typescript_symbols_and_exports() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("file"),
+            path: PathBuf::from("src/app.ts"),
+            source: r#"
+                    import { helper } from "./helper";
+
+                    export interface User {
+                        id: string;
+                    }
+
+                    export type UserId = string;
+                    export enum Role { Admin }
+                    export const makeUser = (): User => ({ id: "1" });
+
+                    export class Service {
+                        load(): User { return makeUser(); }
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse typescript");
+
+    assert_eq!(parsed.language.as_deref(), Some("typescript"));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "User" && symbol.kind == NodeKind::Interface));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "UserId" && symbol.kind == NodeKind::Variable));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Role" && symbol.kind == NodeKind::Enum));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "makeUser" && symbol.kind == NodeKind::Function));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Service" && symbol.kind == NodeKind::Class));
+}
+
+#[test]
+fn web_language_pack_extracts_jsx_and_tsx_component_like_symbols() {
+    let jsx = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("jsx-file"),
+            path: PathBuf::from("src/App.jsx"),
+            source: r#"
+                    import React from "react";
+                    export default function App() {
+                        return <main>Hello</main>;
+                    }
+                "#
+            .to_string(),
+        })
+        .expect("parse jsx");
+    assert_eq!(jsx.language.as_deref(), Some("jsx"));
+    assert!(jsx
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "App" && symbol.kind == NodeKind::Function));
+
+    let tsx = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("tsx-file"),
+            path: PathBuf::from("src/Button.tsx"),
+            source: r#"
+                    import { Icon } from "./Icon";
+                    export const Button = () => <button><Icon /></button>;
+                "#
+            .to_string(),
+        })
+        .expect("parse tsx");
+    assert_eq!(tsx.language.as_deref(), Some("tsx"));
+    assert!(tsx
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Button" && symbol.kind == NodeKind::Function));
+}
+
+#[test]
+fn web_import_resolution_handles_relative_extensions_and_index_files() {
+    let root =
+        std::env::temp_dir().join(format!("b3-web-import-resolution-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("src").join("feature")).expect("create dirs");
+    fs::write(
+        root.join("src").join("helper.ts"),
+        "export const helper = 1;",
+    )
+    .expect("write helper");
+    fs::write(
+        root.join("src").join("feature").join("index.tsx"),
+        "export const Feature = () => null;",
+    )
+    .expect("write index");
+
+    let importer = root.join("src").join("app.tsx");
+    let helper_path = root.join("src").join("helper.ts");
+    let feature_path = root.join("src").join("feature").join("index.tsx");
+    assert_eq!(
+        resolve_web_import_path(&importer, "./helper").as_deref(),
+        Some(helper_path.as_path())
+    );
+    assert_eq!(
+        resolve_web_import_path(&importer, "./feature").as_deref(),
+        Some(feature_path.as_path())
+    );
+    assert!(resolve_web_import_path(&importer, "react").is_none());
+
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn default_language_pack_keeps_rust_and_fallback_behavior() {
+    let rust = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("rust"),
+            path: PathBuf::from("src/lib.rs"),
+            source: "fn run() {}".to_string(),
+        })
+        .expect("parse rust");
+    assert_eq!(rust.language.as_deref(), Some("rust"));
+    assert!(rust.symbols.iter().any(|symbol| symbol.name == "run"));
+
+    let unsupported = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("txt"),
+            path: PathBuf::from("README.txt"),
+            source: "hello".to_string(),
+        })
+        .expect("parse unsupported");
+    assert_eq!(unsupported.language.as_deref(), Some("txt"));
+    assert!(unsupported.symbols.is_empty());
+}
+
+#[test]
+fn local_indexer_indexes_small_js_and_tsx_project() {
+    let root = std::env::temp_dir().join(format!("b3-web-index-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("src")).expect("create src");
+    fs::write(
+        root.join("src").join("helper.js"),
+        "export function helper() { return 1; }",
+    )
+    .expect("write js");
+    fs::write(
+        root.join("src").join("App.tsx"),
+        r#"import { helper } from "./helper";
+               export const App = () => <main>{helper()}</main>;"#,
+    )
+    .expect("write tsx");
+
+    let store = MemoryStore::default();
+    let indexer = LocalIndexer::new(
+        DefaultLanguagePack,
+        store,
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            ..IndexerConfig::default()
+        },
+    );
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index web project");
+    assert_eq!(summary.files_seen, 2);
+    assert_eq!(summary.files_parsed, 2);
+    assert!(summary.symbols_indexed > 0);
+
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn web_language_pack_handles_invalid_syntax_without_panic() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("bad"),
+            path: PathBuf::from("src/bad.ts"),
+            source: "export function broken(".to_string(),
+        })
+        .expect("parse invalid syntax as partial tree");
+    assert_eq!(parsed.language.as_deref(), Some("typescript"));
+}
+
+#[test]
+fn event_bus_contract_accepts_domain_events() {
+    let bus = MemoryBus::default();
+    bus.publish(DomainEvent::ConfigReloaded(ConfigReloaded {
+        project_id: None,
+        source: "test".to_string(),
+    }))
+    .expect("publish");
+}
+
+#[test]
+fn debounce_coalesces_same_path() {
+    let mut debouncer = WatchDebouncer::new(Duration::from_millis(500), 10);
+    let path = PathBuf::from("src/lib.rs");
+    assert!(debouncer
+        .push(WatchEvent {
+            kind: WatchEventKind::Changed,
+            path: path.clone(),
+            new_path: None,
+        })
+        .is_none());
+    assert!(debouncer
+        .push(WatchEvent {
+            kind: WatchEventKind::Changed,
+            path,
+            new_path: None,
+        })
+        .is_none());
+    let batch = debouncer.flush().expect("batch");
+    assert_eq!(batch.events.len(), 1);
+}
+
+#[test]
+fn watch_config_defaults_are_disabled_and_bounded() {
+    let config = WatchConfig::default();
+    assert!(!config.enabled);
+    assert_eq!(config.debounce_ms, 500);
+    assert_eq!(config.max_batch_size, 100);
+}
+
+#[test]
+fn parser_isolation_config_defaults_are_bounded() {
+    let config = IndexerConfig::default();
+    assert_eq!(config.parser_isolation, ParserIsolation::InProcess);
+    assert_eq!(config.parser_timeout_ms, 10_000);
+    assert_eq!(config.parser_max_retries, 1);
+    assert!(config.parser_worker_path.is_none());
+}
+
+#[test]
+fn subprocess_worker_request_response_serializes() {
+    let request = ParserJobRequest {
+        project_id: "project".to_string(),
+        branch_id: "main".to_string(),
+        file_id: "file".to_string(),
+        path: "src/lib.rs".to_string(),
+        source: "fn run() {}".to_string(),
+    };
+    let json = serde_json::to_string(&request).expect("request json");
+    let output = parse_worker_json_line(&json);
+    let json = serde_json::to_string(&output).expect("response json");
+    assert!(json.contains("parsed"));
+    assert!(json.contains("run"));
+}
+
+#[test]
+fn parser_failure_is_recorded_and_events_are_emitted() {
+    let root = std::env::temp_dir().join(format!(
+        "b3-indexer-parser-failure-test-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("root");
+    fs::write(root.join("lib.rs"), "fn main() {}\n").expect("write");
+
+    let store = MemoryStore::default();
+    let bus = MemoryBus::default();
+    let indexer = LocalIndexer::new(
+        FailingParser::new(2),
+        store,
+        bus,
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            parser_max_retries: 1,
+            ..IndexerConfig::default()
+        },
+    );
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index");
+
+    assert_eq!(summary.files_seen, 1);
+    assert_eq!(summary.files_parsed, 0);
+    assert_eq!(
+        indexer
+            .store
+            .failures
+            .lock()
+            .expect("failures")
+            .first()
+            .expect("failure")
+            .retry_count,
+        0
+    );
+    let events = indexer.event_bus.events.lock().expect("events");
+    assert!(events
+        .iter()
+        .any(|event| matches!(event, DomainEvent::ParseFailed(_))));
+    assert!(events
+        .iter()
+        .any(|event| matches!(event, DomainEvent::ParseFailureRecorded(_))));
+
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn retry_policy_retries_only_worker_failures() {
+    assert!(ParserFailureKind::WorkerCrash.retryable());
+    assert!(ParserFailureKind::Timeout.retryable());
+    assert!(ParserFailureKind::WorkerIo.retryable());
+    assert!(!ParserFailureKind::ParseError.retryable());
+}
+
+#[test]
+fn parser_timeout_and_crash_failures_are_structured() {
+    let timeout = ParserFailure::timeout(10);
+    assert_eq!(timeout.kind, ParserFailureKind::Timeout);
+    assert!(timeout.message.contains("10ms"));
+
+    let crash = ParserFailure::worker_crash(Some(1), "boom".to_string());
+    assert_eq!(crash.kind, ParserFailureKind::WorkerCrash);
+    assert_eq!(crash.exit_code, Some(1));
+    assert_eq!(crash.stderr_excerpt.as_deref(), Some("boom"));
+}
+
+#[test]
+fn indexing_continues_after_one_parser_failure() {
+    let root = std::env::temp_dir().join(format!(
+        "b3-indexer-parser-continue-test-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("root");
+    fs::write(root.join("a.rs"), "fn a() {}\n").expect("write a");
+    fs::write(root.join("b.rs"), "fn b() {}\n").expect("write b");
+
+    let indexer = LocalIndexer::new(
+        FailingParser::new(1),
+        MemoryStore::default(),
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            parser_max_retries: 0,
+            ..IndexerConfig::default()
+        },
+    );
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index");
+
+    assert_eq!(summary.files_seen, 2);
+    assert_eq!(summary.files_parsed, 1);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn ignore_rules_skip_generated_and_local_data() {
+    let ignore = IgnoreRules::default();
+    assert!(ignore.should_skip(Path::new("target/debug/app")).is_some());
+    assert!(ignore
+        .should_skip(Path::new("node_modules/pkg/index.js"))
+        .is_some());
+    assert!(ignore.should_skip(Path::new(".b3/b3.db")).is_some());
+    assert!(ignore.should_skip(Path::new("src/lib.rs")).is_none());
+}
+
+#[test]
+fn event_classification_handles_create_modify_delete() {
+    let create = notify::Event::new(NotifyEventKind::Create(CreateKind::File))
+        .add_path(PathBuf::from("src/lib.rs"));
+    assert_eq!(
+        classify_notify_event(&create)[0].kind,
+        WatchEventKind::Created
+    );
+
+    let modify = notify::Event::new(NotifyEventKind::Modify(ModifyKind::Data(
+        notify::event::DataChange::Content,
+    )))
+    .add_path(PathBuf::from("src/lib.rs"));
+    assert_eq!(
+        classify_notify_event(&modify)[0].kind,
+        WatchEventKind::Changed
+    );
+
+    let delete = notify::Event::new(NotifyEventKind::Remove(RemoveKind::File))
+        .add_path(PathBuf::from("src/lib.rs"));
+    assert_eq!(
+        classify_notify_event(&delete)[0].kind,
+        WatchEventKind::Deleted
+    );
+}
+
+#[test]
+fn deleted_file_cleanup_path_removes_record() {
+    let root = std::env::temp_dir().join(format!("b3-indexer-delete-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("root");
+    let path = root.join("lib.rs");
+    fs::write(&path, "fn main() {}\n").expect("write");
+
+    let store = MemoryStore::default();
+    let indexer = LocalIndexer::new(
+        NoopTreeSitterParser,
+        store,
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            ..IndexerConfig::default()
+        },
+    );
+    let project_id = ProjectId::new("project");
+    indexer
+        .index_paths(&root, &project_id, std::slice::from_ref(&path))
+        .expect("index path");
+    fs::remove_file(&path).expect("delete");
+    let summary = indexer
+        .index_paths(&root, &project_id, std::slice::from_ref(&path))
+        .expect("cleanup");
+    assert_eq!(summary.files_parsed, 0);
+    fs::remove_dir_all(root).expect("cleanup dir");
+}
+
+#[test]
+fn unchanged_file_skip_works_for_changed_path_indexing() {
+    let root =
+        std::env::temp_dir().join(format!("b3-indexer-unchanged-test-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("root");
+    let path = root.join("lib.rs");
+    fs::write(&path, "fn main() {}\n").expect("write");
+
+    let indexer = LocalIndexer::new(
+        NoopTreeSitterParser,
+        MemoryStore::default(),
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            ..IndexerConfig::default()
+        },
+    );
+    let project_id = ProjectId::new("project");
+    assert_eq!(
+        indexer
+            .index_paths(&root, &project_id, std::slice::from_ref(&path))
+            .expect("first")
+            .files_parsed,
+        1
+    );
+    assert_eq!(
+        indexer
+            .index_paths(&root, &project_id, std::slice::from_ref(&path))
+            .expect("second")
+            .files_parsed,
+        0
+    );
+    fs::remove_dir_all(root).expect("cleanup");
+}

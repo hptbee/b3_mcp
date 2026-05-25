@@ -134,6 +134,12 @@ Current truth:
   NestJS, and Fastify.
 - React/TSX component intelligence is `Basic`, static, and local for common
   component declarations, props type names, JSX usages, and hooks.
+- Next.js intelligence is `Basic`, static, and local for App Router and Pages
+  Router file-system routes, app route handlers, exported HTTP methods, dynamic
+  segments, and `"use client"` / `"use server"` boundaries.
+- Angular intelligence is `Basic`, static, and local for common decorators,
+  components, services, modules, route configs, selectors, template/style
+  references, and constructor DI type names.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
@@ -141,22 +147,27 @@ LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend 
 
 `GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, and C# as detect-only until a parser or semantic backend is added.
 
-`GET /api/routes` returns locally indexed Node.js REST route metadata from
-`Route` symbols. Optional filters include `project_id`, `branch_id`,
-`framework`, `method`, `path`, and `limit`.
+`GET /api/routes` returns locally indexed Node.js REST, Next.js, and Angular route
+metadata from `Route` symbols. Optional filters include `project_id`,
+`branch_id`, `framework`, `method`, `path`, and `limit`. Next.js records use
+`framework=nextjs` and include a `route_kind` such as `page`, `layout`,
+`loading`, `error`, `not_found`, or `api`. Angular route config records use
+`framework=angular` and `route_kind=route`.
 
-`GET /api/components` returns locally indexed React component metadata from
+`GET /api/components` returns locally indexed React and Angular component metadata from
 component symbols. Optional filters include `project_id`, `branch_id`,
 `framework`, `name`, `file`, and `limit`.
-
-Next.js route intelligence is planned for Phase 9.2.3. Future Next.js page/API
-route metadata may reuse `GET /api/routes` where it fits the existing read-only
-route model, but no Next.js-specific route API is current.
 
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, framework CLIs, package registries, app code, or
 runtime routing. It does not infer deep middleware order, Nest module graphs,
 guards/interceptors/pipes, deep dependency injection, or request lifecycles.
+For Next.js it also does not run `next dev`, `next build`, package scripts, or
+deployment tooling and does not infer full RSC semantics, middleware execution
+order, Vercel behavior, auth behavior, or deep data fetching semantics.
+For Angular it also does not run `ng`, the Angular compiler, package scripts,
+or app code and does not infer full template type semantics, lifecycle runtime,
+deep DI/module graph behavior, RxJS/NgRx flow, guards, or resolvers.
 
 Component support is intentionally basic and static. It does not execute
 `npm`, `node`, `tsc`, `eslint`, React dev servers, package registries, app code,
@@ -177,6 +188,7 @@ curl -X POST http://127.0.0.1:7777/api/index/run
 curl -X POST http://127.0.0.1:7777/api/index/reindex
 curl http://127.0.0.1:7777/api/lsp/status
 curl http://127.0.0.1:7777/api/routes?framework=express
+curl http://127.0.0.1:7777/api/routes?framework=nextjs
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 

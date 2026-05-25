@@ -135,15 +135,57 @@ construction, CSS/layout intelligence, framework-specific router intelligence,
 and low-confidence component guesses. It does not execute `npm`, `node`, `tsc`,
 `eslint`, React dev servers, package registries, or app code.
 
-### Planned Next.js Route Extraction
+### Next.js Route Extraction
 
-Phase 9.2.3 plans static Next.js intelligence. The intended algorithm is
-file-system based: detect Next.js packages/config files, inspect `app/` and
-`pages/` route conventions, map safe page/layout/loading/error/not-found files,
-detect dynamic route segments, detect `app/api/**/route.ts` and `route.js`
-handlers, and classify `"use client"` boundaries without running Next.js.
+Phase 9.2.3 adds conservative static Next.js intelligence. The algorithm is
+file-system based:
 
-This is planned work, not current behavior.
+1. detect Next.js package metadata from local `package.json` dependency
+   sections and `next.config.js`, `next.config.mjs`, or `next.config.ts`
+   filenames
+2. inspect `app/` routes for `page`, `layout`, `loading`, `error`,
+   `not-found`, and `template` files
+3. inspect `pages/` routes while ignoring Pages Router special files such as
+   `_app`, `_document`, and `_error`
+4. normalize route groups out of URL paths and map `[id]`, `[...slug]`, and
+   `[[...slug]]` to safe route metadata
+5. detect `app/api/**/route.*` handlers and exported HTTP methods
+6. encode Next.js routes as existing `Route` symbols with `framework=nextjs`
+   and a route kind
+7. classify App Router components as basic static server/client components
+   from top-of-file `"use client"` and `"use server"` directives
+
+The extractor intentionally avoids running `next dev`, `next build`, `node`,
+`npm`, `tsc`, `eslint`, package scripts, package registries, deployment
+tooling, or app code. It does not implement full React Server Components
+semantics, middleware execution order, Vercel/deployment intelligence,
+auth-specific intelligence, or deep data fetching semantics.
+
+### Angular Static Extraction
+
+Phase 9.2.4 adds conservative static Angular intelligence on top of TypeScript
+indexing:
+
+1. detect Angular package metadata from local `package.json` dependency
+   sections and `angular.json` / `tsconfig.app.json` filenames
+2. inspect TypeScript class decorators for `@Component`, `@Injectable`,
+   `@NgModule`, `@Directive`, and `@Pipe`
+3. extract only safe literal object metadata such as selectors, template/style
+   references, `providedIn`, standalone flags, imports, providers,
+   declarations, exports, and bootstrap names
+4. detect constructor dependency type names without resolving the Angular DI
+   container
+5. inspect Angular route config object literals for path, component,
+   loadChildren, loadComponent, redirectTo, and children presence
+6. encode Angular routes as existing `Route` symbols with `framework=angular`
+   and Angular components as existing component metadata with
+   `framework=angular`
+
+The extractor intentionally avoids running `ng`, the Angular compiler, `node`,
+`npm`, `tsc`, `eslint`, package scripts, package registries, or app code. It
+does not implement template type checking, full template parsing, runtime
+lifecycle semantics, deep DI/module graph resolution, RxJS/NgRx flow, or
+Angular Material intelligence.
 
 ### Relationship Extraction
 
@@ -358,7 +400,8 @@ Added requirements:
 
 - Phase 9.2.3: Next.js Intelligence, including static file-system route and
   route-handler extraction on top of React / TSX support
-- Phase 9.2.4: Angular Intelligence
+- Phase 9.2.4: Angular Intelligence, including static decorator, component,
+  service, module, and route config extraction
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence

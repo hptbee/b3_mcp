@@ -17,7 +17,10 @@ Current roadmap status:
 - Completed: Phase 9.2 - Web Application Priority Support A
 - Completed: Phase 9.2.1 - Node.js / REST API Intelligence
 - Completed: Phase 9.2.2 - React / TSX Component Intelligence
-- Next: Phase 9.2.3 - Next.js Intelligence
+- Completed: Phase 9.2.3 - Next.js Intelligence
+- Completed: Phase 9.2.3.1 - Indexer Module Split / Refactor Checkpoint B
+- Completed: Phase 9.2.4 - Angular Intelligence
+- Next: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 
 ---
 
@@ -1083,6 +1086,8 @@ Understand basic React component structure.
 
 ## Phase 9.2.3 â€” Next.js Intelligence
 
+Status: Completed with basic static/local Next.js intelligence.
+
 ### Purpose
 
 Add basic static intelligence for Next.js applications on top of React / TSX
@@ -1102,6 +1107,8 @@ support.
 - detect `"use client"` boundaries
 - basic static server/client component classification
 - preserve React component intelligence from Phase 9.2.2
+- expose Next.js route metadata through existing read-only `GET /api/routes`
+  using `framework=nextjs`
 
 ### Out of Scope
 
@@ -1114,10 +1121,27 @@ support.
 - NextAuth/auth intelligence
 - deep data fetching semantics
 - symbolic editing
+- Angular, ASP.NET Core/C#, ORM/database, realtime, messaging,
+  cloud/infrastructure, Go, embeddings, semantic search, and cross-project
+  architecture intelligence
+
+---
+
+## Phase 9.2.3.1 - Indexer Module Split / Refactor Checkpoint B
+
+Status: Completed as a behavior-preserving refactor checkpoint.
+
+The indexer keeps orchestration and shared contracts in `crates/b3-indexer/src/lib.rs`.
+Web-language extraction moved under `crates/b3-indexer/src/web/`, and the
+large inline indexer test module moved to `crates/b3-indexer/src/tests.rs`.
+No runtime behavior, storage schema, control API response, MCP tool/profile, or
+dependency changes are part of this checkpoint.
 
 ---
 
 ## Phase 9.2.4 â€” Angular Intelligence
+
+Status: Completed with basic static/local Angular intelligence.
 
 ### Purpose
 
@@ -1133,12 +1157,27 @@ Understand Angular application structure.
 - templates where safe
 - dependency injection basics
 
+### Implemented
+
+- local package/config detection for common Angular packages and `angular.json`
+- static decorator extraction for `@Component`, `@Injectable`, `@NgModule`,
+  `@Directive`, and `@Pipe`
+- component selector, template URL, style URL, standalone, imports, and
+  provider metadata where represented as literals
+- service `providedIn` and basic constructor dependency type names
+- module declarations/imports/providers/exports/bootstrap names
+- route config metadata from safe object literals, exposed through existing
+  `Route` symbols with `framework=angular`
+- Angular component metadata exposed through existing component metadata with
+  `framework=angular`
+
 ### Out of Scope
 
 - full template type checking
 - Angular compiler integration
 - runtime behavior
 - advanced RxJS flow inference
+- deep DI/module graph resolution
 
 ---
 
@@ -1730,8 +1769,8 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | C# Web API / backend services | Phase 9.2.5 |
 | Basic JavaScript / TypeScript / JSX / TSX indexing | Usable now |
 | Basic React / TSX component intelligence | Usable now, basic/static |
-| Next.js intelligence | Phase 9.2.3 |
-| Angular deep graph intelligence | Phase 9.2.4 |
+| Next.js intelligence | Usable now, basic/static |
+| Angular intelligence | Usable now, basic/static |
 | Node.js REST API | Usable now, basic/static |
 | Kafka / ksqlDB | Phase 9.2.8 |
 | RabbitMQ | Phase 9.2.8 |
@@ -1747,8 +1786,8 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | C# Web API / ASP.NET Core | Phase 9.2.5 |
 | Node.js REST API / Express / NestJS / Fastify | Usable now, basic/static |
 | React / TSX component intelligence | Usable now, basic/static |
-| Next.js intelligence | Phase 9.2.3 |
-| Angular intelligence | Phase 9.2.4 |
+| Next.js intelligence | Usable now, basic/static |
+| Angular intelligence | Usable now, basic/static |
 | ORM / database access intelligence | Phase 9.2.6 |
 | WebSocket / Socket.IO / SignalR / RSocket | Phase 9.2.7 |
 | AMQP / RabbitMQ / Kafka / Google Pub/Sub | Phase 9.2.8 |
@@ -1760,7 +1799,7 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | Architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, and basic static React/TSX component intelligence. Broader real-world app-stack intelligence depends on Phase 9.2.3 and later.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, and basic static Angular decorator/route/component metadata. Broader real-world app-stack intelligence depends on Phase 9.2.5 and later.
 
 ---
 

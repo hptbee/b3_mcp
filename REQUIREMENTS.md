@@ -333,8 +333,7 @@ Must defer:
 - Nest guards/interceptors/pipes/modules/deep dependency injection
 - request lifecycle inference
 - advanced React component graph/runtime intelligence
-- Next.js intelligence
-- Angular intelligence
+- deep Angular compiler/template/DI/module graph intelligence
 - ASP.NET Core/C# intelligence
 - realtime, messaging, cloud, infrastructure, Go, symbolic editing, embeddings, semantic search, and cross-project intelligence
 
@@ -364,8 +363,8 @@ Must not require:
 - cloud parsers or external APIs
 
 Must defer:
-- Angular, Vue, and Svelte intelligence
-- Next.js routing intelligence
+- deep Angular compiler/template/DI/module graph intelligence
+- Vue and Svelte intelligence
 - React runtime rendering behavior
 - state machine inference
 - deep hook semantics and dependency-array analysis
@@ -375,7 +374,7 @@ Must defer:
 
 ## Next.js Intelligence
 
-Phase 9.2.3 plans basic static Next.js intelligence on top of the completed
+Phase 9.2.3 adds basic static Next.js intelligence on top of the completed
 React / TSX component support.
 
 Must support:
@@ -391,12 +390,16 @@ Must support:
 - `"use client"` boundary detection
 - basic static server/client component classification
 - preservation of React component intelligence from Phase 9.2.2
+- read-only route listing through `GET /api/routes` using `framework=nextjs`
 
 Must not require:
 - `next dev`
 - `next build`
+- `tsc`
+- `eslint`
 - `npm install`
 - `node`
+- package-manager scripts
 - package registry access
 - cloud parsers or external APIs
 
@@ -407,7 +410,50 @@ Must defer:
 - Vercel/deployment intelligence
 - NextAuth/auth intelligence
 - deep data fetching semantics
-- symbolic editing
+- deep Angular compiler/template/DI/module graph behavior, ASP.NET Core/C#, ORM/database, realtime, messaging,
+  cloud/infrastructure, Go, symbolic editing, rename/refactor, embeddings,
+  semantic search, and cross-project intelligence
+
+## Angular Intelligence
+
+Phase 9.2.4 adds basic static Angular intelligence on top of TypeScript support.
+
+Must support:
+- Angular package detection from `package.json`
+- detection of `angular.json` and `tsconfig.app.json`
+- static decorator detection for `@Component`, `@Injectable`, `@NgModule`,
+  `@Directive`, and `@Pipe`
+- component selector, template URL, style URL, standalone, imports, and
+  provider metadata where represented as safe literals
+- service `providedIn` metadata and constructor dependency type names
+- module declarations/imports/providers/exports/bootstrap names
+- basic Angular route config extraction from static object literals
+- read-only route listing through `GET /api/routes` using `framework=angular`
+- Angular component listing through `GET /api/components` using
+  `framework=angular`
+
+Must not require:
+- `ng serve`
+- `ng build`
+- Angular compiler
+- `tsc`
+- `eslint`
+- `npm install`
+- `node`
+- package-manager scripts
+- package registry access
+- cloud parsers or external APIs
+
+Must defer:
+- runtime template checking
+- full template type checking
+- lifecycle execution semantics
+- full DI container/module graph resolution
+- RxJS/NgRx deep flow analysis
+- Angular Material intelligence
+- ASP.NET Core/C#, ORM/database, realtime, messaging, cloud/infrastructure, Go,
+  symbolic editing, rename/refactor, embeddings, semantic search, and
+  cross-project intelligence
 
 ## Graph Requirements
 
@@ -558,11 +604,11 @@ Avoid:
 - Phase 9.2: Web Application Priority Support A
 - Phase 9.2.1: Node.js / REST API Intelligence
 - Phase 9.2.2: React / TSX Component Intelligence
+- Phase 9.2.3: Next.js Intelligence
+- Phase 9.2.4: Angular Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.3: Next.js Intelligence
-- Phase 9.2.4: Angular Intelligence
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence

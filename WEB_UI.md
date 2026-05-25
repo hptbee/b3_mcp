@@ -73,6 +73,14 @@ safe incremental reindexing in this phase and skips unchanged files.
 Node.js REST route metadata is available through the local control API, but the
 current Web UI does not include a dedicated route browser yet.
 
+Next.js route metadata is available through the same local route API with
+`framework=nextjs`, but the current Web UI does not include dedicated Next.js
+route/page views yet.
+
+Angular route and component metadata is available through the same local route
+and component APIs with `framework=angular`, but the current Web UI does not
+include dedicated Angular views yet.
+
 React/TSX component metadata is available through the local control API, but
 the current Web UI does not include a dedicated component browser yet.
 
@@ -89,8 +97,9 @@ The control server now exposes language backend metadata at `/api/languages`,
 but the Web UI does not render a dedicated language support table yet. This is
 deferred to a later UI pass. Current capability truth is Rust implemented,
 JavaScript/TypeScript/JSX/TSX basic indexing, Node REST basic static route
-metadata, React/TSX basic static component metadata, C# detect-only, and LSP
-disabled by default.
+metadata, React/TSX basic static component metadata, Next.js basic static route
+and boundary metadata, Angular basic static decorator/route/component metadata,
+C# detect-only, and LSP disabled by default.
 
 ## Logs / Events
 
@@ -226,8 +235,11 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
   currently available through `GET /api/routes`.
 - A dedicated React component browser is deferred; component metadata is
   currently available through `GET /api/components`.
-- Dedicated Next.js route/page views are deferred; Next.js intelligence is
-  planned for Phase 9.2.3 and is not current UI behavior.
+- Dedicated Next.js route/page views are deferred; Next.js metadata is currently
+  available through `GET /api/routes?framework=nextjs`.
+- Dedicated Angular views are deferred; Angular route/component metadata is
+  currently available through `GET /api/routes?framework=angular` and
+  `GET /api/components?framework=angular`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after

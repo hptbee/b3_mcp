@@ -1013,6 +1013,21 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                     "hooks": true
                 }
             },
+            "nextjs": {
+                "available": true,
+                "support": "basic",
+                "framework": "nextjs",
+                "runtime_execution_required": false,
+                "features": {
+                    "package_detection": true,
+                    "config_detection": true,
+                    "app_router_routes": true,
+                    "pages_router_routes": true,
+                    "route_handlers": true,
+                    "http_method_exports": true,
+                    "use_client_boundaries": true
+                }
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -1059,7 +1074,7 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "support": "basic",
                 "backend": "tree-sitter-typescript",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships"],
-                "notes": "Basic TypeScript symbols, imports, and Node REST routes are indexed locally; React graph and Angular intelligence are deferred."
+                "notes": "Basic TypeScript symbols, imports, Node REST routes, React components, and Next.js static routes are indexed locally; Angular intelligence is deferred."
             },
             {
                 "language_id": "javascript",
@@ -1068,7 +1083,7 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "support": "basic",
                 "backend": "tree-sitter-javascript",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships"],
-                "notes": "Basic JavaScript symbols, imports, and Node REST routes are indexed locally."
+                "notes": "Basic JavaScript symbols, imports, Node REST routes, and Next.js static routes are indexed locally."
             },
             {
                 "language_id": "jsx",
@@ -1077,7 +1092,7 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "support": "basic",
                 "backend": "tree-sitter-javascript",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports"],
-                "notes": "Basic JSX component-like function/class symbols are indexed; deep React graph intelligence is deferred."
+                "notes": "Basic JSX component-like function/class symbols are indexed; React runtime graph intelligence is deferred."
             },
             {
                 "language_id": "tsx",
@@ -1086,7 +1101,7 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "support": "basic",
                 "backend": "tree-sitter-typescript",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports"],
-                "notes": "Basic TSX component-like function/class symbols are indexed; deep React graph intelligence is deferred."
+                "notes": "Basic TSX component-like function/class symbols and Next.js static routes are indexed; full RSC semantics are deferred."
             },
             {
                 "language_id": "csharp",
@@ -1957,6 +1972,7 @@ struct ComponentDto {
 struct RouteDto {
     id: String,
     framework: String,
+    route_kind: String,
     method: String,
     path: String,
     file_path: String,
@@ -1996,6 +2012,7 @@ impl From<StoredRoute> for RouteDto {
         Self {
             id: value.id,
             framework: value.framework,
+            route_kind: value.route_kind,
             method: value.method,
             path: value.path,
             file_path: value.file_path,
@@ -2620,21 +2637,53 @@ mod tests {
                     language: Some("typescript".to_string()),
                     size_bytes: 32,
                     content: "app.get('/users', listUsers);".to_string(),
-                    symbols: vec![SymbolRecord {
-                        id: SymbolId::new("route-symbol"),
-                        file_id: FileId::new("route-file"),
-                        name: "GET /users".to_string(),
-                        kind: NodeKind::Route,
-                        start_byte: 0,
-                        end_byte: 28,
-                        start_line: 1,
-                        start_column: 0,
-                        end_line: 1,
-                        end_column: 28,
-                        visibility: Some(
-                            "route.framework=express;route.method=GET;route.path=/users;route.file=src/server.ts;route.handler=listUsers;route.function=listUsers;route.source=ExpressCall;route.line_start=1;route.line_end=1;route.confidence=9500".to_string(),
-                        ),
-                    }],
+                    symbols: vec![
+                        SymbolRecord {
+                            id: SymbolId::new("route-symbol"),
+                            file_id: FileId::new("route-file"),
+                            name: "GET /users".to_string(),
+                            kind: NodeKind::Route,
+                            start_byte: 0,
+                            end_byte: 28,
+                            start_line: 1,
+                            start_column: 0,
+                            end_line: 1,
+                            end_column: 28,
+                            visibility: Some(
+                                "route.framework=express;route.kind=api;route.method=GET;route.path=/users;route.file=src/server.ts;route.handler=listUsers;route.function=listUsers;route.source=ExpressCall;route.line_start=1;route.line_end=1;route.confidence=9500".to_string(),
+                            ),
+                        },
+                        SymbolRecord {
+                            id: SymbolId::new("next-route-symbol"),
+                            file_id: FileId::new("route-file"),
+                            name: "GET /dashboard".to_string(),
+                            kind: NodeKind::Route,
+                            start_byte: 29,
+                            end_byte: 58,
+                            start_line: 2,
+                            start_column: 0,
+                            end_line: 2,
+                            end_column: 29,
+                            visibility: Some(
+                                "route.framework=nextjs;route.kind=page;route.method=GET;route.path=/dashboard;route.file=app/dashboard/page.tsx;route.source=NextAppPage;route.line_start=1;route.line_end=1;route.confidence=9000".to_string(),
+                            ),
+                        },
+                        SymbolRecord {
+                            id: SymbolId::new("angular-route-symbol"),
+                            file_id: FileId::new("route-file"),
+                            name: "GET /users/:id".to_string(),
+                            kind: NodeKind::Route,
+                            start_byte: 59,
+                            end_byte: 90,
+                            start_line: 3,
+                            start_column: 0,
+                            end_line: 3,
+                            end_column: 31,
+                            visibility: Some(
+                                "route.framework=angular;route.kind=route;route.method=GET;route.path=/users/:id;route.file=src/app/app-routing.module.ts;route.handler=UserDetailComponent;route.class=UserDetailComponent;route.source=AngularRoute;route.line_start=1;route.line_end=1;route.confidence=8000".to_string(),
+                            ),
+                        },
+                    ],
                     edges: Vec::new(),
                 },
             )
@@ -2667,19 +2716,34 @@ mod tests {
                     language: Some("tsx".to_string()),
                     size_bytes: 32,
                     content: "export function ProductCard() { return <div />; }".to_string(),
-                    symbols: vec![SymbolRecord {
-                        id: SymbolId::new("component-symbol"),
-                        file_id: FileId::new("component-file"),
-                        name: "ProductCard".to_string(),
-                        kind: NodeKind::Function,
-                        start_byte: 0,
-                        end_byte: 48,
-                        start_line: 1,
-                        start_column: 0,
-                        end_line: 1,
-                        end_column: 48,
-                        visibility: Some("export;component.framework=react;component.export=named;component.kind=function;component.props=ProductCardProps;component.source=FunctionDeclaration;component.hooks=useState;component.usages=Badge;component.line_start=1;component.line_end=1;component.confidence=9500".to_string()),
-                    }],
+                    symbols: vec![
+                        SymbolRecord {
+                            id: SymbolId::new("component-symbol"),
+                            file_id: FileId::new("component-file"),
+                            name: "ProductCard".to_string(),
+                            kind: NodeKind::Function,
+                            start_byte: 0,
+                            end_byte: 48,
+                            start_line: 1,
+                            start_column: 0,
+                            end_line: 1,
+                            end_column: 48,
+                            visibility: Some("export;component.framework=react;component.export=named;component.kind=function;component.props=ProductCardProps;component.source=FunctionDeclaration;component.hooks=useState;component.usages=Badge;component.line_start=1;component.line_end=1;component.confidence=9500".to_string()),
+                        },
+                        SymbolRecord {
+                            id: SymbolId::new("angular-component-symbol"),
+                            file_id: FileId::new("component-file"),
+                            name: "UserCardComponent".to_string(),
+                            kind: NodeKind::Class,
+                            start_byte: 49,
+                            end_byte: 90,
+                            start_line: 2,
+                            start_column: 0,
+                            end_line: 2,
+                            end_column: 41,
+                            visibility: Some("export;component.framework=angular;component.export=named;component.kind=component;component.source=AngularComponent;component.hooks=;component.usages=;component.line_start=2;component.line_end=2;component.confidence=9000;angular.framework=angular;angular.kind=component;angular.source=AngularComponent;angular.class=UserCardComponent;angular.selector=app-user-card;angular.template_url=./user-card.component.html;angular.style_urls=./user-card.component.scss;angular.inline_template_present=false;angular.standalone=true;angular.imports=CommonModule;angular.providers=UserService;angular.dependencies=;angular.declarations=;angular.exports=;angular.bootstrap=;angular.line_start=2;angular.line_end=2;angular.confidence=9000".to_string()),
+                        },
+                    ],
                     edges: Vec::new(),
                 },
             )
@@ -3083,6 +3147,10 @@ mod tests {
         assert_eq!(body["languages"][0]["language_id"], "rust");
         assert_eq!(body["languages"][1]["language_id"], "typescript");
         assert_eq!(body["languages"][1]["support"], "basic");
+        assert!(body["languages"][1]["notes"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Next.js static routes"));
         assert_eq!(body["languages"][3]["language_id"], "jsx");
         assert_eq!(body["languages"][5]["support"], "basic_detect_only");
     }
@@ -3124,8 +3192,50 @@ mod tests {
         assert_eq!(body["status"], "ok");
         assert_eq!(body["routes"].as_array().expect("routes").len(), 1);
         assert_eq!(body["routes"][0]["framework"], "express");
+        assert_eq!(body["routes"][0]["route_kind"], "api");
         assert_eq!(body["routes"][0]["method"], "GET");
         assert_eq!(body["routes"][0]["path"], "/users");
+    }
+
+    #[tokio::test]
+    async fn routes_endpoint_includes_nextjs_routes_and_filters() {
+        let response = route_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=nextjs")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["routes"].as_array().expect("routes").len(), 1);
+        assert_eq!(body["routes"][0]["framework"], "nextjs");
+        assert_eq!(body["routes"][0]["route_kind"], "page");
+        assert_eq!(body["routes"][0]["path"], "/dashboard");
+    }
+
+    #[tokio::test]
+    async fn routes_endpoint_includes_angular_routes_and_filters() {
+        let response = route_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=angular")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["routes"].as_array().expect("routes").len(), 1);
+        assert_eq!(body["routes"][0]["framework"], "angular");
+        assert_eq!(body["routes"][0]["route_kind"], "route");
+        assert_eq!(body["routes"][0]["path"], "/users/:id");
+        assert_eq!(body["routes"][0]["handler_name"], "UserDetailComponent");
     }
 
     #[tokio::test]
@@ -3149,6 +3259,26 @@ mod tests {
         assert_eq!(body["components"][0]["props_type_name"], "ProductCardProps");
         assert_eq!(body["components"][0]["hooks"][0], "useState");
         assert_eq!(body["components"][0]["usages"][0], "Badge");
+    }
+
+    #[tokio::test]
+    async fn components_endpoint_includes_angular_components_and_filters() {
+        let response = component_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/components?framework=angular&name=UserCardComponent")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["components"].as_array().expect("components").len(), 1);
+        assert_eq!(body["components"][0]["name"], "UserCardComponent");
+        assert_eq!(body["components"][0]["framework"], "angular");
+        assert_eq!(body["components"][0]["component_kind"], "component");
     }
 
     #[tokio::test]

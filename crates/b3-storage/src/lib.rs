@@ -435,6 +435,7 @@ pub struct StoredRoute {
     pub method: String,
     pub path: String,
     pub framework: String,
+    pub route_kind: String,
     pub file_path: String,
     pub symbol_id: String,
     pub handler_name: Option<String>,
@@ -2573,6 +2574,7 @@ fn route_from_row(row: &Row<'_>) -> rusqlite::Result<StoredRoute> {
         path: route_metadata_value(&metadata, "path").unwrap_or(fallback_path),
         framework: route_metadata_value(&metadata, "framework")
             .unwrap_or_else(|| "unknown".to_string()),
+        route_kind: route_metadata_value(&metadata, "kind").unwrap_or_else(|| "api".to_string()),
         file_path: route_metadata_value(&metadata, "file").unwrap_or(file_path),
         symbol_id,
         handler_name: route_metadata_value(&metadata, "handler"),

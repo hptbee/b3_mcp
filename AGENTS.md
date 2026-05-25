@@ -198,15 +198,29 @@ Do not add React graph intelligence, Angular intelligence, ASP.NET Core/C# intel
 
 Phase 9.2.2 React / TSX component intelligence is completed as basic local static analysis only. It may detect common React components, props type names, JSX component usages, and hook names, but it must not execute `node`, `npm`, `tsc`, `eslint`, React dev servers, app code, package-manager scripts, package registries, or cloud parsers.
 
-Do not add Angular intelligence, Vue/Svelte intelligence, Next.js routing intelligence, ASP.NET Core/C# intelligence, Go support, realtime/socket intelligence, messaging intelligence, cloud/infrastructure intelligence, symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.2.
+Do not add Angular intelligence, Vue/Svelte intelligence, ASP.NET Core/C# intelligence, Go support, realtime/socket intelligence, messaging intelligence, cloud/infrastructure intelligence, symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.2.
 
 ## Next.js Intelligence Boundaries
 
-The next intended implementation phase is Phase 9.2.3 — Next.js Intelligence.
-It should add only basic static/local Next.js intelligence on top of the
-completed React / TSX support. It may inspect local `package.json`,
-`next.config.*`, `app/`, and `pages/` files, but it must not run `next dev`,
+Phase 9.2.3 Next.js intelligence is completed as basic local static analysis
+only on top of the completed React / TSX support. It may inspect local
+`package.json`, `next.config.*`, `app/`, and `pages/` files, detect common
+file-system routes and app route-handler method exports, and mark basic
+`"use client"` / `"use server"` boundaries, but it must not run `next dev`,
 `next build`, `node`, `npm`, `tsc`, `eslint`, package scripts, deployment
-tooling, package registries, cloud parsers, or app code.
+tooling, package registries, cloud parsers, or app code. It does not implement
+full RSC semantics, middleware execution order, Vercel/deployment intelligence,
+auth intelligence, or deep data fetching semantics.
 
-Do not start Angular intelligence until Phase 9.2.4.
+## Angular Intelligence Boundaries
+
+Phase 9.2.4 Angular intelligence is completed as basic local static analysis
+only on top of TypeScript support. It may inspect local `package.json`,
+`angular.json`, TypeScript decorators, route config object literals, and
+literal template/style references, but it must not run `ng`, Angular compiler,
+`node`, `npm`, `tsc`, `eslint`, package scripts, package registries, cloud
+parsers, or app code. It does not implement full template type checking,
+runtime lifecycle semantics, deep DI/module graph resolution, RxJS/NgRx flow,
+or Angular Material intelligence.
+
+Do not start ASP.NET Core / C# Web API intelligence until Phase 9.2.5.

@@ -85,14 +85,17 @@ Completed:
 - Phase 9.2 - Web Application Priority Support A
 - Phase 9.2.1 - Node.js / REST API Intelligence
 - Phase 9.2.2 - React / TSX Component Intelligence
+- Phase 9.2.3 - Next.js Intelligence
+- Phase 9.2.3.1 - Indexer Module Split / Refactor Checkpoint B
+- Phase 9.2.4 - Angular Intelligence
 
 Next:
 
-- Phase 9.2.3 - Next.js Intelligence
+- Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. C# remains detect-only, and LSP remains local-only and disabled by default. Next.js intelligence is planned next; Angular, Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and deeper app-stack intelligence remain planned for later Phase 9.x work.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. C# remains detect-only, LSP remains local-only and disabled by default, and Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and deeper app-stack intelligence remain planned for later Phase 9.x work.
 
 ---
 
@@ -152,12 +155,23 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
 - React/TSX component extraction is basic/static/local for common function,
   arrow, class, memo/forwardRef components, props type names, JSX usages, and
   hook names.
+- Next.js extraction is basic/static/local for App Router and Pages Router
+  routes, app route handlers, exported HTTP methods, dynamic route segments,
+  route groups, and `"use client"` / `"use server"` boundaries.
+- Angular extraction is basic/static/local for common decorators, components,
+  services, modules, route configs, selector metadata, template/style
+  references, and constructor DI type names.
 - Deep middleware order, runtime routing, Nest module graphs, guards/interceptors,
-  deep dependency injection, and request lifecycle inference are deferred.
+  deep dependency injection, Angular compiler behavior, template type checking,
+  RxJS/NgRx flow, and request lifecycle inference are deferred.
 - Manual project init/index workflow is planned for Phase 8.5.1.
 - MCP tool profiles start in Phase 8.6.
 - Multi-repo registry and project groups are planned for Phase 8.8.
-- C#, Angular intelligence, deep React runtime behavior, deep Node runtime behavior, Docker, Kafka, ksqlDB, RabbitMQ, SignalR, WPF, Three.js, and other app-stack support are planned for Phase 9.x.
+- C#, full React Server Components semantics, Next.js
+  runtime/deployment/auth intelligence, deep React runtime behavior, deep Node
+  runtime behavior, deep Angular DI/module/template behavior, Docker, Kafka,
+  ksqlDB, RabbitMQ, SignalR, WPF, Three.js,
+  and other app-stack support are planned for Phase 9.x.
 - Semantic search and embeddings are not implemented yet.
 - Symbolic editing and rename/refactor tools are not implemented yet.
 - Session memory is planned for Phase 10.2+.
@@ -411,10 +425,11 @@ Recently completed:
 - Phase 9.2 - Web Application Priority Support A
 - Phase 9.2.1 - Node.js / REST API Intelligence
 - Phase 9.2.2 - React / TSX Component Intelligence
+- Phase 9.2.3 - Next.js Intelligence
 
 Next:
 
-- Phase 9.2.3 - Next.js Intelligence
+- Phase 9.2.4 - Angular Intelligence
 
 See `PLAN.md` for the full roadmap.
 
@@ -430,7 +445,7 @@ Upcoming roadmap highlights:
 - basic JavaScript / TypeScript / JSX / TSX indexing
 - basic Node.js REST route intelligence
 - basic React / TSX component intelligence
-- Next.js intelligence
+- basic Next.js static route and boundary intelligence
 - C# / Angular deeper support
 - Node.js REST API intelligence, basic/static/local
 - Kafka / ksqlDB / RabbitMQ intelligence
@@ -467,8 +482,8 @@ For the full plan, see `PLAN.md`.
 | Basic Node.js REST route intelligence | Usable now, basic/static |
 | C# Web API / backend services | Phase 9.2.5 |
 | Basic React / TSX component intelligence | Usable now, basic/static |
-| Next.js intelligence | Phase 9.2.3 |
-| Angular deep graph intelligence | Phase 9.2.4 |
+| Next.js intelligence | Usable now, basic/static |
+| Angular intelligence | Usable now, basic/static |
 | Node.js REST API | Usable now, basic/static |
 | Kafka / ksqlDB | Phase 9.2.8 |
 | RabbitMQ | Phase 9.2.8 |
@@ -552,4 +567,4 @@ Current best use:
 - benchmark-driven development
 - dogfooding on the B3 repository itself
 
-For production-like usage on deep React runtime behavior, deep Node.js REST behavior, C#, Angular graphs, Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and other application stacks, wait for the later Phase 9.x language and domain intelligence work.
+For production-like usage on full React Server Components semantics, Next.js middleware/deployment/auth behavior, deep React runtime behavior, deep Node.js REST behavior, C#, deep Angular DI/module/template graphs, Docker, Kafka, RabbitMQ, SignalR, WPF, Three.js, and other application stacks, wait for the later Phase 9.x language and domain intelligence work.

@@ -184,9 +184,13 @@ TypeScript, JSX, and TSX have basic local tree-sitter indexing. C# and other
 planned languages remain detect-only or unsupported until their phases land.
 LSP exists as a local backend foundation and is disabled by default.
 React/TSX component intelligence is basic static analysis only and is exposed
-through indexed symbol metadata and the local control API. The current roadmap
-is completed through Phase 9.2.2; the next planned implementation phase is
-Phase 9.2.3 - Next.js Intelligence.
+through indexed symbol metadata and the local control API. Next.js intelligence
+is basic static analysis only and is exposed through route/component metadata
+and `GET /api/routes`. Angular intelligence is basic static analysis only and
+is exposed through route/component/symbol metadata without invoking the Angular
+compiler. The current roadmap is completed through Phase 9.2.4; the next
+planned implementation phase is Phase 9.2.5 - ASP.NET Core / C# Web API
+Intelligence.
 
 ## Offline-First Expectations
 
@@ -224,7 +228,16 @@ External integrations must remain:
 - JavaScript/TypeScript/JSX/TSX support is tree-sitter based and local-only; do not require `npm`, `node`, `tsc`, or `eslint` during indexing.
 - Node.js REST intelligence is basic static analysis only; route extraction must not execute app code, framework CLIs, package managers, or package-registry lookups.
 - React/TSX component intelligence is basic static analysis only; component extraction must not execute React apps, dev servers, package managers, `node`, `tsc`, or `eslint`.
-- Next.js intelligence is planned next and must stay static/local when implemented; do not run `next dev`, `next build`, package scripts, or deployment tooling.
+- Next.js intelligence is basic static analysis only; route and boundary
+  extraction must not run `next dev`, `next build`, `node`, `npm`, `tsc`,
+  `eslint`, package scripts, registries, app code, or deployment tooling.
+- Angular intelligence is basic static analysis only; decorator, component,
+  service, module, route, template reference, and constructor DI extraction
+  must not run `ng`, Angular compiler, `node`, `npm`, `tsc`, `eslint`, package
+  scripts, registries, app code, or deployment tooling.
+- Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
+  orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
+  indexer unit tests live in `crates/b3-indexer/src/tests.rs`.
 - Embeddings run in background workers in later phases.
 - UI/control plane stays separate from MCP runtime.
 - Hook integration foundation is disabled by default and must not intercept
