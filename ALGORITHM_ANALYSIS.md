@@ -187,6 +187,33 @@ does not implement template type checking, full template parsing, runtime
 lifecycle semantics, deep DI/module graph resolution, RxJS/NgRx flow, or
 Angular Material intelligence.
 
+### ASP.NET Core / C# Web API Static Extraction
+
+Phase 9.2.5 adds conservative static C# Web API extraction outside the JS/TS
+`web/` module:
+
+1. detect `.cs` and `.csproj` files locally
+2. detect ASP.NET Core project references from `.csproj` text, including
+   `Microsoft.NET.Sdk.Web`, `Microsoft.AspNetCore.App`, and ASP.NET Core MVC
+   package/framework references
+3. scan C# text for namespaces, classes, methods, constructors, and `using`
+   references without requiring Roslyn or a language server
+4. detect controller classes from `Controller` suffix, visible
+   `ControllerBase` / `Controller` inheritance text, `[ApiController]`, and
+   `[Route]`
+5. extract literal `[Route]` and common HTTP method attributes
+6. compose controller/action routes with `[controller]` and `[action]` token
+   replacement and preserve parameter tokens such as `{id}`
+7. encode ASP.NET Core routes as existing `Route` symbols with
+   `framework=aspnetcore`
+8. record constructor dependency type names as basic metadata only
+
+The extractor intentionally avoids full C# semantic analysis, full DI container
+resolution, middleware pipeline analysis, minimal API expansion, EF/Dapper/ORM
+query analysis, WPF/XAML intelligence, runtime execution, package restore,
+NuGet access, Roslyn, Visual Studio automation, OmniSharp, language servers,
+cloud parsers, and telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.
@@ -408,6 +435,8 @@ Added requirements:
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
+- Phase 9.2.11: Scoped Indexing + Intelligence Targets
+- Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 10: Local Embeddings + Vector Search
 - Phase 10.1: Semantic Context Upgrade
 - Phase 11: Architecture Intelligence
@@ -493,7 +522,8 @@ Language detection is deterministic and local, based on file extensions and
 selected filenames. Detection is separated from support level:
 
 - `Good`: Rust through the existing tree-sitter parser path.
-- `Basic`: planned languages with detect-file rules only.
+- `Basic`: implemented local static or tree-sitter-backed extraction for a
+  bounded subset, or planned languages with detect-file rules only where noted.
 - `Unsupported`: unknown files with no local detection rule.
 
 No LSP process, semantic search, embeddings, framework intelligence, or

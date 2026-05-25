@@ -158,7 +158,7 @@ pub struct LanguageBackendRegistry {
 pub fn default_language_backend_registry() -> LanguageBackendRegistry {
     let backends = vec![
         rust_tree_sitter_backend_metadata(),
-        planned_detect_only_backend("csharp", "C#", "planned-lsp-csharp"),
+        csharp_static_backend_metadata(),
         planned_detect_only_backend("typescript", "TypeScript", "planned-lsp-typescript"),
         planned_detect_only_backend("tsx", "TSX", "planned-lsp-typescript-react"),
         planned_detect_only_backend("javascript", "JavaScript", "planned-lsp-javascript"),
@@ -211,6 +211,28 @@ pub fn rust_tree_sitter_backend_metadata() -> LanguageBackendMetadata {
         ],
         available: true,
         notes: vec!["Existing Rust tree-sitter indexing path.".to_string()],
+    }
+}
+
+pub fn csharp_static_backend_metadata() -> LanguageBackendMetadata {
+    LanguageBackendMetadata {
+        backend_id: LanguageBackendId("static-csharp".to_string()),
+        language_id: LanguageId("csharp".to_string()),
+        language_name: LanguageName("C#".to_string()),
+        kind: LanguageBackendKind::StaticConfig,
+        support_level: LanguageSupportLevel::Basic,
+        capabilities: vec![
+            LanguageBackendCapability::DetectFile,
+            LanguageBackendCapability::Parse,
+            LanguageBackendCapability::ExtractSymbols,
+            LanguageBackendCapability::ExtractRoutes,
+        ],
+        available: true,
+        notes: vec![
+            "Basic local static C# extraction for ASP.NET Core controllers, route attributes, action methods, and constructor dependency type names.".to_string(),
+            "No Roslyn, dotnet CLI, language server, build, restore, runtime execution, or package registry access is required.".to_string(),
+            "Full semantic analysis, full DI graph, EF/Dapper analysis, and WPF/XAML intelligence are deferred.".to_string(),
+        ],
     }
 }
 
@@ -311,7 +333,18 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 notes: vec!["Rust tree-sitter backend is implemented.".to_string()],
             });
         }
-        "cs" => ("csharp", "C#", "planned-lsp-csharp"),
+        "cs" => {
+            return Some(LanguageDetectionResult {
+                language_id: Some(LanguageId("csharp".to_string())),
+                language_name: Some(LanguageName("C#".to_string())),
+                support_level: LanguageSupportLevel::Basic,
+                matched_by: "extension".to_string(),
+                backend_ids: vec![LanguageBackendId("static-csharp".to_string())],
+                notes: vec![
+                    "C# files are parsed with basic local static extraction for ASP.NET Core Web API symbols and routes.".to_string(),
+                ],
+            });
+        }
         "ts" => ("typescript", "TypeScript", "planned-lsp-typescript"),
         "tsx" => ("tsx", "TSX", "planned-lsp-typescript-react"),
         "js" => ("javascript", "JavaScript", "planned-lsp-javascript"),
@@ -451,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    fn planned_languages_are_detect_only() {
+    fn planned_languages_remain_honest_and_csharp_is_basic_static() {
         let registry = default_language_backend_registry();
         let csharp = registry
             .backends
@@ -460,11 +493,11 @@ mod tests {
             .expect("csharp");
 
         assert_eq!(csharp.support_level, LanguageSupportLevel::Basic);
-        assert_eq!(
-            csharp.capabilities,
-            vec![LanguageBackendCapability::DetectFile]
-        );
-        assert!(!csharp.available);
+        assert!(csharp.available);
+        assert!(csharp
+            .capabilities
+            .contains(&LanguageBackendCapability::ExtractRoutes));
+        assert!(csharp.notes.iter().any(|note| note.contains("No Roslyn")));
     }
 
     #[test]

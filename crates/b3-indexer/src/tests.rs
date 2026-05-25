@@ -293,6 +293,227 @@ fn web_language_detection_maps_js_ts_jsx_tsx_and_csharp() {
         language_from_path(Path::new("Program.cs")).as_deref(),
         Some("csharp")
     );
+    assert_eq!(
+        language_from_path(Path::new("Api.csproj")).as_deref(),
+        Some("csproj")
+    );
+}
+
+#[test]
+fn detects_csproj_aspnetcore_technologies_without_requiring_valid_xml() {
+    let detected = detect_csproj_technologies(
+        r#"<Project Sdk="Microsoft.NET.Sdk.Web">
+            <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+            <ItemGroup>
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+                <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
+            </ItemGroup>
+        </Project>"#,
+    )
+    .expect("detect csproj");
+
+    assert!(detected.iter().any(|tech| tech.id == "aspnetcore"));
+    assert!(detected.iter().any(|tech| tech.id == "dotnet"));
+    assert!(detect_csproj_technologies("<Project><Broken").is_ok());
+}
+
+#[test]
+fn csharp_language_pack_extracts_aspnetcore_controllers_routes_and_di() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("users-controller"),
+            path: PathBuf::from("Controllers/UsersController.cs"),
+            source: r#"
+                using Microsoft.AspNetCore.Mvc;
+
+                namespace Api.Controllers;
+
+                [ApiController]
+                [Route("api/[controller]")]
+                public class UsersController : ControllerBase
+                {
+                    public UsersController(IUserService userService, ILogger<UsersController> logger)
+                    {
+                    }
+
+                    [HttpGet]
+                    public IActionResult List() { return Ok(); }
+
+                    [HttpGet("{id}")]
+                    public ActionResult<UserDto> Get(int id) { return Ok(); }
+
+                    [HttpPost]
+                    public Task<IActionResult> Create(UserDto user) { return Task.FromResult<IActionResult>(Ok()); }
+
+                    [HttpPut("{id}")]
+                    public IActionResult Update(int id, UserDto user) { return Ok(); }
+
+                    [HttpPatch("{id}")]
+                    public IActionResult Patch(int id, UserDto user) { return Ok(); }
+
+                    [HttpDelete("{id}")]
+                    public IActionResult Delete(int id) { return Ok(); }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse csharp");
+
+    assert_eq!(parsed.language.as_deref(), Some("csharp"));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "Api.Controllers" && symbol.kind == NodeKind::Namespace));
+    assert!(parsed.symbols.iter().any(
+        |symbol| symbol.name == "Microsoft.AspNetCore.Mvc" && symbol.kind == NodeKind::Package
+    ));
+
+    let controller = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "UsersController" && symbol.kind == NodeKind::Class)
+        .expect("controller");
+    let controller_metadata = controller.visibility.as_deref().unwrap_or_default();
+    assert_eq!(
+        aspnet_metadata_value(controller_metadata, "controller").as_deref(),
+        Some("true")
+    );
+    assert_eq!(
+        aspnet_metadata_value(controller_metadata, "api_controller").as_deref(),
+        Some("true")
+    );
+    assert!(aspnet_metadata_value(controller_metadata, "dependencies")
+        .unwrap_or_default()
+        .contains("IUserService"));
+    assert!(aspnet_metadata_value(controller_metadata, "dependencies")
+        .unwrap_or_default()
+        .contains("ILogger<UsersController>"));
+
+    let route_names: Vec<String> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.kind == NodeKind::Route)
+        .map(|symbol| symbol.name.clone())
+        .collect();
+    assert!(route_names.contains(&"GET /api/users".to_string()));
+    assert!(route_names.contains(&"GET /api/users/{id}".to_string()));
+    assert!(route_names.contains(&"POST /api/users".to_string()));
+    assert!(route_names.contains(&"PUT /api/users/{id}".to_string()));
+    assert!(route_names.contains(&"PATCH /api/users/{id}".to_string()));
+    assert!(route_names.contains(&"DELETE /api/users/{id}".to_string()));
+    assert!(parsed
+        .relationships
+        .iter()
+        .any(|edge| edge.kind == EdgeKind::References));
+}
+
+#[test]
+fn csharp_language_pack_handles_route_only_methods_invalid_code_and_non_web_classes() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("route-only"),
+            path: PathBuf::from("Controllers/ReportsController.cs"),
+            source: r#"
+                [Route("api/reports")]
+                public class ReportsController
+                {
+                    [Route("archive")]
+                    public IActionResult Archive() { return Ok(); }
+                }
+
+                public class PlainService
+                {
+                    public void Run() {}
+                }
+
+                public class Broken {
+            "#
+            .to_string(),
+        })
+        .expect("parse invalid partial csharp");
+
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|symbol| symbol.kind == NodeKind::Route
+            && symbol.name == "UNKNOWN /api/reports/archive"));
+    let plain = parsed
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "PlainService")
+        .expect("plain class");
+    assert!(aspnet_metadata_value(
+        plain.visibility.as_deref().unwrap_or_default(),
+        "controller"
+    )
+    .is_none());
+}
+
+#[test]
+fn local_indexer_indexes_small_aspnetcore_project_and_ignores_wpf_classification() {
+    let root = std::env::temp_dir().join(format!("b3-csharp-index-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("Controllers")).expect("controllers");
+    fs::write(
+        root.join("Api.csproj"),
+        r#"<Project Sdk="Microsoft.NET.Sdk.Web"><ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup></Project>"#,
+    )
+    .expect("write csproj");
+    fs::write(
+        root.join("Controllers").join("UsersController.cs"),
+        r#"
+            using Microsoft.AspNetCore.Mvc;
+            [ApiController]
+            [Route("api/[controller]")]
+            public class UsersController : ControllerBase
+            {
+                public UsersController(IUserService service) {}
+                [HttpGet("{id}")]
+                public IActionResult Get(int id) { return Ok(); }
+            }
+        "#,
+    )
+    .expect("write controller");
+    fs::write(
+        root.join("MainWindow.xaml.cs"),
+        "public partial class MainWindow { public MainWindow() { InitializeComponent(); } }",
+    )
+    .expect("write wpf code-behind");
+
+    let store = MemoryStore::default();
+    let indexer = LocalIndexer::new(
+        DefaultLanguagePack,
+        store,
+        MemoryBus::default(),
+        IndexerConfig {
+            branch_id: BranchId::new("main"),
+            ..IndexerConfig::default()
+        },
+    );
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index csharp project");
+
+    assert_eq!(summary.files_seen, 3);
+    assert_eq!(summary.files_parsed, 3);
+    let symbols = indexer.store.symbols.lock().expect("symbols");
+    assert!(symbols
+        .iter()
+        .any(|symbol| symbol.kind == NodeKind::Route && symbol.name == "GET /api/users/{id}"));
+    let main_window = symbols
+        .iter()
+        .find(|symbol| symbol.name == "MainWindow")
+        .expect("main window");
+    assert!(aspnet_metadata_value(
+        main_window.visibility.as_deref().unwrap_or_default(),
+        "controller"
+    )
+    .is_none());
+
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 #[test]

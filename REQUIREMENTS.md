@@ -290,7 +290,7 @@ Must not:
 Phase 9.2 adds basic local indexing for JavaScript, TypeScript, JSX, and TSX.
 
 Must support:
-- file detection for `.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, and detect-only `.cs`
+- file detection for `.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, and `.cs`
 - local tree-sitter parsing for JS/TS/JSX/TSX
 - basic symbol extraction for functions, arrow/function variables, classes, methods, TypeScript interfaces, type aliases, enums, exports, and obvious component-like JSX/TSX declarations
 - import extraction for ESM imports and CommonJS `require(...)`
@@ -302,7 +302,8 @@ Must defer:
 - deep React runtime behavior, state-machine inference, full JSX tree graph,
   and framework-specific router intelligence
 - Angular module/route/template intelligence
-- C# parser and semantic intelligence
+- ASP.NET Core / C# Web API intelligence beyond the Phase 9.2.5 static/basic
+  controller and route extractor
 - JS/TS call graph extraction unless it can be made low-noise
 - symbolic editing, rename/refactor, embeddings, semantic search, and cross-project architecture intelligence
 
@@ -334,7 +335,7 @@ Must defer:
 - request lifecycle inference
 - advanced React component graph/runtime intelligence
 - deep Angular compiler/template/DI/module graph intelligence
-- ASP.NET Core/C# intelligence
+- ASP.NET Core/C# intelligence beyond basic static Web API route extraction
 - realtime, messaging, cloud, infrastructure, Go, symbolic editing, embeddings, semantic search, and cross-project intelligence
 
 ## React / TSX Component Intelligence
@@ -410,7 +411,8 @@ Must defer:
 - Vercel/deployment intelligence
 - NextAuth/auth intelligence
 - deep data fetching semantics
-- deep Angular compiler/template/DI/module graph behavior, ASP.NET Core/C#, ORM/database, realtime, messaging,
+- deep Angular compiler/template/DI/module graph behavior, ASP.NET Core/C#
+  beyond basic static Web API extraction, ORM/database, realtime, messaging,
   cloud/infrastructure, Go, symbolic editing, rename/refactor, embeddings,
   semantic search, and cross-project intelligence
 
@@ -451,7 +453,50 @@ Must defer:
 - full DI container/module graph resolution
 - RxJS/NgRx deep flow analysis
 - Angular Material intelligence
-- ASP.NET Core/C#, ORM/database, realtime, messaging, cloud/infrastructure, Go,
+- ASP.NET Core/C# beyond basic static Web API extraction, ORM/database,
+  realtime, messaging, cloud/infrastructure, Go,
+  symbolic editing, rename/refactor, embeddings, semantic search, and
+  cross-project intelligence
+
+## ASP.NET Core / C# Web API Intelligence
+
+Phase 9.2.5 adds basic static ASP.NET Core / C# Web API intelligence.
+
+Must support:
+- `.cs` file detection and basic static symbol extraction for namespaces,
+  classes, methods, constructors, and using/package references
+- `.csproj` detection for `Microsoft.NET.Sdk.Web`,
+  `Microsoft.AspNetCore.App`, `Microsoft.AspNetCore.Mvc`,
+  `Microsoft.AspNetCore.Mvc.Core`, ASP.NET Core package references, framework
+  references, and target framework metadata
+- controller detection from `Controller` suffix, visible `ControllerBase` /
+  `Controller` inheritance text, `[ApiController]`, and `[Route]`
+- common route and HTTP method attributes: `[Route]`, `[HttpGet]`,
+  `[HttpPost]`, `[HttpPut]`, `[HttpPatch]`, `[HttpDelete]`, `[HttpHead]`,
+  and `[HttpOptions]`
+- route composition with controller/action route templates, `[controller]`,
+  `[action]`, empty method routes, and preserved parameter tokens such as `{id}`
+- action method metadata and route handler links where the method is locally
+  visible
+- constructor dependency type names as metadata only
+- ASP.NET Core routes exposed through `GET /api/routes` with
+  `framework=aspnetcore`
+
+Must not require:
+- `dotnet restore`, `dotnet build`, `dotnet run`, or `dotnet test`
+- NuGet or package registry access
+- Roslyn, Visual Studio, Rider, OmniSharp, or C# language servers
+- runtime execution, app startup, external APIs, cloud parsers, telemetry, or
+  paid/proprietary dependencies
+
+Must defer:
+- full semantic C# analysis and type checking
+- full Microsoft DI container graph resolution
+- middleware pipeline analysis
+- minimal API analysis beyond future low-risk static work
+- ORM/database, Entity Framework, and Dapper query analysis
+- WPF/XAML and .NET desktop intelligence
+- realtime/socket, messaging/event-driven, cloud/infrastructure, Go,
   symbolic editing, rename/refactor, embeddings, semantic search, and
   cross-project intelligence
 
@@ -606,20 +651,22 @@ Avoid:
 - Phase 9.2.2: React / TSX Component Intelligence
 - Phase 9.2.3: Next.js Intelligence
 - Phase 9.2.4: Angular Intelligence
+- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
+- Phase 9.2.11: Scoped Indexing + Intelligence Targets
+- Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 9.3/9.4: Symbolic editing and rename/refactor support
 - Phase 10: Local Embeddings + Vector Search
 - Phase 10.1: Semantic Context Upgrade
 - Phase 10.2+: Local session memory and context platform
-- Phase 11: Architecture Intelligence
+- Phase 11: Cross-Project Architecture Intelligence
 - Phase 12: Git Intelligence
 - Phase 13: Duplicate / Similarity Detection
 - Phase 14: Real Plugin System

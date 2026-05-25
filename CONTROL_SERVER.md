@@ -129,7 +129,7 @@ Current truth:
 
 - Rust has `Good` tree-sitter support.
 - JavaScript, TypeScript, JSX, and TSX have `Basic` local tree-sitter support.
-- C# is detect-only.
+- C# has `Basic` local static ASP.NET Core / Web API support.
 - Node.js REST route intelligence is `Basic`, static, and local for Express,
   NestJS, and Fastify.
 - React/TSX component intelligence is `Basic`, static, and local for common
@@ -140,26 +140,31 @@ Current truth:
 - Angular intelligence is `Basic`, static, and local for common decorators,
   components, services, modules, route configs, selectors, template/style
   references, and constructor DI type names.
+- ASP.NET Core / C# Web API intelligence is `Basic`, static, and local for
+  `.csproj` ASP.NET Core detection, controllers, common route attributes,
+  composed action routes, and constructor DI type names.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 
-`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, and C# as detect-only until a parser or semantic backend is added.
+`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, and C# as Basic static ASP.NET Core / Web API support.
 
-`GET /api/routes` returns locally indexed Node.js REST, Next.js, and Angular route
+`GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular, and
+ASP.NET Core route
 metadata from `Route` symbols. Optional filters include `project_id`,
 `branch_id`, `framework`, `method`, `path`, and `limit`. Next.js records use
 `framework=nextjs` and include a `route_kind` such as `page`, `layout`,
 `loading`, `error`, `not_found`, or `api`. Angular route config records use
-`framework=angular` and `route_kind=route`.
+`framework=angular` and `route_kind=route`. ASP.NET Core route records use
+`framework=aspnetcore` and `route_kind=api`.
 
 `GET /api/components` returns locally indexed React and Angular component metadata from
 component symbols. Optional filters include `project_id`, `branch_id`,
 `framework`, `name`, `file`, and `limit`.
 
 Route support is intentionally basic and static. It does not execute `npm`,
-`node`, `tsc`, `eslint`, framework CLIs, package registries, app code, or
+`node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
 runtime routing. It does not infer deep middleware order, Nest module graphs,
 guards/interceptors/pipes, deep dependency injection, or request lifecycles.
 For Next.js it also does not run `next dev`, `next build`, package scripts, or
@@ -189,6 +194,7 @@ curl -X POST http://127.0.0.1:7777/api/index/reindex
 curl http://127.0.0.1:7777/api/lsp/status
 curl http://127.0.0.1:7777/api/routes?framework=express
 curl http://127.0.0.1:7777/api/routes?framework=nextjs
+curl http://127.0.0.1:7777/api/routes?framework=aspnetcore
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 

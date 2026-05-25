@@ -223,4 +223,17 @@ parsers, or app code. It does not implement full template type checking,
 runtime lifecycle semantics, deep DI/module graph resolution, RxJS/NgRx flow,
 or Angular Material intelligence.
 
-Do not start ASP.NET Core / C# Web API intelligence until Phase 9.2.5.
+## ASP.NET Core / C# Web API Boundaries
+
+Phase 9.2.5 ASP.NET Core / C# Web API intelligence is completed as basic local
+static analysis only. It may inspect local `.cs` and `.csproj` files, detect
+ASP.NET Core project references, controller classes, `[ApiController]`,
+`[Route]`, common HTTP method attributes, action methods, composed
+controller/action routes, and constructor DI type names, but it must not run
+`dotnet`, restore packages, call NuGet, require Roslyn, launch Visual Studio,
+Rider, OmniSharp, or C# language servers, run app code, or use cloud parsers.
+It does not implement full semantic C# analysis, full DI container graphs,
+middleware pipeline analysis, EF/Dapper/ORM query analysis, minimal API
+intelligence, WPF/XAML, or .NET desktop intelligence.
+
+Do not start ORM / Database Access Intelligence until Phase 9.2.6.

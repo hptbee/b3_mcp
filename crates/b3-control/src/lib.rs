@@ -1074,7 +1074,7 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "support": "basic",
                 "backend": "tree-sitter-typescript",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships"],
-                "notes": "Basic TypeScript symbols, imports, Node REST routes, React components, and Next.js static routes are indexed locally; Angular intelligence is deferred."
+                "notes": "Basic TypeScript symbols, imports, Node REST routes, React components, Next.js static routes, and Angular metadata are indexed locally."
             },
             {
                 "language_id": "javascript",
@@ -1105,12 +1105,12 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
             },
             {
                 "language_id": "csharp",
-                "tree_sitter": "detect_only",
+                "tree_sitter": "not_required",
                 "lsp": "configurable_local_server",
-                "support": "basic_detect_only",
-                "backend": null,
-                "capabilities": ["DetectFile"],
-                "notes": "C# parser and semantic intelligence are still deferred."
+                "support": "basic",
+                "backend": "static-csharp",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractRoutes"],
+                "notes": "Basic local static C# and ASP.NET Core Web API extraction indexes controllers, route attributes, action methods, and constructor dependency type names; Roslyn, dotnet CLI execution, full semantic analysis, EF/Dapper, and WPF/XAML remain deferred."
             }
         ]
     }))
@@ -2683,6 +2683,21 @@ mod tests {
                                 "route.framework=angular;route.kind=route;route.method=GET;route.path=/users/:id;route.file=src/app/app-routing.module.ts;route.handler=UserDetailComponent;route.class=UserDetailComponent;route.source=AngularRoute;route.line_start=1;route.line_end=1;route.confidence=8000".to_string(),
                             ),
                         },
+                        SymbolRecord {
+                            id: SymbolId::new("aspnetcore-route-symbol"),
+                            file_id: FileId::new("route-file"),
+                            name: "GET /api/users/{id}".to_string(),
+                            kind: NodeKind::Route,
+                            start_byte: 91,
+                            end_byte: 130,
+                            start_line: 4,
+                            start_column: 0,
+                            end_line: 4,
+                            end_column: 39,
+                            visibility: Some(
+                                "route.framework=aspnetcore;route.kind=api;route.method=GET;route.path=/api/users/{id};route.file=Controllers/UsersController.cs;route.handler=Get;route.class=UsersController;route.function=Get;route.source=AspNetCoreHttpGetAttribute;route.line_start=1;route.line_end=1;route.confidence=9500".to_string(),
+                            ),
+                        },
                     ],
                     edges: Vec::new(),
                 },
@@ -2945,7 +2960,7 @@ mod tests {
 
         assert_eq!(rust["support_level"], "Good");
         assert_eq!(rust["available"], true);
-        assert_eq!(csharp["available"], false);
+        assert_eq!(csharp["available"], true);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
     }
 
@@ -3152,7 +3167,11 @@ mod tests {
             .unwrap_or_default()
             .contains("Next.js static routes"));
         assert_eq!(body["languages"][3]["language_id"], "jsx");
-        assert_eq!(body["languages"][5]["support"], "basic_detect_only");
+        assert_eq!(body["languages"][5]["support"], "basic");
+        assert!(body["languages"][5]["notes"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("ASP.NET Core Web API"));
     }
 
     #[tokio::test]
@@ -3236,6 +3255,70 @@ mod tests {
         assert_eq!(body["routes"][0]["route_kind"], "route");
         assert_eq!(body["routes"][0]["path"], "/users/:id");
         assert_eq!(body["routes"][0]["handler_name"], "UserDetailComponent");
+    }
+
+    #[tokio::test]
+    async fn routes_endpoint_includes_aspnetcore_routes_and_filters() {
+        let response = route_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=aspnetcore")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["routes"].as_array().expect("routes").len(), 1);
+        assert_eq!(body["routes"][0]["framework"], "aspnetcore");
+        assert_eq!(body["routes"][0]["route_kind"], "api");
+        assert_eq!(body["routes"][0]["method"], "GET");
+        assert_eq!(body["routes"][0]["path"], "/api/users/{id}");
+        assert_eq!(body["routes"][0]["class_name"], "UsersController");
+    }
+
+    #[tokio::test]
+    async fn index_api_exposes_static_aspnetcore_routes() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("Controllers")).expect("controllers");
+        fs::write(
+            root.join("Controllers").join("UsersController.cs"),
+            r#"
+                using Microsoft.AspNetCore.Mvc;
+                [ApiController]
+                [Route("api/[controller]")]
+                public class UsersController : ControllerBase
+                {
+                    public UsersController(IUserService service) {}
+                    [HttpGet("{id}")]
+                    public IActionResult Get(int id) { return Ok(); }
+                }
+            "#,
+        )
+        .expect("controller");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let routes_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/routes?framework=aspnetcore")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(routes_response.status(), StatusCode::OK);
+        let body = response_json(routes_response).await;
+        assert_eq!(body["routes"][0]["path"], "/api/users/{id}");
+        assert_eq!(body["routes"][0]["handler_name"], "Get");
     }
 
     #[tokio::test]

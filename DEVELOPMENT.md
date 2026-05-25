@@ -180,17 +180,23 @@ GET /api/languages
 Detection is local and rule-based: extensions, selected filenames such as
 `Dockerfile`, and compose filenames. Detection does not mean parser support.
 Rust is currently implemented through `tree-sitter-rust`. JavaScript,
-TypeScript, JSX, and TSX have basic local tree-sitter indexing. C# and other
-planned languages remain detect-only or unsupported until their phases land.
+TypeScript, JSX, and TSX have basic local tree-sitter indexing. C# has basic
+local static extraction for ASP.NET Core Web API controllers, route attributes,
+action methods, and constructor dependency type names. Other planned languages
+remain detect-only or unsupported until their phases land.
 LSP exists as a local backend foundation and is disabled by default.
 React/TSX component intelligence is basic static analysis only and is exposed
 through indexed symbol metadata and the local control API. Next.js intelligence
 is basic static analysis only and is exposed through route/component metadata
 and `GET /api/routes`. Angular intelligence is basic static analysis only and
 is exposed through route/component/symbol metadata without invoking the Angular
-compiler. The current roadmap is completed through Phase 9.2.4; the next
-planned implementation phase is Phase 9.2.5 - ASP.NET Core / C# Web API
-Intelligence.
+compiler. ASP.NET Core / C# Web API intelligence is basic static analysis only
+and is exposed through existing route/symbol metadata without invoking Roslyn,
+dotnet CLI, package restore, language servers, or app code. Phase 9.2.4.1 is a behavior-preserving web module split checkpoint:
+`crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
+modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
+current roadmap is completed through Phase 9.2.5; the next planned
+implementation phase is Phase 9.2.6 - ORM / Database Access Intelligence.
 
 ## Offline-First Expectations
 
@@ -235,6 +241,11 @@ External integrations must remain:
   service, module, route, template reference, and constructor DI extraction
   must not run `ng`, Angular compiler, `node`, `npm`, `tsc`, `eslint`, package
   scripts, registries, app code, or deployment tooling.
+- ASP.NET Core / C# Web API intelligence is basic static analysis only; project
+  detection, controller/action extraction, route composition, and constructor DI
+  type-name extraction must not run `dotnet`, restore packages, require Roslyn,
+  launch Visual Studio/Rider/OmniSharp/language servers, query NuGet, or execute
+  app code.
 - Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
   orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
   indexer unit tests live in `crates/b3-indexer/src/tests.rs`.

@@ -6,9 +6,13 @@
 //! It does not implement retrieval ranking, embedding generation, UI features,
 //! or MCP request handling.
 
+mod csharp;
 pub mod lsp;
 mod web;
 
+pub use csharp::detect_csproj_technologies as detect_dotnet_project_technologies;
+#[cfg(test)]
+pub(crate) use csharp::{aspnet_metadata_value, detect_csproj_technologies};
 #[cfg(test)]
 pub(crate) use web::{angular_metadata_value, component_metadata_value, route_metadata_value};
 pub use web::{
@@ -1566,6 +1570,7 @@ impl TreeSitterParser for DefaultLanguagePack {
         match language_from_path(&input.path).as_deref() {
             Some("rs") => RustLanguagePack.parse(input),
             Some("javascript" | "jsx" | "typescript" | "tsx") => WebLanguagePack.parse(input),
+            Some("csharp" | "csproj") => csharp::parse(input),
             _ => NoopTreeSitterParser.parse(input),
         }
     }
@@ -1951,6 +1956,7 @@ fn language_from_path(path: &Path) -> Option<String> {
             "ts" | "mts" | "cts" => "typescript",
             "tsx" => "tsx",
             "cs" => "csharp",
+            "csproj" => "csproj",
             other => other,
         }
         .to_string(),

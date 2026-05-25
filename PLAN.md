@@ -20,7 +20,9 @@ Current roadmap status:
 - Completed: Phase 9.2.3 - Next.js Intelligence
 - Completed: Phase 9.2.3.1 - Indexer Module Split / Refactor Checkpoint B
 - Completed: Phase 9.2.4 - Angular Intelligence
-- Next: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
+- Completed: Phase 9.2.4.1 - Web Module Split / Refactor Checkpoint C
+- Completed: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
+- Next: Phase 9.2.6 - ORM / Database Access Intelligence
 
 ---
 
@@ -168,6 +170,10 @@ Phase 9.2.7 â€” Realtime / Socket Intelligence
 Phase 9.2.8 â€” Messaging / Event-driven Intelligence
 Phase 9.2.9 â€” Cloud / Infrastructure Intelligence
 Phase 9.2.10 â€” Go Language Support
+Phase 9.2.11 â€” Scoped Indexing + Intelligence Targets
+Phase 9.2.12 â€” .NET Desktop / WPF Intelligence
+Phase 10 â€” Local Embeddings + Vector Search
+Phase 11 â€” Cross-Project Architecture Intelligence
 ```
 
 ---
@@ -1121,7 +1127,8 @@ support.
 - NextAuth/auth intelligence
 - deep data fetching semantics
 - symbolic editing
-- Angular, ASP.NET Core/C#, ORM/database, realtime, messaging,
+- Angular deep compiler/runtime behavior, ASP.NET Core/C# beyond basic static
+  Web API extraction, ORM/database, realtime, messaging,
   cloud/infrastructure, Go, embeddings, semantic search, and cross-project
   architecture intelligence
 
@@ -1181,28 +1188,67 @@ Understand Angular application structure.
 
 ---
 
+## Phase 9.2.4.1 - Web Module Split / Refactor Checkpoint C
+
+Status: Completed as a behavior-preserving refactor checkpoint.
+
+`crates/b3-indexer/src/web/mod.rs` is now a small orchestration and re-export
+layer. Existing JS/TS symbol extraction, Node REST routes, React component
+metadata, Next.js routes/config detection, shared route/component metadata, and
+tree-sitter helpers were split into focused web modules. This checkpoint makes
+Phase 9.2.5 safer to start without changing runtime behavior, storage schema,
+control API responses, MCP tools/profiles, dependencies, or Web UI behavior.
+
+---
+
 ## Phase 9.2.5 â€” ASP.NET Core / C# Web API Intelligence
 
 ### Purpose
 
-Add first real C# web API intelligence.
+Add first basic static/local ASP.NET Core / C# Web API intelligence without
+Roslyn, dotnet CLI execution, language servers, package restore, or runtime
+execution.
 
 ### Scope
 
-- C# parser or LSP-backed support
-- controllers
-- actions
-- route attributes
-- dependency injection basics
-- service relationships
-- request/response DTOs where safe
+- `.cs` and `.csproj` detection
+- ASP.NET Core project/package reference detection from local `.csproj` text
+- conservative static C# symbol extraction for namespaces, classes, methods,
+  constructors, and using/package references
+- controller detection from `Controller` suffix, `ControllerBase` /
+  `Controller` inheritance text, `[ApiController]`, and `[Route]`
+- `[Route]`, `[HttpGet]`, `[HttpPost]`, `[HttpPut]`, `[HttpPatch]`,
+  `[HttpDelete]`, `[HttpHead]`, and `[HttpOptions]` attribute extraction
+- controller/action route composition with `[controller]` and `[action]` token
+  replacement
+- action route metadata emitted as existing `Route` symbols with
+  `framework=aspnetcore`
+- constructor DI type names recorded as basic metadata
+- `GET /api/routes?framework=aspnetcore` through the existing route API
 
 ### Out of Scope
 
 - full Roslyn replacement
-- deep EF query analysis
+- full C# semantic analysis or type checking
+- full Microsoft DI container graph resolution
+- middleware pipeline analysis
+- minimal API intelligence beyond deferred future work
+- ORM/database intelligence
+- Entity Framework query analysis
+- Dapper query analysis
+- WPF/XAML or .NET desktop intelligence
 - symbolic editing
 - rename/refactor
+- embeddings, semantic search, or cross-project architecture intelligence
+
+### Completion Notes
+
+Implemented as `crates/b3-indexer/src/csharp.rs`, outside the JS/TS `web/`
+module. The parser is conservative text/static extraction and intentionally
+does not execute `dotnet`, restore packages, require Roslyn, invoke language
+servers, call registries, or contact external services. ASP.NET Core metadata
+reuses the existing route symbol/storage/control API model, so MCP/query
+consumers see the same graph shape without new tools or profile changes.
 
 ---
 
@@ -1342,6 +1388,43 @@ Add basic Go indexing support.
 - Echo
 - Fiber
 - gRPC
+
+---
+
+## Phase 9.2.11 â€” Scoped Indexing + Intelligence Targets
+
+### Purpose
+
+Let users scope indexing and framework intelligence explicitly so larger local
+repos can opt into bounded targets without changing offline-first defaults.
+
+### Scope
+
+- explicit include/exclude indexing targets
+- framework intelligence target selection
+- dry-run summaries before broad reindexing
+- no automatic cross-project execution
+
+---
+
+## Phase 9.2.12 â€” .NET Desktop / WPF Intelligence
+
+### Purpose
+
+Add basic static .NET desktop intelligence after ASP.NET Core and ORM phases are
+complete.
+
+### Scope
+
+- WPF/XAML file detection
+- basic XAML view and code-behind relationships where safe
+- MVVM naming/convention hints where conservative
+
+### Out of Scope
+
+- Visual Studio automation
+- XAML runtime execution
+- full WPF binding semantics
 
 ---
 
@@ -1799,7 +1882,7 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | Architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, and basic static Angular decorator/route/component metadata. Broader real-world app-stack intelligence depends on Phase 9.2.5 and later.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, and basic static ASP.NET Core / C# Web API route intelligence. Broader real-world app-stack intelligence depends on Phase 9.2.6 and later.
 
 ---
 

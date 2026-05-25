@@ -81,6 +81,10 @@ Angular route and component metadata is available through the same local route
 and component APIs with `framework=angular`, but the current Web UI does not
 include dedicated Angular views yet.
 
+ASP.NET Core route metadata is available through the same local route API with
+`framework=aspnetcore`, but the current Web UI does not include dedicated
+ASP.NET Core views yet.
+
 React/TSX component metadata is available through the local control API, but
 the current Web UI does not include a dedicated component browser yet.
 
@@ -240,6 +244,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Dedicated Angular views are deferred; Angular route/component metadata is
   currently available through `GET /api/routes?framework=angular` and
   `GET /api/components?framework=angular`.
+- Dedicated ASP.NET Core views are deferred; ASP.NET Core route metadata is
+  currently available through `GET /api/routes?framework=aspnetcore`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after
