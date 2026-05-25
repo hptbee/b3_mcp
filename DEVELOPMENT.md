@@ -198,11 +198,14 @@ intelligence is basic static analysis only and is exposed through
 package managers, ORM CLIs, or app code. Realtime/socket intelligence is basic
 static analysis only and is exposed through `GET /api/realtime` without network
 connections, socket server startup, package managers, protocol execution, or app
-code. Phase 9.2.4.1 is a behavior-preserving web module split checkpoint:
+code. Messaging/event-driven intelligence is basic static analysis only and is
+exposed through `GET /api/messaging` without broker connections, broker startup,
+cloud API calls, package managers, protocol execution, or app code. Phase
+9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.7; the next planned
-implementation phase is Phase 9.2.8 - Messaging / Event-driven Intelligence.
+current roadmap is completed through Phase 9.2.8; the next planned
+implementation phase is Phase 9.2.9 - Cloud / Infrastructure Intelligence.
 
 ## Offline-First Expectations
 
@@ -261,6 +264,10 @@ External integrations must remain:
   Socket.IO, SignalR, and minimal RSocket detection must not open network
   connections, start socket servers, run `node`, `npm`, `dotnet`, package
   managers, package registries, or app code.
+- Messaging/event-driven intelligence is basic static analysis only; AMQP,
+  RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging detection must not open
+  broker connections, start brokers, call cloud APIs, run `node`, `npm`,
+  `dotnet`, package managers, package registries, or app code.
 - Phase 9.2.3.1 split the indexer source so `lib.rs` stays focused on
   orchestration, web extraction lives under `crates/b3-indexer/src/web/`, and
   indexer unit tests live in `crates/b3-indexer/src/tests.rs`.

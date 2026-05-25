@@ -36,8 +36,8 @@ use b3_indexer::{
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
-    StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredParseFailure,
-    StoredRealtime, StoredRoute,
+    StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredMessaging,
+    StoredParseFailure, StoredRealtime, StoredRoute,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -268,6 +268,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/components", get(components))
         .route("/api/data-access", get(data_access))
         .route("/api/realtime", get(realtime))
+        .route("/api/messaging", get(messaging))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -1045,6 +1046,22 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "payload_schema_inference": false,
                 "cross_project_event_matching": false
             },
+            "messaging": {
+                "available": true,
+                "support": "basic_static",
+                "technologies": {
+                    "amqp": "basic",
+                    "rabbitmq": "basic",
+                    "kafka": "basic",
+                    "google_pubsub": "basic",
+                    "nestjs_messaging": "basic"
+                },
+                "broker_connection_required": false,
+                "cloud_api_required": false,
+                "runtime_discovery": false,
+                "payload_schema_inference": false,
+                "cross_project_matching": false
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -1065,6 +1082,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "routes": true,
             "data_access": true,
             "realtime": true,
+            "messaging": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1291,6 +1309,40 @@ async fn realtime(
         project_id,
         branch_id,
         realtime: records,
+    }))
+}
+
+async fn messaging(
+    State(state): State<ControlState>,
+    Query(query): Query<MessagingQuery>,
+) -> Result<Json<MessagingResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let records = state
+        .storage
+        .lock()
+        .await
+        .messaging(
+            &project_id,
+            &branch_id,
+            query.technology.as_deref(),
+            query.kind.as_deref(),
+            query.topic.as_deref(),
+            query.queue.as_deref(),
+            query.routing_key.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(MessagingDto::from)
+        .collect();
+
+    Ok(Json(MessagingResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        messaging: records,
     }))
 }
 
@@ -2073,6 +2125,26 @@ struct RealtimeResponse {
     realtime: Vec<RealtimeDto>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct MessagingQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    technology: Option<String>,
+    kind: Option<String>,
+    topic: Option<String>,
+    queue: Option<String>,
+    routing_key: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MessagingResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    messaging: Vec<MessagingDto>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct DataAccessDto {
     id: String,
@@ -2108,6 +2180,29 @@ struct RealtimeDto {
     symbol_id: String,
     class_name: Option<String>,
     function_name: Option<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MessagingDto {
+    id: String,
+    technology: String,
+    kind: String,
+    direction: String,
+    topic: Option<String>,
+    queue: Option<String>,
+    exchange: Option<String>,
+    routing_key: Option<String>,
+    pattern: Option<String>,
+    consumer_group: Option<String>,
+    file_path: String,
+    symbol_id: String,
+    class_name: Option<String>,
+    function_name: Option<String>,
+    method_name: Option<String>,
     line_start: usize,
     line_end: usize,
     confidence: u16,
@@ -2231,6 +2326,32 @@ impl From<StoredRealtime> for RealtimeDto {
             symbol_id: value.symbol_id,
             class_name: value.class_name,
             function_name: value.function_name,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredMessaging> for MessagingDto {
+    fn from(value: StoredMessaging) -> Self {
+        Self {
+            id: value.id,
+            technology: value.technology,
+            kind: value.kind,
+            direction: value.direction,
+            topic: value.topic,
+            queue: value.queue,
+            exchange: value.exchange,
+            routing_key: value.routing_key,
+            pattern: value.pattern,
+            consumer_group: value.consumer_group,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            class_name: value.class_name,
+            function_name: value.function_name,
+            method_name: value.method_name,
             line_start: value.line_start,
             line_end: value.line_end,
             confidence: value.confidence,
@@ -3026,6 +3147,51 @@ mod tests {
         ))
     }
 
+    fn messaging_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("messaging-file"),
+                        project_id: project_id.clone(),
+                        path: "src/messaging.ts".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 32,
+                    content: "producer.send({ topic: 'orders' });".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("messaging-symbol"),
+                        file_id: FileId::new("messaging-file"),
+                        name: "Kafka send orders".to_string(),
+                        kind: NodeKind::Endpoint,
+                        start_byte: 0,
+                        end_byte: 35,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 35,
+                        visibility: Some("messaging.technology=kafka;messaging.kind=Producer;messaging.direction=outbound;messaging.topic=orders;messaging.queue=orders.queue;messaging.exchange=orders.exchange;messaging.routing_key=order.created;messaging.pattern=order.created;messaging.consumer_group=orders-workers;messaging.file=src/messaging.ts;messaging.function=publish;messaging.method=publish;messaging.source=KafkaProducerSend;messaging.line_start=1;messaging.line_end=1;messaging.confidence=9000".to_string()),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("messaging file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+    }
+
     fn graph_app(with_centrality: bool, with_other_branch: bool) -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         seed_graph(&storage, "project", "main", with_centrality);
@@ -3745,6 +3911,97 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn index_api_exposes_static_messaging_metadata() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::create_dir_all(root.join("Messaging")).expect("messaging");
+        fs::write(
+            root.join("src").join("messaging.ts"),
+            r#"
+                import amqp from "amqplib";
+                import { Kafka } from "kafkajs";
+                import { PubSub } from "@google-cloud/pubsub";
+                import { MessagePattern } from "@nestjs/microservices";
+                export async function run(channel, producer, consumer) {
+                    channel.publish("orders.exchange", "order.created", Buffer.from("{}"));
+                    channel.consume("orders.queue", handler);
+                    await producer.send({ topic: "orders", messages: [] });
+                    await consumer.subscribe({ topic: "orders" });
+                    const topic = new PubSub().topic("orders");
+                    await topic.publishMessage({ json: {} });
+                }
+                export class OrdersController {
+                    @MessagePattern("order.created")
+                    handleOrderCreated() {}
+                }
+            "#,
+        )
+        .expect("web messaging");
+        fs::write(
+            root.join("Messaging").join("Worker.cs"),
+            r#"
+                using RabbitMQ.Client;
+                using Confluent.Kafka;
+                using Google.Cloud.PubSub.V1;
+                public class Worker
+                {
+                    public async Task Run(IModel channel, IProducer<string,string> producer, IConsumer<string,string> consumer)
+                    {
+                        channel.BasicPublish(exchange: "orders.exchange", routingKey: "order.created", body: body);
+                        channel.BasicConsume(queue: "orders.queue", autoAck: true, consumer: handler);
+                        await producer.ProduceAsync("orders", message);
+                        consumer.Subscribe("orders");
+                        var subscriber = await SubscriberClient.CreateAsync("projects/demo/subscriptions/orders-sub");
+                    }
+                }
+            "#,
+        )
+        .expect("csharp messaging");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let kafka_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/messaging?technology=kafka&topic=orders")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(kafka_response.status(), StatusCode::OK);
+        let kafka_body = response_json(kafka_response).await;
+        assert!(kafka_body["messaging"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["kind"] == "Producer"));
+
+        let rabbit_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/messaging?technology=rabbitmq&routing_key=order.created")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(rabbit_response.status(), StatusCode::OK);
+        let rabbit_body = response_json(rabbit_response).await;
+        assert!(rabbit_body["messaging"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["source_kind"] == "RabbitMqPublish"));
+    }
+
+    #[tokio::test]
     async fn components_endpoint_returns_indexed_react_components_and_filters() {
         let response = component_app()
             .oneshot(
@@ -3807,6 +4064,28 @@ mod tests {
         assert_eq!(body["realtime"][0]["kind"], "Listener");
         assert_eq!(body["realtime"][0]["event_name"], "message");
         assert_eq!(body["realtime"][0]["source_kind"], "SocketIoOn");
+    }
+
+    #[tokio::test]
+    async fn messaging_endpoint_returns_indexed_metadata_and_filters() {
+        let response = messaging_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/messaging?technology=kafka&kind=producer&topic=orders&routing_key=order.created")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["messaging"].as_array().expect("messaging").len(), 1);
+        assert_eq!(body["messaging"][0]["technology"], "kafka");
+        assert_eq!(body["messaging"][0]["kind"], "Producer");
+        assert_eq!(body["messaging"][0]["topic"], "orders");
+        assert_eq!(body["messaging"][0]["source_kind"], "KafkaProducerSend");
     }
 
     #[tokio::test]

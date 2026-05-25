@@ -263,4 +263,18 @@ app code. It does not implement runtime event flow, protocol decoding, payload
 schema inference, auth negotiation analysis, broker/messaging intelligence,
 room/group semantics beyond obvious metadata, or cross-project event matching.
 
-Do not start Messaging / Event-driven Intelligence until Phase 9.2.8.
+## Messaging / Event-driven Boundaries
+
+Phase 9.2.8 Messaging / Event-driven intelligence is completed as basic local
+static analysis only. It may detect common AMQP, RabbitMQ, Kafka, Google
+Pub/Sub, generic Pub/Sub, and NestJS messaging package/import/project hints,
+producer/consumer callsites, literal topics, queues, exchanges, routing keys,
+consumer groups, and message/event patterns, but it must not connect to brokers,
+start brokers, call cloud APIs, use cloud credentials, run `node`, `npm`,
+`dotnet`, framework CLIs, package scripts, package registries, or app code. It
+does not implement runtime broker state discovery, payload schema inference,
+message contract intelligence, schema registry calls, RabbitMQ binding runtime
+models, Kafka partition/runtime semantics, Google Pub/Sub IAM/project discovery,
+or cross-project producer/consumer matching.
+
+Do not start Cloud / Infrastructure Intelligence until Phase 9.2.9.

@@ -9,6 +9,7 @@
 mod csharp;
 mod data_access;
 pub mod lsp;
+mod messaging;
 mod realtime;
 mod web;
 
@@ -19,6 +20,11 @@ pub(crate) use csharp::{aspnet_metadata_value, detect_csproj_technologies};
 pub(crate) use data_access::data_access_metadata_value;
 pub use data_access::{
     detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
+};
+#[cfg(test)]
+pub(crate) use messaging::messaging_metadata_value;
+pub use messaging::{
+    detect_csproj_messaging_technologies, detect_package_json_messaging_technologies,
 };
 #[cfg(test)]
 pub(crate) use realtime::realtime_metadata_value;
@@ -304,6 +310,28 @@ pub struct RealtimeMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessagingMetadata {
+    pub technology: String,
+    pub kind: String,
+    pub direction: String,
+    pub topic: Option<String>,
+    pub queue: Option<String>,
+    pub exchange: Option<String>,
+    pub routing_key: Option<String>,
+    pub pattern: Option<String>,
+    pub consumer_group: Option<String>,
+    pub file_path: String,
+    pub symbol_id: Option<SymbolId>,
+    pub class_name: Option<String>,
+    pub function_name: Option<String>,
+    pub method_name: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TechnologyKind {
     Language,
     WebBackend,
@@ -334,6 +362,7 @@ pub enum TechnologyCapability {
     ExtractRoutes,
     ExtractComponents,
     ExtractRealtime,
+    ExtractMessaging,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -593,7 +593,12 @@ fn detects_package_json_node_rest_technologies() {
                     "ws": "^8.0.0",
                     "socket.io": "^4.0.0",
                     "@microsoft/signalr": "^8.0.0",
-                    "rsocket-core": "^0.0.0"
+                    "rsocket-core": "^0.0.0",
+                    "amqplib": "^0.10.0",
+                    "kafkajs": "^2.0.0",
+                    "@google-cloud/pubsub": "^4.0.0",
+                    "@nestjs/microservices": "^10.0.0",
+                    "pubsub-js": "^1.0.0"
                 },
                 "devDependencies": {
                     "typescript": "^5.0.0",
@@ -640,6 +645,15 @@ fn detects_package_json_node_rest_technologies() {
         .any(|tech| tech.id == "rsocket" && tech.support_level == TechnologySupportLevel::Basic));
     assert!(detected
         .iter()
+        .any(|tech| tech.id == "amqp" && tech.kind == TechnologyKind::Messaging));
+    assert!(detected.iter().any(|tech| tech.id == "kafka"));
+    assert!(detected.iter().any(|tech| tech.id == "google_pubsub"));
+    assert!(detected.iter().any(|tech| tech.id == "nestjs_messaging"));
+    assert!(detected.iter().any(
+        |tech| tech.id == "pubsub" && tech.support_level == TechnologySupportLevel::DetectOnly
+    ));
+    assert!(detected
+        .iter()
         .any(|tech| tech.id == "typescript" && tech.kind == TechnologyKind::Language));
     assert!(detect_package_json_technologies("{not-json").is_err());
     assert!(detect_nextjs_config_path(Path::new("next.config.js")).is_some());
@@ -662,6 +676,30 @@ fn detects_signalr_project_technologies() {
 
     assert!(detected.iter().any(|tech| tech.id == "signalr"));
     assert!(detect_csproj_realtime_technologies("<Project><Broken").is_ok());
+}
+
+#[test]
+fn detects_messaging_project_technologies() {
+    let detected = detect_csproj_messaging_technologies(
+        r#"<Project>
+            <ItemGroup>
+                <PackageReference Include="RabbitMQ.Client" Version="6" />
+                <PackageReference Include="Confluent.Kafka" Version="2" />
+                <PackageReference Include="Google.Cloud.PubSub.V1" Version="3" />
+                <PackageReference Include="MassTransit" Version="8" />
+            </ItemGroup>
+        </Project>"#,
+    )
+    .expect("detect messaging csproj");
+
+    assert!(detected.iter().any(|tech| tech.id == "rabbitmq"));
+    assert!(detected.iter().any(|tech| tech.id == "kafka"));
+    assert!(detected.iter().any(|tech| tech.id == "google_pubsub"));
+    assert!(detected
+        .iter()
+        .any(|tech| tech.id == "masstransit"
+            && tech.support_level == TechnologySupportLevel::DetectOnly));
+    assert!(detect_csproj_messaging_technologies("<Project><Broken").is_ok());
 }
 
 #[test]
@@ -1001,6 +1039,185 @@ fn realtime_negative_cases_do_not_classify_plain_events() {
         .expect("parse plain events");
     assert!(!parsed.symbols.iter().any(|symbol| {
         realtime_metadata_value(
+            symbol.visibility.as_deref().unwrap_or_default(),
+            "technology",
+        )
+        .is_some()
+    }));
+}
+
+#[test]
+fn web_messaging_detects_amqp_kafka_pubsub_and_nestjs() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("messaging-web"),
+            path: PathBuf::from("src/messaging.ts"),
+            source: r#"
+                import amqp from "amqplib";
+                import { Kafka } from "kafkajs";
+                import { PubSub } from "@google-cloud/pubsub";
+                import { MessagePattern, EventPattern, ClientProxy } from "@nestjs/microservices";
+
+                export async function run(channel, producer, consumer, client: ClientProxy) {
+                    channel.assertExchange("orders.exchange", "topic");
+                    channel.assertQueue("orders.queue");
+                    channel.bindQueue("orders.queue", "orders.exchange", "order.created");
+                    channel.publish("orders.exchange", "order.created", Buffer.from("{}"));
+                    channel.sendToQueue("orders.queue", Buffer.from("{}"));
+                    channel.consume("orders.queue", handler);
+                    await producer.send({ topic: "orders", messages: [] });
+                    await consumer.subscribe({ topic: "orders" });
+                    await consumer.run({ eachMessage: async () => {} });
+                    const pubsub = new PubSub();
+                    const topic = pubsub.topic("orders");
+                    await topic.publishMessage({ json: {} });
+                    const subscription = pubsub.subscription("orders-sub");
+                    subscription.on("message", handler);
+                    client.emit("order.created", {});
+                    client.send("sum", {});
+                }
+
+                export class OrdersController {
+                    @MessagePattern("order.created")
+                    handleOrderCreated() {}
+
+                    @EventPattern({ cmd: "sum" })
+                    handleSum() {}
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse web messaging");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            messaging_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("AmqpPublish")
+            && messaging_metadata_value(metadata, "exchange").as_deref() == Some("orders.exchange")
+            && messaging_metadata_value(metadata, "routing_key").as_deref() == Some("order.created")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("AmqpConsume")
+            && messaging_metadata_value(metadata, "queue").as_deref() == Some("orders.queue")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("KafkaProducerSend")
+            && messaging_metadata_value(metadata, "topic").as_deref() == Some("orders")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref()
+            == Some("GooglePubSubSubscriptionHandler")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("NestMessagePattern")
+            && messaging_metadata_value(metadata, "pattern").as_deref() == Some("order.created")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("NestEventPattern")
+            && messaging_metadata_value(metadata, "pattern").as_deref() == Some("sum")
+    }));
+}
+
+#[test]
+fn csharp_messaging_detects_rabbitmq_kafka_and_pubsub() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("messaging-csharp"),
+            path: PathBuf::from("Messaging/Workers.cs"),
+            source: r#"
+                using RabbitMQ.Client;
+                using Confluent.Kafka;
+                using Google.Cloud.PubSub.V1;
+
+                public class Workers
+                {
+                    public async Task Run(IModel channel, IProducer<string, string> producer, IConsumer<string, string> consumer)
+                    {
+                        channel.ExchangeDeclare(exchange: "orders.exchange", type: "topic");
+                        channel.QueueDeclare(queue: "orders.queue");
+                        channel.QueueBind(queue: "orders.queue", exchange: "orders.exchange", routingKey: "order.created");
+                        channel.BasicPublish(exchange: "orders.exchange", routingKey: "order.created", body: body);
+                        channel.BasicConsume(queue: "orders.queue", autoAck: true, consumer: handler);
+                        await producer.ProduceAsync("orders", message);
+                        consumer.Subscribe("orders");
+                        consumer.Consume(token);
+                        var publisher = await PublisherClient.CreateAsync("projects/demo/topics/orders");
+                        await publisher.PublishAsync("payload");
+                        var subscriber = await SubscriberClient.CreateAsync("projects/demo/subscriptions/orders-sub");
+                        await subscriber.StartAsync(handler);
+                    }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse csharp messaging");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            messaging_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("RabbitMqPublish")
+            && messaging_metadata_value(metadata, "routing_key").as_deref() == Some("order.created")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref() == Some("KafkaProduceAsync")
+            && messaging_metadata_value(metadata, "topic").as_deref() == Some("orders")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        messaging_metadata_value(metadata, "source").as_deref()
+            == Some("GooglePubSubSubscriberClient")
+            && messaging_metadata_value(metadata, "queue")
+                .unwrap_or_default()
+                .contains("orders-sub")
+    }));
+}
+
+#[test]
+fn messaging_negative_cases_do_not_classify_plain_event_emitters() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("plain-messaging"),
+            path: PathBuf::from("src/plain.ts"),
+            source: r#"
+                export function render(emitter) {
+                    const topic = "orders";
+                    const queue = "orders.queue";
+                    emitter.on("message", handler);
+                    emitter.emit("order.created", {});
+                    return `${topic}:${queue}`;
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse plain messaging");
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        messaging_metadata_value(
             symbol.visibility.as_deref().unwrap_or_default(),
             "technology",
         )

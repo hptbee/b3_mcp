@@ -67,6 +67,7 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
     symbols.extend(angular_routes);
     symbols.extend(data_access::collect_web_data_access(&input, &symbols));
     symbols.extend(realtime::collect_web_realtime(&input, &symbols));
+    symbols.extend(messaging::collect_web_messaging(&input, &symbols));
     let relationships = collect_web_relationships(&symbols);
 
     Ok(ParsedFile {

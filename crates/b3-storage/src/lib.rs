@@ -512,6 +512,31 @@ pub struct StoredRealtime {
     pub source_kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredMessaging {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub technology: String,
+    pub kind: String,
+    pub direction: String,
+    pub topic: Option<String>,
+    pub queue: Option<String>,
+    pub exchange: Option<String>,
+    pub routing_key: Option<String>,
+    pub pattern: Option<String>,
+    pub consumer_group: Option<String>,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub class_name: Option<String>,
+    pub function_name: Option<String>,
+    pub method_name: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1418,6 +1443,56 @@ impl SqliteStorage {
         }
         if let Some(file) = file {
             records.retain(|record| record.file_path == file);
+        }
+        Ok(records)
+    }
+
+    pub fn messaging(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        technology: Option<&str>,
+        kind: Option<&str>,
+        topic: Option<&str>,
+        queue: Option<&str>,
+        routing_key: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredMessaging>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%messaging.technology=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![project_id, branch_id, limit as i64],
+                messaging_from_row,
+            )
+            .map_err(to_contract_error)?;
+        let mut records = collect_rows(rows)?;
+        if let Some(technology) = technology {
+            records.retain(|record| record.technology == technology);
+        }
+        if let Some(kind) = kind {
+            records.retain(|record| record.kind.eq_ignore_ascii_case(kind));
+        }
+        if let Some(topic) = topic {
+            records.retain(|record| record.topic.as_deref() == Some(topic));
+        }
+        if let Some(queue) = queue {
+            records.retain(|record| record.queue.as_deref() == Some(queue));
+        }
+        if let Some(routing_key) = routing_key {
+            records.retain(|record| record.routing_key.as_deref() == Some(routing_key));
         }
         Ok(records)
     }
@@ -2858,6 +2933,50 @@ fn realtime_from_row(row: &Row<'_>) -> rusqlite::Result<StoredRealtime> {
     })
 }
 
+fn messaging_from_row(row: &Row<'_>) -> rusqlite::Result<StoredMessaging> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    Ok(StoredMessaging {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        technology: messaging_metadata_value(&metadata, "technology")
+            .unwrap_or_else(|| "unknown".to_string()),
+        kind: messaging_metadata_value(&metadata, "kind").unwrap_or_else(|| "Unknown".to_string()),
+        direction: messaging_metadata_value(&metadata, "direction")
+            .unwrap_or_else(|| "unknown".to_string()),
+        topic: messaging_metadata_value(&metadata, "topic"),
+        queue: messaging_metadata_value(&metadata, "queue"),
+        exchange: messaging_metadata_value(&metadata, "exchange"),
+        routing_key: messaging_metadata_value(&metadata, "routing_key"),
+        pattern: messaging_metadata_value(&metadata, "pattern"),
+        consumer_group: messaging_metadata_value(&metadata, "consumer_group"),
+        file_path: messaging_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        class_name: messaging_metadata_value(&metadata, "class"),
+        function_name: messaging_metadata_value(&metadata, "function"),
+        method_name: messaging_metadata_value(&metadata, "method"),
+        line_start: messaging_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: messaging_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: messaging_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: messaging_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("route.{key}=");
     metadata.split(';').find_map(|part| {
@@ -2884,6 +3003,14 @@ fn data_access_metadata_value(metadata: &str, key: &str) -> Option<String> {
 
 fn realtime_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("realtime.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
+    })
+}
+
+fn messaging_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("messaging.{key}=");
     metadata.split(';').find_map(|part| {
         part.strip_prefix(&full_key)
             .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
@@ -3495,6 +3622,71 @@ mod tests {
         assert!(storage
             .realtime("project", "main", None, None, None, None, 10)
             .expect("realtime after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn messaging_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("messaging-file"),
+                project_id: project_id.clone(),
+                path: "src/messaging.ts".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("typescript".to_string()),
+            size_bytes: 32,
+            content: "producer.send({ topic: 'orders' });".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("messaging-symbol"),
+                file_id: FileId::new("messaging-file"),
+                name: "Kafka send orders".to_string(),
+                kind: NodeKind::Endpoint,
+                start_byte: 0,
+                end_byte: 35,
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 35,
+                visibility: Some("messaging.technology=kafka;messaging.kind=Producer;messaging.direction=outbound;messaging.topic=orders;messaging.queue=orders.queue;messaging.exchange=orders.exchange;messaging.routing_key=order.created;messaging.pattern=order.created;messaging.consumer_group=orders-workers;messaging.file=src/messaging.ts;messaging.function=publish;messaging.method=publish;messaging.source=KafkaProducerSend;messaging.line_start=1;messaging.line_end=1;messaging.confidence=9000".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first messaging upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second messaging upsert");
+        let records = storage
+            .messaging(
+                "project",
+                "main",
+                Some("kafka"),
+                Some("producer"),
+                Some("orders"),
+                Some("orders.queue"),
+                Some("order.created"),
+                10,
+            )
+            .expect("messaging");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].topic.as_deref(), Some("orders"));
+        assert_eq!(records[0].consumer_group.as_deref(), Some("orders-workers"));
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .messaging("project", "main", None, None, None, None, None, 10)
+            .expect("messaging after cleanup")
             .is_empty());
     }
 

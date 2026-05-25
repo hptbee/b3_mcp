@@ -24,7 +24,8 @@ Current roadmap status:
 - Completed: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 - Completed: Phase 9.2.6 - ORM / Database Access Intelligence
 - Completed: Phase 9.2.7 - Realtime / Socket Intelligence
-- Next: Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Completed: Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Next: Phase 9.2.9 - Cloud / Infrastructure Intelligence
 
 ---
 
@@ -1363,7 +1364,6 @@ Understand asynchronous messaging flows.
 - Kafka
 - Google Pub/Sub
 - generic Pub/Sub messaging
-- ksqlDB
 - producers
 - consumers
 - topics
@@ -1371,8 +1371,6 @@ Understand asynchronous messaging flows.
 - exchanges
 - routing keys
 - consumer groups
-- streams/tables
-- event contract impact
 
 ### Out of Scope
 
@@ -1380,6 +1378,30 @@ Understand asynchronous messaging flows.
 - message consumption
 - cloud service calls
 - telemetry
+
+### Completion Notes
+
+Implemented as focused `crates/b3-indexer/src/messaging/` static extraction.
+Messaging records are encoded on existing symbols with `messaging.*` metadata
+and exposed through storage/control adapters without a schema migration.
+
+Support is basic, static, local, and conservative:
+
+- AMQP/RabbitMQ package/import/using hints, publish/send-to-queue, consume,
+  exchange, queue, and bind metadata from literal strings
+- Kafka package/import/using hints, producer send, consumer subscribe/run,
+  topic metadata, and simple literal consumer-group hints
+- Google Pub/Sub package/import/using hints, topic publishers, subscription
+  handlers, and basic C# publisher/subscriber client callsites
+- NestJS `@MessagePattern`, `@EventPattern`, and low-risk ClientProxy
+  `emit`/`send` literal pattern metadata
+
+The implementation does not connect to brokers, start Kafka/RabbitMQ/AMQP/PubSub
+services, call Google Cloud APIs, discover runtime topics/queues, execute app
+code, run `node`, `npm`, `dotnet`, package managers, framework CLIs, package
+registries, infer payload schemas, analyze message contracts, or match
+producers/consumers across projects. Cloud/infrastructure intelligence remains
+deferred to Phase 9.2.9.
 
 ---
 
@@ -1927,7 +1949,7 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | Architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, and basic static realtime/socket metadata. Broader messaging, cloud, Go, WPF/XAML, local embeddings, and cross-project architecture intelligence depends on Phase 9.2.8 and later.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, and basic static messaging/event-driven metadata. Broader cloud, Go, scoped indexing targets, WPF/XAML, local embeddings, and cross-project architecture intelligence depends on Phase 9.2.9 and later.
 
 ---
 

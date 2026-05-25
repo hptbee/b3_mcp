@@ -260,6 +260,29 @@ protocol execution, payload schema inference, runtime event discovery,
 cross-project event matching, package managers, package registries, external
 APIs, and telemetry.
 
+### Basic Messaging / Event-driven Intelligence
+
+Phase 9.2.8 adds conservative static messaging/event-driven extraction:
+
+1. detect AMQP, RabbitMQ, Kafka, Google Pub/Sub, NestJS messaging, and generic
+   messaging package/project hints from local `package.json`, `.csproj`,
+   imports, and usings
+2. inspect JS/TS and C# text for RabbitMQ/AMQP publish, send-to-queue, consume,
+   exchange, queue, bind, and routing-key callsites with literal metadata
+3. inspect JS/TS and C# text for Kafka producer send, consumer subscribe/run,
+   topic metadata, and simple literal consumer-group hints
+4. inspect JS/TS and C# text for Google Pub/Sub topic publishers and
+   subscription handlers without cloud API calls
+5. inspect NestJS `@MessagePattern`, `@EventPattern`, and low-risk ClientProxy
+   `emit`/`send` patterns
+6. encode records as existing symbols with `messaging.*` metadata and expose
+   them through `GET /api/messaging`
+
+The extractor intentionally avoids broker connections, broker startup, cloud
+API calls, runtime topic/queue discovery, payload schema inference, schema
+registry calls, package managers, package registries, external APIs, and
+telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.

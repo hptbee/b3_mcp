@@ -570,9 +570,48 @@ Must defer:
 - backpressure/protocol semantics
 - room/group membership semantics beyond obvious literal metadata
 - cross-project event producer/consumer matching
-- messaging/broker intelligence such as Kafka, RabbitMQ, AMQP, or Pub/Sub
 - cloud/infrastructure, Go, WPF/XAML, symbolic editing, rename/refactor,
   embeddings, semantic search, and cross-project architecture intelligence
+
+## Messaging / Event-driven Intelligence
+
+Phase 9.2.8 adds basic static messaging/event-driven intelligence.
+
+Must support:
+- local package/project detection for AMQP, RabbitMQ, Kafka, Google Pub/Sub,
+  generic Pub/Sub hints, and NestJS messaging packages
+- RabbitMQ/AMQP literal publish, send-to-queue, consume, exchange, queue, bind,
+  routing key, and queue metadata
+- Kafka literal producer send, consumer subscribe/run, topic metadata, and
+  simple consumer-group hints where visible
+- Google Pub/Sub package/import/using hints, topic publisher and subscription
+  handler metadata, and basic C# publisher/subscriber callsites
+- NestJS `@MessagePattern`, `@EventPattern`, and low-risk ClientProxy
+  `emit`/`send` literal pattern metadata
+- read-only messaging listing through `GET /api/messaging`
+- metadata cleanup through normal deleted-file index cleanup
+
+Must not require:
+- Kafka, RabbitMQ, AMQP, Google Pub/Sub, or other broker connections
+- broker startup
+- Google Cloud API calls or credentials
+- runtime topic/queue discovery
+- payload schema inference
+- `npm install`, `node`, package-manager scripts, package registries, `dotnet`,
+  restore/build/run/test commands, app code, external APIs, telemetry, or paid
+  dependencies
+
+Must defer:
+- runtime broker state discovery
+- payload schema and contract intelligence
+- schema registry calls
+- RabbitMQ exchange binding runtime model
+- Kafka partition/runtime semantics
+- Google Pub/Sub IAM/project discovery
+- cross-project producer/consumer matching
+- cloud/infrastructure, Go, scoped indexing targets, WPF/XAML, symbolic editing,
+  rename/refactor, embeddings, semantic search, and cross-project architecture
+  intelligence
 
 ## Graph Requirements
 
@@ -728,10 +767,10 @@ Avoid:
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
 - Phase 9.2.7: Realtime / Socket Intelligence
+- Phase 9.2.8: Messaging / Event-driven Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets

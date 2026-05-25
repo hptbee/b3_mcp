@@ -116,6 +116,7 @@ Diagnostics and config:
 - `GET /api/components`
 - `GET /api/data-access`
 - `GET /api/realtime`
+- `GET /api/messaging`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -150,6 +151,10 @@ Current truth:
   query callsites and operations.
 - Realtime/socket intelligence is `Basic`, static, and local for WebSocket,
   Socket.IO, SignalR, and minimal RSocket package/request metadata.
+- Messaging/event-driven intelligence is `Basic`, static, and local for AMQP,
+  RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging package/use detection
+  plus obvious producer/consumer callsites and literal topics, queues,
+  exchanges, routing keys, and patterns.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
@@ -183,6 +188,15 @@ technology values are `websocket`, `socketio`, `signalr`, and `rsocket`.
 Responses include technology, kind, direction, event/channel/hub/method/endpoint
 where available, file, symbol, class/function name, line range, confidence, and
 source kind.
+
+`GET /api/messaging` returns locally indexed static messaging/event-driven
+metadata from symbols with `messaging.*` metadata. Optional filters include
+`project_id`, `branch_id`, `technology`, `kind`, `topic`, `queue`,
+`routing_key`, and `limit`. Supported technology values include `amqp`,
+`rabbitmq`, `kafka`, `google_pubsub`, `pubsub`, and `nestjs_messaging`.
+Responses include technology, kind, direction, topic/queue/exchange/routing key
+/pattern where available, file, symbol, class/function/method name, line range,
+confidence, and source kind.
 
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
@@ -224,6 +238,7 @@ curl http://127.0.0.1:7777/api/routes?framework=nextjs
 curl http://127.0.0.1:7777/api/routes?framework=aspnetcore
 curl http://127.0.0.1:7777/api/data-access?technology=ef_core
 curl http://127.0.0.1:7777/api/realtime?technology=socketio
+curl http://127.0.0.1:7777/api/messaging?technology=kafka
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 
@@ -273,6 +288,8 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   through the control API.
 - Dedicated realtime/socket browser UI is deferred; realtime metadata is exposed
   through `GET /api/realtime`.
+- Dedicated messaging browser UI is deferred; messaging metadata is exposed
+  through `GET /api/messaging`.
 - Manual indexing is synchronous for this phase; `GET /api/index/status`
   reports the current or last run for the current server process.
 

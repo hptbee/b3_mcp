@@ -92,14 +92,15 @@ Completed:
 - Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6 - ORM / Database Access Intelligence
 - Phase 9.2.7 - Realtime / Socket Intelligence
+- Phase 9.2.8 - Messaging / Event-driven Intelligence
 
 Next:
 
-- Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Phase 9.2.9 - Cloud / Infrastructure Intelligence
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. LSP remains local-only and disabled by default, and messaging, cloud, Go, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. LSP remains local-only and disabled by default, and cloud, Go, scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
 
 ---
 
@@ -176,20 +177,24 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
 - Realtime/socket extraction is basic/static/local for WebSocket constructors,
   listeners, sends, Socket.IO `on`/`emit`, SignalR hubs/client calls, and
   minimal RSocket package/request metadata.
+- Messaging/event-driven extraction is basic/static/local for AMQP/RabbitMQ,
+  Kafka, Google Pub/Sub, and NestJS messaging packages/imports/usings plus
+  obvious producers, consumers, topics, queues, exchanges, routing keys, and
+  message patterns.
 - Deep middleware order, runtime routing, Nest module graphs, guards/interceptors,
   deep dependency injection, Angular compiler behavior, template type checking,
   RxJS/NgRx flow, Roslyn semantics, full DI graphs, EF/Dapper query analysis,
   full LINQ/SQL semantics, database connections, migrations, middleware
-  pipeline analysis, runtime realtime flow, payload schema inference,
-  cross-project event matching, WPF/XAML intelligence, and request lifecycle
-  inference are deferred.
+  pipeline analysis, runtime realtime or broker flow, payload schema inference,
+  message contract analysis, cross-project producer/consumer matching,
+  WPF/XAML intelligence, and request lifecycle inference are deferred.
 - Manual project init/index workflow is planned for Phase 8.5.1.
 - MCP tool profiles start in Phase 8.6.
 - Multi-repo registry and project groups are planned for Phase 8.8.
 - Full React Server Components semantics, Next.js
   runtime/deployment/auth intelligence, deep React runtime behavior, deep Node
   runtime behavior, deep Angular DI/module/template behavior, full semantic C#,
-  deep database semantics, Docker, Kafka, ksqlDB, RabbitMQ, WPF/XAML, Three.js,
+  deep database semantics, Docker, ksqlDB, WPF/XAML, Three.js,
   and other app-stack support are planned for Phase 9.x.
 - Semantic search and embeddings are not implemented yet.
 - Symbolic editing and rename/refactor tools are not implemented yet.
@@ -449,10 +454,11 @@ Recently completed:
 - Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6 - ORM / Database Access Intelligence
 - Phase 9.2.7 - Realtime / Socket Intelligence
+- Phase 9.2.8 - Messaging / Event-driven Intelligence
 
 Next:
 
-- Phase 9.2.8 - Messaging / Event-driven Intelligence
+- Phase 9.2.9 - Cloud / Infrastructure Intelligence
 
 See `PLAN.md` for the full roadmap.
 

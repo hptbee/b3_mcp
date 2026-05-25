@@ -91,6 +91,9 @@ but the current Web UI does not include dedicated ORM/database views yet.
 Realtime/socket metadata is available through the local realtime API, but the
 current Web UI does not include dedicated realtime/socket views yet.
 
+Messaging/event-driven metadata is available through the local messaging API,
+but the current Web UI does not include dedicated messaging views yet.
+
 React/TSX component metadata is available through the local control API, but
 the current Web UI does not include a dedicated component browser yet.
 
@@ -256,6 +259,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
   available through `GET /api/data-access`.
 - Dedicated realtime/socket views are deferred; realtime metadata is currently
   available through `GET /api/realtime`.
+- Dedicated messaging views are deferred; messaging metadata is currently
+  available through `GET /api/messaging`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after
