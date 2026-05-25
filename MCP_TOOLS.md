@@ -19,6 +19,10 @@ Phase 10.0 adds local embedding/vector architecture only. It does not add a
 semantic search MCP tool, does not change MCP profiles or tool counts, and does
 not move vector storage, embedding generation, or ranking into the MCP runtime.
 
+Phase 10.1 adds the offline `local_hash` embedding provider outside the MCP
+runtime. It still does not add a semantic search MCP tool, change MCP profiles,
+or move embedding generation into the MCP hot path.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

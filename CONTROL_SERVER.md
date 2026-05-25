@@ -143,6 +143,7 @@ Diagnostics and config:
 - `GET /api/diagnostics`
 - `GET /api/capabilities`
 - `GET /api/vector/status`
+- `GET /api/vector/providers`
 - `GET /api/vector/stats`
 - `GET /api/languages`
 - `GET /api/lsp/status`
@@ -210,9 +211,10 @@ Current truth:
   realtime, messaging, and infrastructure.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Vector architecture is available locally through read-only status/stats
-  endpoints. Embeddings are disabled by default, the provider is `none`, real
-  local providers are deferred to Phase 10.1, SQLite vector search/index work is
-  deferred to Phase 10.2, and semantic search remains unavailable.
+  endpoints. Phase 10.1 adds the deterministic offline `local_hash` provider and
+  `GET /api/vector/providers`. Embeddings remain disabled by default, SQLite
+  vector search/index work is deferred to Phase 10.2, and semantic search
+  remains unavailable.
 - Semantic search and deeper framework intelligence remain deferred.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.

@@ -611,13 +611,31 @@ Added requirements:
 
 ### Planned Phases
 
-- Phase 10: Local Embeddings + Vector Search
-- Phase 10.1: Semantic Context Upgrade
-- Phase 11: Architecture Intelligence
-- Phase 12: Git Intelligence
-- Phase 13: Duplicate / Similarity Detection
-- Phase 14: Real Plugin System
-- Phase 15: Packaging + Installers
+- Phase 10.2: SQLite Vector Storage / Search Index
+- Phase 10.3: Hybrid Search Ranking
+- Phase 10.4: MCP / Control API Integration
+- Phase 10.5: Benchmark + Quality Evaluation
+- Phase 11: Cross-Project Architecture Intelligence
+- Phase 12: Symbolic Editing MVP
+- Phase 13: Rename / Refactor MVP
+- Phase 14: Additional Backend Language Support
+- Phase 15: Systems / Mobile Language Support
+
+### Phase 10.1 Local Hash Embeddings
+
+Phase 10.1 adds `local_hash`, a deterministic lexical embedding provider. The
+algorithm lowercases text, tokenizes on identifier/word boundaries, splits
+simple camelCase and snake_case forms, adds token bigrams, hashes features into
+a fixed-size vector with signed hashing, and optionally L2-normalizes the
+result. Empty input deterministically returns a zero vector. Long input is
+truncated at a configured character boundary before tokenization.
+
+The provider requires no model file, API key, network access, hosted vector
+database, telemetry endpoint, or paid dependency. It is suitable for offline
+chunk/vector generation, but it is not a full semantic search implementation.
+SQLite vector index completion remains Phase 10.2, hybrid ranking remains Phase
+10.3, MCP/control semantic integration remains Phase 10.4, and quality
+benchmarking remains Phase 10.5.
 
 ## Additional Planned Algorithms
 

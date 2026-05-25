@@ -282,6 +282,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
         .route("/api/vector/status", get(vector_status))
+        .route("/api/vector/providers", get(vector_providers))
         .route("/api/vector/stats", get(vector_stats))
         .route("/api/languages", get(languages))
         .route("/api/lsp/status", get(lsp_status))
@@ -1455,6 +1456,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "infrastructure": true,
             "wpf": true,
             "vector_status": true,
+            "vector_providers": true,
             "vector_stats": true,
             "events": "sse"
         },
@@ -1469,18 +1471,56 @@ async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>,
         .await
         .vector_stats()
         .map_err(ControlError::internal)?;
+    let registry = b3_embeddings::EmbeddingProviderRegistry::offline_default();
+    let local_hash_available = registry.get(b3_embeddings::LOCAL_HASH_PROVIDER_ID).is_ok();
     Ok(Json(json!({
         "status": "ok",
+        "architecture_available": true,
         "enabled": state.app_config.embedding.enabled,
         "provider": state.app_config.embedding.provider_id.as_str(),
         "dimension": state.app_config.embedding.dimension,
         "documents": stats.documents,
         "vectors": stats.vectors,
         "local_only": true,
+        "local_hash_provider_available": local_hash_available,
         "external_plugins_enabled": state.app_config.embedding.external_plugins_enabled,
         "semantic_search_available": false,
-        "architecture_available": true
+        "semantic_search_ready": false,
+        "vector_search_ready": false,
+        "hosted_vector_database_required": false,
+        "openai_api_required": false,
+        "cloud_embedding_api_required": false,
+        "model_download_required": false,
+        "telemetry_enabled": false
     })))
+}
+
+async fn vector_providers() -> Json<Value> {
+    let registry = b3_embeddings::EmbeddingProviderRegistry::offline_default();
+    let providers = registry
+        .available_providers()
+        .into_iter()
+        .map(|provider| {
+            json!({
+                "id": provider.id,
+                "name": provider.name,
+                "kind": format!("{:?}", provider.kind),
+                "dimension": provider.dimension,
+                "local_only": provider.local_only,
+                "deterministic": provider.deterministic,
+                "batch": provider.batch,
+                "requires_network": false,
+                "requires_api_key": false,
+                "downloads_models": false,
+                "telemetry": false
+            })
+        })
+        .collect::<Vec<_>>();
+    Json(json!({
+        "status": "ok",
+        "providers": providers,
+        "external_plugins_enabled": false
+    }))
 }
 
 async fn vector_stats(State(state): State<ControlState>) -> Result<Json<Value>, ControlError> {
@@ -4132,9 +4172,27 @@ mod tests {
         assert_eq!(status_response.status(), StatusCode::OK);
         let status = response_json(status_response).await;
         assert_eq!(status["enabled"], false);
-        assert_eq!(status["provider"], "none");
+        assert_eq!(status["provider"], "local_hash");
+        assert_eq!(status["local_hash_provider_available"], true);
         assert_eq!(status["local_only"], true);
         assert_eq!(status["semantic_search_available"], false);
+        assert_eq!(status["semantic_search_ready"], false);
+        assert_eq!(status["vector_search_ready"], false);
+
+        let providers_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/vector/providers")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("providers response");
+        assert_eq!(providers_response.status(), StatusCode::OK);
+        let providers = response_json(providers_response).await;
+        assert_eq!(providers["providers"][0]["id"], "local_hash");
+        assert_eq!(providers["providers"][0]["local_only"], true);
 
         let stats_response = app
             .oneshot(

@@ -98,11 +98,17 @@ Completed:
 - Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 - Phase 9.2.12 - .NET Desktop / WPF Intelligence
 
-Next:
+Completed:
 
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
+
+Current/Next:
+
 - Phase 10.2 - SQLite Vector Storage / Search Index
+
+Upcoming:
+
 - Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
@@ -164,10 +170,11 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   Visual Studio, MSBuild, `dotnet`, Windows runtime, or a XAML compiler.
 - Go is basic/static/local and does not require the Go toolchain, `go build`,
   `go test`, `go list`, module downloads, or package registry access.
-- Real embedding providers, semantic search, Qdrant, session memory, symbolic
+- Neural/model embedding providers, semantic search, Qdrant, session memory, symbolic
   editing, and domain-specific intelligence beyond current static extractors
-  are deferred. Phase 10.0 provides local/offline vector architecture
-  foundations only.
+  are deferred. Phase 10.1 provides the local/offline `local_hash`
+  deterministic embedding provider, but SQLite vector search and hybrid ranking
+  are still later phases.
 - LSP exists as a local backend foundation and is disabled by default.
 - Reindex is currently safe incremental reindexing, not a separate force-delete
   full rebuild.
@@ -222,11 +229,12 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
   runtime behavior, deep Angular DI/module/template behavior, full semantic C#,
   deep database semantics, Docker, ksqlDB, WPF/XAML, Three.js,
   and other app-stack support are planned for Phase 9.x.
-- Real embedding providers and semantic search are not implemented yet; Phase
-  10.0 provides contracts, chunk planning, SQLite vector tables, and control
-  status/stats only.
+- Phase 10.1 adds the deterministic `local_hash` embedding provider with no API
+  key, model download, hosted vector database, or internet requirement.
+  Semantic search, SQLite vector index completion, hybrid ranking, and MCP
+  semantic tools are not implemented yet.
 - Symbolic editing and rename/refactor tools are not implemented yet.
-- Session memory is planned for Phase 10.2+.
+- Session memory remains deferred beyond the current vector-search roadmap.
 - Command output compaction is rule-based and conservative.
 - Token savings estimates are approximate and not tokenizer-exact.
 
@@ -500,11 +508,17 @@ Recently completed:
 - Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 - Phase 9.2.12 - .NET Desktop / WPF Intelligence
 
-Next:
+Completed:
 
 - Phase 10.0 - Local Embeddings + Vector Search Architecture
 - Phase 10.1 - Local Embedding Provider MVP
+
+Current/Next:
+
 - Phase 10.2 - SQLite Vector Storage / Search Index
+
+Upcoming:
+
 - Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
@@ -571,8 +585,8 @@ For the full plan, see `PLAN.md`.
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Basic static/local |
 | Three.js / WebGL | Deferred |
-| Refactor assistant | Phase 9.3 / 9.4 |
-| Full memory/context platform | Phase 10.2+ |
+| Refactor assistant | Phase 12 / Phase 13 |
+| Full memory/context platform | Deferred |
 
 ---
 

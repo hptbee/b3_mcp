@@ -8,8 +8,9 @@
 
 Future phases may also require:
 - Node.js for the Next.js UI
-- explicitly configured local embedding providers such as Ollama, GGUF models,
-  sentence-transformers, Candle, or fastembed
+- optional neural/model embedding providers such as Ollama, GGUF models,
+  sentence-transformers, Candle, or fastembed when a later plugin phase adds
+  them
 - optional local vector components only when disabled by default
 - optional local language servers such as `typescript-language-server`, `csharp-ls`, or OmniSharp when LSP is explicitly enabled
 
@@ -91,9 +92,11 @@ The CI skeleton mirrors these commands with:
 - `cargo check --workspace`
 - `cargo test --workspace`
 
-Phase 10.0 vector architecture is verified by the Rust workspace tests. It does
-not require internet access, API keys, hosted vector databases, Qdrant, model
-downloads, Node.js, Python, Docker, `dotnet`, or Go.
+Phase 10.1 local embeddings are verified by the Rust workspace tests. The
+default provider id is `local_hash`, embeddings remain disabled by default, and
+the provider works without internet access, API keys, hosted vector databases,
+Qdrant, model downloads, Node.js, Python, Docker, `dotnet`, or Go. SQLite vector
+search, hybrid ranking, and MCP semantic search tools remain deferred.
 
 ## Benchmark Commands
 

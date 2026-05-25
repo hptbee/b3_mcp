@@ -98,7 +98,7 @@ Targets:
 - PHP
 - Ruby
 
-Go is handled earlier in Phase 10.2 because it is part of the planned web/backend priority stack.
+Go is already handled in Phase 9.2.10 as basic local static analysis.
 
 ---
 
@@ -888,6 +888,31 @@ Status: Completed.
 
 ## Current Phase 10 Roadmap
 
+Completed:
+
+- Phase 10.0 - Local Embeddings + Vector Search Architecture
+- Phase 10.1 - Local Embedding Provider MVP
+
+Current/Next:
+
+- Phase 10.2 - SQLite Vector Storage / Search Index
+
+Upcoming:
+
+- Phase 10.3 - Hybrid Search Ranking
+- Phase 10.4 - MCP / Control API Integration
+- Phase 10.5 - Benchmark + Quality Evaluation
+- Phase 11 - Cross-Project Architecture Intelligence
+- Phase 12 - Symbolic Editing MVP
+- Phase 13 - Rename / Refactor MVP
+- Phase 14 - Additional Backend Language Support
+- Phase 15 - Systems / Mobile Language Support
+- Phase 16 - Config / Data / Web File Support
+- Phase 17 - Language and Technology Quality Audit
+- Phase 18 - Refactor Checkpoint D
+- Phase 19 - Performance Optimization Pass B
+- Phase 20 - Web UI Developer Console Refresh
+
 ## Phase 10.0 - Local Embeddings + Vector Search Architecture
 
 Status: Completed.
@@ -920,21 +945,33 @@ Rules:
 
 ## Phase 10.1 - Local Embedding Provider MVP
 
-Status: Current.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- add one real local/free embedding provider
-- no model download by default
-- provider must be explicitly configured when model files or local runtimes are needed
-- deterministic test provider remains test/development only
-- no cloud provider defaults
+- added `local_hash`, a deterministic lexical/hash embedding provider
+- default embedding config names `local_hash` but keeps embeddings disabled
+- added an offline provider registry and config-to-provider construction
+- added batch document embedding from planned chunks to `EmbeddingVector` records
+- added L2 normalization, dot product, cosine similarity, and dimension validation helpers
+- added read-only `GET /api/vector/providers`
+- updated `GET /api/vector/status` to report local provider availability and readiness truthfully
+
+Rules:
+
+- no OpenAI/cloud embedding API integration
+- no hosted vector database requirement
+- no model download or tokenizer requirement
+- no Qdrant requirement
+- no semantic search MCP tool
+- no hybrid ranking
+- no telemetry, SaaS auth, API keys, or internet requirement
 
 ---
 
 ## Phase 10.2 - SQLite Vector Storage / Search Index
 
-Status: Planned.
+Status: Current.
 
 Scope:
 

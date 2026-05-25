@@ -143,6 +143,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "b3-core",
+ "b3-embeddings",
  "b3-indexer",
  "b3-mcp-runtime",
  "b3-storage",

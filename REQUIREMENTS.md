@@ -112,7 +112,7 @@ Indexing:
 Search:
 - `find_symbol`
 - `search_code`
-- `semantic_search`
+- `semantic_search` (planned; not exposed in Phase 10.1)
 - `search_code_graph`
 
 Graph:
@@ -918,12 +918,12 @@ Avoid:
 
 ### Planned Phases
 
-- Phase 9.3/9.4: Symbolic editing and rename/refactor support
-- Phase 10: Local Embeddings + Vector Search
-- Phase 10.1: Semantic Context Upgrade
-- Phase 10.2+: Local session memory and context platform
+- Phase 10.2: SQLite Vector Storage / Search Index
+- Phase 10.3: Hybrid Search Ranking
+- Phase 10.4: MCP / Control API Integration
+- Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11: Cross-Project Architecture Intelligence
-- Phase 12: Git Intelligence
-- Phase 13: Duplicate / Similarity Detection
-- Phase 14: Real Plugin System
-- Phase 15: Packaging + Installers
+- Phase 12: Symbolic Editing MVP
+- Phase 13: Rename / Refactor MVP
+- Phase 14: Additional Backend Language Support
+- Phase 15: Systems / Mobile Language Support

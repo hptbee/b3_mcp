@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{BranchId, ContractResult, FileId, ProjectId, SymbolId};
+use crate::{BranchId, ContractError, ContractResult, FileId, ProjectId, SymbolId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SourceKind {
@@ -214,6 +214,49 @@ pub fn hash_f32_vector(vector: &[f32]) -> String {
     stable_hash(&parts.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
+pub fn dot_product(left: &[f32], right: &[f32]) -> ContractResult<f32> {
+    validate_dimension(left, right.len())?;
+    Ok(left
+        .iter()
+        .zip(right.iter())
+        .map(|(left, right)| left * right)
+        .sum())
+}
+
+pub fn l2_norm(vector: &[f32]) -> f32 {
+    vector.iter().map(|value| value * value).sum::<f32>().sqrt()
+}
+
+pub fn normalize_l2(vector: &mut [f32]) -> f32 {
+    let norm = l2_norm(vector);
+    if norm > 0.0 {
+        for value in vector {
+            *value /= norm;
+        }
+    }
+    norm
+}
+
+pub fn cosine_similarity(left: &[f32], right: &[f32]) -> ContractResult<f32> {
+    validate_dimension(left, right.len())?;
+    let left_norm = l2_norm(left);
+    let right_norm = l2_norm(right);
+    if left_norm == 0.0 || right_norm == 0.0 {
+        return Ok(0.0);
+    }
+    Ok(dot_product(left, right)? / (left_norm * right_norm))
+}
+
+pub fn validate_dimension(vector: &[f32], expected: usize) -> ContractResult<()> {
+    if vector.len() != expected {
+        return Err(ContractError::new(format!(
+            "vector dimension mismatch: expected {expected}, got {}",
+            vector.len()
+        )));
+    }
+    Ok(())
+}
+
 pub fn stable_hash(parts: &[&str]) -> String {
     let mut hash = 0xcbf29ce484222325u64;
     for part in parts {
@@ -266,5 +309,20 @@ mod tests {
 
         assert_eq!(first.vector_hash, second.vector_hash);
         assert_eq!(first.dimension, 3);
+    }
+
+    #[test]
+    fn vector_math_handles_normalization_and_cosine() {
+        let mut vector = vec![3.0, 4.0];
+        let norm = normalize_l2(&mut vector);
+
+        assert_eq!(norm, 5.0);
+        assert!((l2_norm(&vector) - 1.0).abs() < 0.0001);
+        assert!((cosine_similarity(&vector, &vector).expect("cosine") - 1.0).abs() < 0.0001);
+        assert_eq!(
+            cosine_similarity(&[0.0, 0.0], &[1.0, 0.0]).expect("zero cosine"),
+            0.0
+        );
+        assert!(cosine_similarity(&[1.0], &[1.0, 0.0]).is_err());
     }
 }

@@ -28,6 +28,19 @@ pub struct EmbeddingProviderCapabilities {
 }
 
 impl EmbeddingProviderCapabilities {
+    pub const fn local_deterministic() -> Self {
+        Self {
+            kind: EmbeddingProviderKind::Local,
+            local_only: true,
+            deterministic: true,
+            batch: true,
+            requires_network: false,
+            requires_api_key: false,
+            downloads_models: false,
+            telemetry: false,
+        }
+    }
+
     pub const fn local_test() -> Self {
         Self {
             kind: EmbeddingProviderKind::Test,

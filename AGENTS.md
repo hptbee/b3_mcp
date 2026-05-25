@@ -351,3 +351,14 @@ hosted vector databases, required Qdrant/Pinecone/Weaviate integrations,
 telemetry, SaaS auth, API-key requirements, full semantic search, hybrid
 ranking, MCP semantic search tools, symbolic editing, rename/refactor, session
 memory, or cross-project architecture intelligence.
+
+Phase 10.1 is completed as a local embedding provider MVP only. It may provide
+the deterministic `local_hash` lexical/hash embedding provider, provider
+registry/config integration, batch chunk embedding, vector normalization and
+similarity helpers, and read-only control provider/status metadata.
+
+It must not implement OpenAI/cloud embedding providers, hosted vector database
+integrations, model downloads, telemetry, API-key requirements, full semantic
+search, hybrid ranking, MCP semantic search tools, cross-project semantic
+search, symbolic editing, rename/refactor, session memory, or cross-project
+architecture intelligence.

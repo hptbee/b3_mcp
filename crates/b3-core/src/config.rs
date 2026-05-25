@@ -4,7 +4,7 @@
 //! external APIs, no hosted vector database, no remote telemetry, and no SaaS
 //! authentication.
 
-use crate::BackendSelectionPolicy;
+use crate::{BackendSelectionPolicy, ContractError, ContractResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExternalIntegrationMode {
@@ -135,6 +135,7 @@ impl Default for IndexingConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocalEmbeddingProviderKind {
     None,
+    LocalHash,
     DeterministicTest,
     Ollama,
     Gguf,
@@ -162,10 +163,10 @@ impl Default for EmbeddingConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            provider: LocalEmbeddingProviderKind::None,
-            provider_id: "none".to_string(),
-            model: "none".to_string(),
-            dimension: 0,
+            provider: LocalEmbeddingProviderKind::LocalHash,
+            provider_id: "local_hash".to_string(),
+            model: "local_hash_v1".to_string(),
+            dimension: 384,
             batch_size: 16,
             max_chunk_chars: 2_000,
             store_vectors: true,
@@ -173,6 +174,46 @@ impl Default for EmbeddingConfig {
             external_plugins_enabled: false,
             cloud_plugins: ExternalIntegrationPolicy::optional_plugin_disabled(),
         }
+    }
+}
+
+impl EmbeddingConfig {
+    pub fn validate_offline_defaults(&self) -> ContractResult<()> {
+        if self.external_plugins_enabled {
+            return Err(ContractError::new(
+                "external embedding plugins must be disabled by default",
+            ));
+        }
+        if self.cloud_plugins.enabled_by_default {
+            return Err(ContractError::new(
+                "cloud embedding plugins must not be enabled by default",
+            ));
+        }
+        if self.provider_id != "local_hash"
+            && self.provider_id != "deterministic-test"
+            && self.provider_id != "none"
+        {
+            return Err(ContractError::new(format!(
+                "embedding provider '{}' is not available as an offline default",
+                self.provider_id
+            )));
+        }
+        if self.provider_id == "local_hash" && self.dimension == 0 {
+            return Err(ContractError::new(
+                "local_hash embedding dimension must be greater than zero",
+            ));
+        }
+        if self.batch_size == 0 {
+            return Err(ContractError::new(
+                "embedding batch_size must be greater than zero",
+            ));
+        }
+        if self.max_chunk_chars == 0 {
+            return Err(ContractError::new(
+                "embedding max_chunk_chars must be greater than zero",
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -206,13 +247,28 @@ mod tests {
         let config = EmbeddingConfig::default();
 
         assert!(!config.enabled);
-        assert_eq!(config.provider, LocalEmbeddingProviderKind::None);
-        assert_eq!(config.provider_id, "none");
-        assert_eq!(config.dimension, 0);
+        assert_eq!(config.provider, LocalEmbeddingProviderKind::LocalHash);
+        assert_eq!(config.provider_id, "local_hash");
+        assert_eq!(config.dimension, 384);
         assert!(config.store_vectors);
         assert!(config.normalize_vectors);
         assert!(!config.external_plugins_enabled);
         assert!(!config.cloud_plugins.enabled_by_default);
+        assert!(config.validate_offline_defaults().is_ok());
+    }
+
+    #[test]
+    fn embedding_config_rejects_external_provider_without_plugin_gate() {
+        let mut config = EmbeddingConfig {
+            provider_id: "openai".to_string(),
+            ..EmbeddingConfig::default()
+        };
+
+        assert!(config.validate_offline_defaults().is_err());
+
+        config.provider_id = "local_hash".to_string();
+        config.external_plugins_enabled = true;
+        assert!(config.validate_offline_defaults().is_err());
     }
 
     #[test]
