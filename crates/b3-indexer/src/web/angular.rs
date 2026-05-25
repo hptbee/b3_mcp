@@ -1,3 +1,4 @@
+use super::routes::route_metadata_value;
 use super::*;
 
 const ANGULAR_METADATA_PREFIX: &str = "angular.";
@@ -140,6 +141,26 @@ pub(super) fn collect_angular_relationships(
             }
         }
     }
+}
+
+pub fn detect_angular_config_path(path: &Path) -> Option<DetectedTechnology> {
+    let file_name = path.file_name()?.to_str()?;
+    if !matches!(file_name, "angular.json" | "tsconfig.app.json") {
+        return None;
+    }
+    Some(DetectedTechnology {
+        id: "angular".to_string(),
+        name: "Angular".to_string(),
+        kind: TechnologyKind::WebFrontend,
+        support_level: TechnologySupportLevel::Basic,
+        capabilities: vec![
+            TechnologyCapability::DetectPackage,
+            TechnologyCapability::DetectImport,
+            TechnologyCapability::ExtractRoutes,
+            TechnologyCapability::ExtractComponents,
+        ],
+        source: format!("config:{}", path.to_string_lossy().replace('\\', "/")),
+    })
 }
 
 fn collect_angular_candidates<'a>(
