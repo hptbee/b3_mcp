@@ -337,3 +337,17 @@ internet access. It does not implement full WPF binding type checking, runtime
 DataContext inference, deep MVVM framework analysis, symbolic editing,
 rename/refactor, embeddings, semantic search, or cross-project architecture
 intelligence.
+
+## Local Embeddings / Vector Architecture Boundaries
+
+Phase 10.0 is completed as local architecture foundation only. It may define
+embedding provider contracts, deterministic test-provider behavior for tests,
+embedding/vector configuration defaults, vector document/chunk/source models,
+deterministic chunk planning, vector store traits, normal SQLite vector tables,
+read-only control status/stats endpoints, docs, and tests.
+
+It must not implement real model downloads, OpenAI/cloud embedding providers,
+hosted vector databases, required Qdrant/Pinecone/Weaviate integrations,
+telemetry, SaaS auth, API-key requirements, full semantic search, hybrid
+ranking, MCP semantic search tools, symbolic editing, rename/refactor, session
+memory, or cross-project architecture intelligence.

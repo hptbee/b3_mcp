@@ -215,6 +215,7 @@ dependencies = [
  "b3-core",
  "b3-indexer",
  "rusqlite",
+ "serde_json",
  "tempfile",
 ]
 

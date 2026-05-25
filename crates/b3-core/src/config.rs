@@ -134,6 +134,8 @@ impl Default for IndexingConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocalEmbeddingProviderKind {
+    None,
+    DeterministicTest,
     Ollama,
     Gguf,
     SentenceTransformers,
@@ -143,16 +145,32 @@ pub enum LocalEmbeddingProviderKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingConfig {
+    pub enabled: bool,
     pub provider: LocalEmbeddingProviderKind,
+    pub provider_id: String,
     pub model: String,
+    pub dimension: usize,
+    pub batch_size: usize,
+    pub max_chunk_chars: usize,
+    pub store_vectors: bool,
+    pub normalize_vectors: bool,
+    pub external_plugins_enabled: bool,
     pub cloud_plugins: ExternalIntegrationPolicy,
 }
 
 impl Default for EmbeddingConfig {
     fn default() -> Self {
         Self {
-            provider: LocalEmbeddingProviderKind::FastEmbed,
-            model: "local-default".to_string(),
+            enabled: false,
+            provider: LocalEmbeddingProviderKind::None,
+            provider_id: "none".to_string(),
+            model: "none".to_string(),
+            dimension: 0,
+            batch_size: 16,
+            max_chunk_chars: 2_000,
+            store_vectors: true,
+            normalize_vectors: true,
+            external_plugins_enabled: false,
             cloud_plugins: ExternalIntegrationPolicy::optional_plugin_disabled(),
         }
     }
@@ -173,9 +191,37 @@ impl Default for RetrievalConfig {
             max_graph_depth: 2,
             max_tokens: 8_000,
             bm25_enabled: true,
-            semantic_enabled: true,
+            semantic_enabled: false,
             local_qdrant_enabled: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embedding_defaults_are_offline_free_and_disabled() {
+        let config = EmbeddingConfig::default();
+
+        assert!(!config.enabled);
+        assert_eq!(config.provider, LocalEmbeddingProviderKind::None);
+        assert_eq!(config.provider_id, "none");
+        assert_eq!(config.dimension, 0);
+        assert!(config.store_vectors);
+        assert!(config.normalize_vectors);
+        assert!(!config.external_plugins_enabled);
+        assert!(!config.cloud_plugins.enabled_by_default);
+    }
+
+    #[test]
+    fn retrieval_does_not_claim_semantic_search_by_default() {
+        let config = RetrievalConfig::default();
+
+        assert!(config.bm25_enabled);
+        assert!(!config.semantic_enabled);
+        assert!(!config.local_qdrant_enabled);
     }
 }
 

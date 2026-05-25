@@ -31,7 +31,7 @@ Keep:
 - rmcp
 - tree-sitter
 - SQLite/libSQL local DB with WAL
-- local Qdrant only
+- normal SQLite vector tables first; local Qdrant may only be optional later
 - DashMap
 - tracing
 - Next.js
@@ -56,12 +56,10 @@ External services may be supported only as optional plugins, disabled by default
 
 Preferred local providers:
 - SQLite/libSQL local mode
-- local Qdrant
-- Ollama
-- GGUF embedding models
-- sentence-transformers
-- Candle
-- fastembed
+- deterministic test embedding provider for tests only
+- future explicitly configured local embedding providers such as Ollama, GGUF,
+  sentence-transformers, Candle, or fastembed
+- optional local vector components only when disabled by default
 
 ## Plugin Readiness Contracts
 
@@ -84,7 +82,9 @@ Must provide, over the implementation phases:
 - metadata-only project groups/workspaces
 - language backend contracts and capability discovery
 - persistent code graph
-- semantic search with local embeddings
+- semantic search with local embeddings in later Phase 10.x work
+- Phase 10.0 local embedding/vector contracts, chunk model, and vector store
+  architecture
 - FTS/BM25 keyword search
 - graph traversal
 - impact analysis

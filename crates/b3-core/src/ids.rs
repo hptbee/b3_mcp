@@ -2,7 +2,7 @@
 
 macro_rules! string_id {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
         pub struct $name(String);
 
         impl $name {

@@ -177,6 +177,30 @@ The algorithm is intentionally local and static. It does not execute shells,
 package managers, app code, brokers, databases, cloud APIs, clusters, semantic
 search, embeddings, or cross-project matching.
 
+### Local Embeddings / Vector Architecture
+
+Phase 10.0 adds architecture only. The core model defines embedding provider
+capabilities, vector documents, embedding vectors, source kinds, metadata, and
+a vector store contract. Default configuration keeps embeddings disabled,
+provider `none`, external plugins disabled, and semantic retrieval off.
+
+Chunk planning is deterministic:
+
+1. prefer symbol-level chunks when symbol ranges are available
+2. fall back to file chunks when no symbol chunk can be produced
+3. preserve project, branch, file, optional symbol, language, framework, source
+   kind, path, content hash, chunk hash, chunk index, text, and line ranges
+4. split by local character limits without requiring a tokenizer
+5. skip empty chunks and keep ordering stable
+
+SQLite vector architecture uses normal tables for `vector_documents` and
+`embedding_vectors`. Vectors are stored as local BLOBs with provider id,
+dimension, vector hash, and indexed timestamp. Phase 10.0 includes only simple
+contract/search plumbing for tests and status reporting; real local providers,
+optimized SQLite search, hybrid ranking, MCP semantic tools, hosted vector DBs,
+OpenAI/cloud embeddings, telemetry, and cross-project semantic search are
+deferred.
+
 ### Angular Static Extraction
 
 Phase 9.2.4 adds conservative static Angular intelligence on top of TypeScript

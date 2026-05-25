@@ -281,6 +281,8 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/savings/summary", get(savings_summary))
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
+        .route("/api/vector/status", get(vector_status))
+        .route("/api/vector/stats", get(vector_stats))
         .route("/api/languages", get(languages))
         .route("/api/lsp/status", get(lsp_status))
         .route("/api/lsp/servers", get(lsp_servers))
@@ -1281,6 +1283,20 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
         "free_by_default": true,
         "external_api_required": false,
         "telemetry_enabled": false,
+        "vector_search": {
+            "architecture_available": true,
+            "semantic_search_available": false,
+            "provider": state.app_config.embedding.provider_id.as_str(),
+            "enabled": state.app_config.embedding.enabled,
+            "dimension": state.app_config.embedding.dimension,
+            "local_only": true,
+            "external_plugins_enabled": state.app_config.embedding.external_plugins_enabled,
+            "hosted_vector_database_required": false,
+            "openai_api_required": false,
+            "cloud_embedding_api_required": false,
+            "real_local_provider_phase": "10.1",
+            "sqlite_vector_storage_phase": "10.2"
+        },
         "mcp_runtime": RuntimeSummary::default(),
         "language_backend": {
             "tree_sitter": {
@@ -1438,10 +1454,49 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "messaging": true,
             "infrastructure": true,
             "wpf": true,
+            "vector_status": true,
+            "vector_stats": true,
             "events": "sse"
         },
         "language_backends": language_registry
     }))
+}
+
+async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>, ControlError> {
+    let stats = state
+        .storage
+        .lock()
+        .await
+        .vector_stats()
+        .map_err(ControlError::internal)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "enabled": state.app_config.embedding.enabled,
+        "provider": state.app_config.embedding.provider_id.as_str(),
+        "dimension": state.app_config.embedding.dimension,
+        "documents": stats.documents,
+        "vectors": stats.vectors,
+        "local_only": true,
+        "external_plugins_enabled": state.app_config.embedding.external_plugins_enabled,
+        "semantic_search_available": false,
+        "architecture_available": true
+    })))
+}
+
+async fn vector_stats(State(state): State<ControlState>) -> Result<Json<Value>, ControlError> {
+    let stats = state
+        .storage
+        .lock()
+        .await
+        .vector_stats()
+        .map_err(ControlError::internal)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "documents": stats.documents,
+        "vectors": stats.vectors,
+        "local_only": true,
+        "hosted_vector_database_required": false
+    })))
 }
 
 async fn languages(State(state): State<ControlState>) -> Json<Value> {
@@ -4054,7 +4109,47 @@ mod tests {
             body["language_backend"]["go"]["go_toolchain_required"],
             false
         );
+        assert_eq!(body["vector_search"]["architecture_available"], true);
+        assert_eq!(body["vector_search"]["semantic_search_available"], false);
+        assert_eq!(body["vector_search"]["local_only"], true);
+        assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
+    }
+
+    #[tokio::test]
+    async fn vector_status_and_stats_are_read_only_and_truthful() {
+        let app = empty_app();
+        let status_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/vector/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("status response");
+        assert_eq!(status_response.status(), StatusCode::OK);
+        let status = response_json(status_response).await;
+        assert_eq!(status["enabled"], false);
+        assert_eq!(status["provider"], "none");
+        assert_eq!(status["local_only"], true);
+        assert_eq!(status["semantic_search_available"], false);
+
+        let stats_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/vector/stats")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("stats response");
+        assert_eq!(stats_response.status(), StatusCode::OK);
+        let stats = response_json(stats_response).await;
+        assert_eq!(stats["documents"], 0);
+        assert_eq!(stats["vectors"], 0);
+        assert_eq!(stats["hosted_vector_database_required"], false);
     }
 
     #[tokio::test]

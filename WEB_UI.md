@@ -248,7 +248,9 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Advanced graph layouts and whole-repo visual analysis are deferred.
 - Centrality requires a cached snapshot; it is not computed automatically by the UI.
 - Query trace quality depends on trace fields returned by the control server query endpoints.
-- Embeddings and semantic search are deferred.
+- Phase 10.0 vector architecture is available through local control API
+  status/stats endpoints, but no Web UI redesign or semantic search UI is
+  included. Real embedding providers and semantic search remain deferred.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - A dedicated Node.js REST route browser is deferred; route metadata is
   currently available through `GET /api/routes`.

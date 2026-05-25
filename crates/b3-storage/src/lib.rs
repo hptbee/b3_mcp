@@ -5,16 +5,18 @@
 //! repository implementations. It does not index files, generate embeddings,
 //! rank retrieval results, or serve UI/MCP requests.
 
-use std::{path::Path, sync::Mutex};
+use std::{collections::BTreeMap, path::Path, sync::Mutex};
 
 use b3_core::ParseFailureRecord;
 use b3_core::{
     BranchId, BranchMetadata, CentralityMetric, CentralityRepository, CentralitySnapshot,
-    ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance, FileId,
-    FileRecord, FileRepository, FtsSearchHit, GraphDirection, GraphEdge, GraphEdgeMetadata,
-    GraphNeighbor, GraphNode, GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind,
-    ProjectId, QueryFile, QueryRepository, QueryScope, QuerySymbol, StorageProvider, SymbolId,
-    SymbolRecord, SymbolRepository, TokenSavingsRecord, TokenSavingsRepository,
+    ContractError, ContractResult, EdgeConfidence, EdgeId, EdgeKind, EdgeProvenance,
+    EmbeddingVector, FileId, FileRecord, FileRepository, FtsSearchHit, GraphDirection, GraphEdge,
+    GraphEdgeMetadata, GraphNeighbor, GraphNode, GraphRepository, IndexStore, IndexedFileRecord,
+    NodeId, NodeKind, ProjectId, QueryFile, QueryRepository, QueryScope, QuerySymbol, SourceKind,
+    StorageProvider, SymbolId, SymbolRecord, SymbolRepository, TokenSavingsRecord,
+    TokenSavingsRepository, VectorDocument, VectorSearchHit, VectorSearchRequest, VectorStore,
+    VectorStoreStats,
 };
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 
@@ -273,6 +275,49 @@ ON parse_failures(project_id, branch_id, failed_at_unix_ms DESC);
 
 CREATE INDEX IF NOT EXISTS idx_parse_failures_file
 ON parse_failures(file_id);
+"#;
+
+const MIGRATION_004: &str = r#"
+CREATE TABLE IF NOT EXISTS vector_documents (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    symbol_id TEXT,
+    language TEXT,
+    framework TEXT,
+    source_kind TEXT NOT NULL,
+    path TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    chunk_hash TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    start_line INTEGER NOT NULL DEFAULT 0,
+    end_line INTEGER NOT NULL DEFAULT 0,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE,
+    FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE SET NULL,
+    UNIQUE(project_id, branch_id, file_id, source_kind, chunk_hash, chunk_index)
+);
+
+CREATE TABLE IF NOT EXISTS embedding_vectors (
+    document_id TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    dimension INTEGER NOT NULL,
+    vector BLOB NOT NULL,
+    vector_hash TEXT NOT NULL,
+    indexed_at_unix_ms INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(document_id, provider_id),
+    FOREIGN KEY(document_id) REFERENCES vector_documents(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vector_documents_scope
+ON vector_documents(project_id, branch_id, source_kind, language, framework);
+
+CREATE INDEX IF NOT EXISTS idx_vector_documents_file
+ON vector_documents(project_id, branch_id, file_id);
 "#;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -680,6 +725,7 @@ impl SqliteStorage {
         self.apply_migration(1, "initial_storage_schema", MIGRATION_001)?;
         self.apply_migration(2, "centrality_snapshot_schema", MIGRATION_002)?;
         self.apply_migration(3, "parse_failure_registry", MIGRATION_003)?;
+        self.apply_migration(4, "vector_architecture_schema", MIGRATION_004)?;
 
         Ok(())
     }
@@ -999,6 +1045,10 @@ impl SqliteStorage {
             symbols: self.count_table("symbols")?,
             edges: self.count_table("edges")?,
         })
+    }
+
+    pub fn vector_stats(&self) -> ContractResult<VectorStoreStats> {
+        <Self as VectorStore>::stats(self)
     }
 
     pub fn record_parse_failure(&self, failure: &ParseFailureRecord) -> ContractResult<()> {
@@ -2001,6 +2051,208 @@ impl IndexStore for SharedSqliteIndexStore {
     }
 }
 
+impl VectorStore for SqliteStorage {
+    fn upsert_documents(&self, documents: &[VectorDocument]) -> ContractResult<()> {
+        let transaction = self
+            .connection
+            .unchecked_transaction()
+            .map_err(to_contract_error)?;
+        for document in documents {
+            let metadata_json =
+                serde_json::to_string(&document.metadata).map_err(to_contract_error)?;
+            transaction
+                .execute(
+                    "INSERT INTO vector_documents (
+                        id, project_id, branch_id, file_id, symbol_id, language, framework,
+                        source_kind, path, content_hash, chunk_hash, chunk_index, text,
+                        start_line, end_line, metadata_json
+                     )
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                     ON CONFLICT(id) DO UPDATE SET
+                        project_id = excluded.project_id,
+                        branch_id = excluded.branch_id,
+                        file_id = excluded.file_id,
+                        symbol_id = excluded.symbol_id,
+                        language = excluded.language,
+                        framework = excluded.framework,
+                        source_kind = excluded.source_kind,
+                        path = excluded.path,
+                        content_hash = excluded.content_hash,
+                        chunk_hash = excluded.chunk_hash,
+                        chunk_index = excluded.chunk_index,
+                        text = excluded.text,
+                        start_line = excluded.start_line,
+                        end_line = excluded.end_line,
+                        metadata_json = excluded.metadata_json",
+                    params![
+                        document.id.as_str(),
+                        document.project_id.as_str(),
+                        document.branch_id.as_str(),
+                        document.file_id.as_str(),
+                        document.symbol_id.as_ref().map(|id| id.as_str()),
+                        document.language.as_deref(),
+                        document.framework.as_deref(),
+                        document.source_kind.as_str(),
+                        document.path.as_str(),
+                        document.content_hash.as_str(),
+                        document.chunk_hash.as_str(),
+                        document.chunk_index as i64,
+                        document.text.as_str(),
+                        document.start_line as i64,
+                        document.end_line as i64,
+                        metadata_json,
+                    ],
+                )
+                .map_err(to_contract_error)?;
+        }
+        transaction.commit().map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    fn upsert_vectors(&self, vectors: &[EmbeddingVector]) -> ContractResult<()> {
+        let transaction = self
+            .connection
+            .unchecked_transaction()
+            .map_err(to_contract_error)?;
+        for vector in vectors {
+            transaction
+                .execute(
+                    "INSERT INTO embedding_vectors (
+                        document_id, provider_id, dimension, vector, vector_hash, indexed_at_unix_ms
+                     )
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                     ON CONFLICT(document_id, provider_id) DO UPDATE SET
+                        dimension = excluded.dimension,
+                        vector = excluded.vector,
+                        vector_hash = excluded.vector_hash,
+                        indexed_at_unix_ms = excluded.indexed_at_unix_ms",
+                    params![
+                        vector.document_id.as_str(),
+                        vector.provider_id.as_str(),
+                        vector.dimension as i64,
+                        encode_vector(&vector.vector),
+                        vector.vector_hash.as_str(),
+                        vector.indexed_at_unix_ms as i64,
+                    ],
+                )
+                .map_err(to_contract_error)?;
+        }
+        transaction.commit().map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    fn delete_by_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file_id: &FileId,
+    ) -> ContractResult<usize> {
+        self.connection
+            .execute(
+                "DELETE FROM vector_documents
+                 WHERE project_id = ?1 AND branch_id = ?2 AND file_id = ?3",
+                params![project_id.as_str(), branch_id.as_str(), file_id.as_str()],
+            )
+            .map_err(to_contract_error)
+    }
+
+    fn delete_by_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<usize> {
+        self.connection
+            .execute(
+                "DELETE FROM vector_documents WHERE project_id = ?1 AND branch_id = ?2",
+                params![project_id.as_str(), branch_id.as_str()],
+            )
+            .map_err(to_contract_error)
+    }
+
+    fn search(&self, request: VectorSearchRequest) -> ContractResult<Vec<VectorSearchHit>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT d.id, d.project_id, d.branch_id, d.file_id, d.symbol_id,
+                        d.language, d.framework, d.source_kind, d.path, d.content_hash,
+                        d.chunk_hash, d.chunk_index, d.text, d.start_line, d.end_line,
+                        d.metadata_json, v.provider_id, v.dimension, v.vector
+                 FROM vector_documents d
+                 JOIN embedding_vectors v ON v.document_id = d.id
+                 WHERE d.project_id = ?1 AND d.branch_id = ?2
+                 ORDER BY d.path, d.chunk_index",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![request.project_id.as_str(), request.branch_id.as_str()],
+                row_to_vector_document_with_vector,
+            )
+            .map_err(to_contract_error)?;
+
+        let mut hits = Vec::new();
+        for row in rows {
+            let (document, provider_id, vector) = row.map_err(to_contract_error)?;
+            if let Some(language) = &request.language {
+                if document.language.as_ref() != Some(language) {
+                    continue;
+                }
+            }
+            if let Some(framework) = &request.framework {
+                if document.framework.as_ref() != Some(framework) {
+                    continue;
+                }
+            }
+            if let Some(source_kind) = request.source_kind {
+                if document.source_kind != source_kind {
+                    continue;
+                }
+            }
+            let score = cosine_similarity(&request.query_vector, &vector);
+            if request.min_score.is_some_and(|min_score| score < min_score) {
+                continue;
+            }
+            hits.push(VectorSearchHit {
+                document,
+                score,
+                distance: 1.0 - score,
+                provider_id,
+            });
+        }
+        hits.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        hits.truncate(request.limit);
+        Ok(hits)
+    }
+
+    fn get_document(&self, document_id: &str) -> ContractResult<Option<VectorDocument>> {
+        self.connection
+            .prepare_cached(
+                "SELECT id, project_id, branch_id, file_id, symbol_id, language, framework,
+                        source_kind, path, content_hash, chunk_hash, chunk_index, text,
+                        start_line, end_line, metadata_json
+                 FROM vector_documents
+                 WHERE id = ?1",
+            )
+            .map_err(to_contract_error)?
+            .query_row([document_id], row_to_vector_document)
+            .optional()
+            .map_err(to_contract_error)
+    }
+
+    fn stats(&self) -> ContractResult<VectorStoreStats> {
+        Ok(VectorStoreStats {
+            documents: self.count_table("vector_documents")?,
+            vectors: self.count_table("embedding_vectors")?,
+        })
+    }
+}
+
 impl FileRepository for SqliteStorage {
     fn get_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
         self.connection
@@ -2549,6 +2801,86 @@ impl TokenSavingsRepository for &SqliteStorage {
     fn record_savings(&self, record: TokenSavingsRecord) -> ContractResult<()> {
         <SqliteStorage as TokenSavingsRepository>::record_savings(*self, record)
     }
+}
+
+fn row_to_vector_document(row: &Row<'_>) -> rusqlite::Result<VectorDocument> {
+    let metadata_json: String = row.get(15)?;
+    let metadata = serde_json::from_str::<BTreeMap<String, String>>(&metadata_json)
+        .unwrap_or_else(|_| BTreeMap::new());
+    Ok(VectorDocument {
+        id: row.get(0)?,
+        project_id: ProjectId::new(row.get::<_, String>(1)?),
+        branch_id: BranchId::new(row.get::<_, String>(2)?),
+        file_id: FileId::new(row.get::<_, String>(3)?),
+        symbol_id: row.get::<_, Option<String>>(4)?.map(SymbolId::new),
+        language: row.get(5)?,
+        framework: row.get(6)?,
+        source_kind: parse_source_kind(&row.get::<_, String>(7)?),
+        path: row.get(8)?,
+        content_hash: row.get(9)?,
+        chunk_hash: row.get(10)?,
+        chunk_index: row.get::<_, i64>(11)? as usize,
+        text: row.get(12)?,
+        start_line: row.get::<_, i64>(13)? as usize,
+        end_line: row.get::<_, i64>(14)? as usize,
+        metadata,
+    })
+}
+
+fn row_to_vector_document_with_vector(
+    row: &Row<'_>,
+) -> rusqlite::Result<(VectorDocument, String, Vec<f32>)> {
+    let document = row_to_vector_document(row)?;
+    let provider_id = row.get(16)?;
+    let vector = decode_vector(&row.get::<_, Vec<u8>>(18)?);
+    Ok((document, provider_id, vector))
+}
+
+fn parse_source_kind(value: &str) -> SourceKind {
+    match value {
+        "SymbolChunk" => SourceKind::SymbolChunk,
+        "RouteChunk" => SourceKind::RouteChunk,
+        "ComponentChunk" => SourceKind::ComponentChunk,
+        "DataAccessChunk" => SourceKind::DataAccessChunk,
+        "RealtimeChunk" => SourceKind::RealtimeChunk,
+        "MessagingChunk" => SourceKind::MessagingChunk,
+        "InfrastructureChunk" => SourceKind::InfrastructureChunk,
+        "WpfChunk" => SourceKind::WpfChunk,
+        "GoChunk" => SourceKind::GoChunk,
+        _ => SourceKind::FileChunk,
+    }
+}
+
+fn encode_vector(vector: &[f32]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(vector.len() * 4);
+    for value in vector {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    }
+    bytes
+}
+
+fn decode_vector(bytes: &[u8]) -> Vec<f32> {
+    bytes
+        .chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect()
+}
+
+fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
+    if left.len() != right.len() || left.is_empty() {
+        return 0.0;
+    }
+    let dot = left
+        .iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum::<f32>();
+    let left_mag = left.iter().map(|value| value * value).sum::<f32>().sqrt();
+    let right_mag = right.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if left_mag == 0.0 || right_mag == 0.0 {
+        return 0.0;
+    }
+    dot / (left_mag * right_mag)
 }
 
 fn upsert_indexed_file_tx(
@@ -4163,5 +4495,176 @@ mod tests {
             .existing_file(&file_id)
             .expect("existing file after delete")
             .is_none());
+    }
+
+    #[test]
+    fn vector_documents_and_vectors_upsert_without_duplicates() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        let file_id = FileId::new("file");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: file_id.clone(),
+                        project_id: project_id.clone(),
+                        path: "src/lib.rs".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("rust".to_string()),
+                    size_bytes: 16,
+                    content: "pub fn run() {}\n".to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("file");
+        let document = VectorDocument::new(b3_core::VectorDocumentInput {
+            project_id: project_id.clone(),
+            branch_id: branch_id.clone(),
+            file_id: file_id.clone(),
+            symbol_id: None,
+            language: Some("rust".to_string()),
+            framework: None,
+            source_kind: SourceKind::FileChunk,
+            path: "src/lib.rs".to_string(),
+            content_hash: "hash".to_string(),
+            chunk_index: 0,
+            text: "pub fn run() {}".to_string(),
+            start_line: 1,
+            end_line: 1,
+            metadata: BTreeMap::from([("kind".to_string(), "file".to_string())]),
+        });
+        let vector = EmbeddingVector::new(
+            document.id.clone(),
+            "deterministic-test",
+            3,
+            vec![1.0, 0.0, 0.0],
+            10,
+        );
+
+        storage
+            .upsert_documents(&[document.clone()])
+            .expect("documents");
+        storage
+            .upsert_documents(&[document.clone()])
+            .expect("documents second");
+        storage.upsert_vectors(&[vector]).expect("vectors");
+
+        let stats = storage.vector_stats().expect("stats");
+        assert_eq!(stats.documents, 1);
+        assert_eq!(stats.vectors, 1);
+        assert_eq!(
+            storage
+                .get_document(&document.id)
+                .expect("get")
+                .expect("document")
+                .metadata["kind"],
+            "file"
+        );
+    }
+
+    #[test]
+    fn vector_search_and_cleanup_are_local_sqlite_only() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        let file_id = FileId::new("file");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: file_id.clone(),
+                        project_id: project_id.clone(),
+                        path: "src/lib.rs".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("rust".to_string()),
+                    size_bytes: 16,
+                    content: "pub fn run() {}\n".to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("file");
+        let first = VectorDocument::new(b3_core::VectorDocumentInput {
+            project_id: project_id.clone(),
+            branch_id: branch_id.clone(),
+            file_id: file_id.clone(),
+            symbol_id: None,
+            language: Some("rust".to_string()),
+            framework: None,
+            source_kind: SourceKind::FileChunk,
+            path: "src/lib.rs".to_string(),
+            content_hash: "hash".to_string(),
+            chunk_index: 0,
+            text: "alpha".to_string(),
+            start_line: 1,
+            end_line: 1,
+            metadata: BTreeMap::new(),
+        });
+        let second = VectorDocument::new(b3_core::VectorDocumentInput {
+            chunk_index: 1,
+            text: "beta".to_string(),
+            ..b3_core::VectorDocumentInput {
+                project_id: project_id.clone(),
+                branch_id: branch_id.clone(),
+                file_id: file_id.clone(),
+                symbol_id: None,
+                language: Some("rust".to_string()),
+                framework: None,
+                source_kind: SourceKind::FileChunk,
+                path: "src/lib.rs".to_string(),
+                content_hash: "hash".to_string(),
+                chunk_index: 0,
+                text: String::new(),
+                start_line: 2,
+                end_line: 2,
+                metadata: BTreeMap::new(),
+            }
+        });
+        storage
+            .upsert_documents(&[first.clone(), second.clone()])
+            .expect("documents");
+        storage
+            .upsert_vectors(&[
+                EmbeddingVector::new(first.id.clone(), "test", 3, vec![1.0, 0.0, 0.0], 0),
+                EmbeddingVector::new(second.id.clone(), "test", 3, vec![0.0, 1.0, 0.0], 0),
+            ])
+            .expect("vectors");
+
+        let hits = storage
+            .search(VectorSearchRequest {
+                query_vector: vec![1.0, 0.0, 0.0],
+                project_id: project_id.clone(),
+                branch_id: branch_id.clone(),
+                language: Some("rust".to_string()),
+                framework: None,
+                source_kind: Some(SourceKind::FileChunk),
+                limit: 1,
+                min_score: Some(0.5),
+            })
+            .expect("search");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].document.id, first.id);
+        assert_eq!(
+            storage
+                .delete_by_file(&project_id, &branch_id, &file_id)
+                .expect("delete"),
+            2
+        );
+        assert_eq!(storage.vector_stats().expect("stats").documents, 0);
     }
 }

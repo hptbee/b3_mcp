@@ -7,21 +7,25 @@
 
 mod config;
 mod contracts;
+mod embedding;
 mod events;
 mod ids;
 mod language;
 mod plugin;
 mod query;
 mod scope;
+mod vector;
 
 pub use config::*;
 pub use contracts::*;
+pub use embedding::*;
 pub use events::*;
 pub use ids::*;
 pub use language::*;
 pub use plugin::*;
 pub use query::*;
 pub use scope::*;
+pub use vector::*;
 
 pub const PRODUCT_NAME: &str = "b3_mcp";
 

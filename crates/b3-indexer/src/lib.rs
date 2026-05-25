@@ -9,6 +9,7 @@
 mod csharp;
 mod data_access;
 mod dotnet_desktop;
+pub mod embedding;
 mod go;
 mod infrastructure;
 pub mod lsp;

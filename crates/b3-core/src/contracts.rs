@@ -4,9 +4,9 @@
 //! modules from depending on concrete implementations too early.
 
 use crate::{
-    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, EmbeddingConfig, FileId, FtsSearchHit,
-    GraphDirection, GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile,
-    QueryRequest, QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
+    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, FileId, FtsSearchHit, GraphDirection,
+    GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile, QueryRequest,
+    QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
 };
 use crate::{CentralityMetric, CentralitySnapshot};
 
@@ -142,16 +142,6 @@ pub trait CentralityRepository {
     ) -> ContractResult<()>;
 }
 
-pub trait EmbeddingProvider {
-    fn config(&self) -> &EmbeddingConfig;
-    fn embed(&self, input: EmbeddingRequest) -> ContractResult<EmbeddingResult>;
-}
-
-pub trait VectorStore {
-    fn upsert(&self, record: VectorRecord) -> ContractResult<()>;
-    fn search(&self, query: VectorSearchRequest) -> ContractResult<Vec<VectorSearchHit>>;
-}
-
 pub trait ConfigProvider {
     fn load(&self) -> ContractResult<AppConfig>;
 }
@@ -284,33 +274,4 @@ pub struct IndexSummary {
     pub files_seen: usize,
     pub files_parsed: usize,
     pub symbols_indexed: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EmbeddingRequest {
-    pub text: String,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct EmbeddingResult {
-    pub dimensions: usize,
-    pub vector: Vec<f32>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VectorRecord {
-    pub id: String,
-    pub vector: Vec<f32>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VectorSearchRequest {
-    pub vector: Vec<f32>,
-    pub limit: usize,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VectorSearchHit {
-    pub id: String,
-    pub score: f32,
 }

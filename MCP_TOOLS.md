@@ -15,6 +15,10 @@ exposed through existing query tools plus the local control server
 `GET /api/wpf` endpoint. It does not add MCP tools, change MCP profile counts,
 or move WPF/XAML extraction into the MCP runtime.
 
+Phase 10.0 adds local embedding/vector architecture only. It does not add a
+semantic search MCP tool, does not change MCP profiles or tool counts, and does
+not move vector storage, embedding generation, or ranking into the MCP runtime.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

@@ -1,4 +1,4 @@
-# B3 Project Plan
+﻿# B3 Project Plan
 
 B3 is a local-first, offline-first, free-by-default AI-native code intelligence platform for coding agents and local developer workflows.
 
@@ -10,80 +10,90 @@ This document is the source of truth for the detailed roadmap. `README.md` shoul
 
 ```text
 Completed:
-- Phase 1 — Workspace / Scaffold
-- Phase 1.5 — Contracts / Boundaries
-- Phase 2 — SQLite Storage / Schema Foundation
-- Phase 3 — Incremental Indexer Skeleton
-- Phase 3.1 — Indexer Audit / Cleanup
-- Pre-Phase-4 — Plugin Contracts / Docs / CI
-- Phase 4 — Real Rust Parsing + SqliteStorage ↔ IndexStore Adapter
-- Phase 4.1 — Project/Branch Auto Ensure + Deleted File Cleanup
-- Phase 5 — Query Engine + Graph Traversal + Context Pack
-- Phase 5.1 — Query Hardening + Retrieval Explainability
-- Phase 5.2 — Ranking Algorithms Upgrade
-- Phase 6 — MCP Tools over Query Engine
-- Phase 6.0.1 — Live MCP Runtime Wiring
-- Phase 6.1 — Impact Intelligence
-- Phase 6.2 — PageRank / Centrality
-- Phase 6.3 — MCP Runtime Hardening + Real-world Smoke Test
-- Phase 7 — Control Server + Localhost API
-- Phase 7.1 — Web UI Foundation
-- Phase 7.2 — Graph Explorer UI
-- Phase 7.2.1 — Real Graph API Wiring
-- Phase 7.3 — Query Trace UI
-- Phase 8 — File Watcher + Daemon Mode
-- Phase 8.1 — Parser Isolation
-- Phase 8.2 — Benchmark Harness + Performance Baseline
-- Phase 8.3 — Refactor Checkpoint A
-- Phase 8.4 — Performance Optimization Pass A
-- Phase 8.5 — Command Output Compaction
-- Phase 8.5.1 — Project Init + Manual Index Command
-- Phase 8.5.1.1 — Repository Structure Audit + Folder/File Cleanup + Web UI Port 8888
-- Phase 8.6 — MCP Tool Profiles + Manifest Slimming
-- Phase 8.7 — Agent Install Helper + Hook Integration Foundation
-- Phase 8.8 — Multi-repo Registry + Project Groups
-- Phase 9.0 — Language Backend Architecture
-- Phase 9.1 — LSP Backend MVP
-- Phase 9.2 — Web Application Priority Support A
-- Phase 9.2.1 — Node.js / REST API Intelligence
-- Phase 9.2.2 — React / TSX Component Intelligence
-- Phase 9.2.3 — Next.js Intelligence
-- Phase 9.2.3.1 — Indexer Module Split / Refactor Checkpoint B
-- Phase 9.2.4 — Angular Intelligence
-- Phase 9.2.4.1 — Web Module Split / Refactor Checkpoint C
-- Phase 9.2.5 — ASP.NET Core / C# Web API Intelligence
-- Phase 9.2.6 — ORM / Database Access Intelligence
-- Phase 9.2.7 — Realtime / Socket Intelligence
-- Phase 9.2.8 — Messaging / Event-driven Intelligence
+- Phase 1 â€” Workspace / Scaffold
+- Phase 1.5 â€” Contracts / Boundaries
+- Phase 2 â€” SQLite Storage / Schema Foundation
+- Phase 3 â€” Incremental Indexer Skeleton
+- Phase 3.1 â€” Indexer Audit / Cleanup
+- Pre-Phase-4 â€” Plugin Contracts / Docs / CI
+- Phase 4 â€” Real Rust Parsing + SqliteStorage â†” IndexStore Adapter
+- Phase 4.1 â€” Project/Branch Auto Ensure + Deleted File Cleanup
+- Phase 5 â€” Query Engine + Graph Traversal + Context Pack
+- Phase 5.1 â€” Query Hardening + Retrieval Explainability
+- Phase 5.2 â€” Ranking Algorithms Upgrade
+- Phase 6 â€” MCP Tools over Query Engine
+- Phase 6.0.1 â€” Live MCP Runtime Wiring
+- Phase 6.1 â€” Impact Intelligence
+- Phase 6.2 â€” PageRank / Centrality
+- Phase 6.3 â€” MCP Runtime Hardening + Real-world Smoke Test
+- Phase 7 â€” Control Server + Localhost API
+- Phase 7.1 â€” Web UI Foundation
+- Phase 7.2 â€” Graph Explorer UI
+- Phase 7.2.1 â€” Real Graph API Wiring
+- Phase 7.3 â€” Query Trace UI
+- Phase 8 â€” File Watcher + Daemon Mode
+- Phase 8.1 â€” Parser Isolation
+- Phase 8.2 â€” Benchmark Harness + Performance Baseline
+- Phase 8.3 â€” Refactor Checkpoint A
+- Phase 8.4 â€” Performance Optimization Pass A
+- Phase 8.5 â€” Command Output Compaction
+- Phase 8.5.1 â€” Project Init + Manual Index Command
+- Phase 8.5.1.1 â€” Repository Structure Audit + Folder/File Cleanup + Web UI Port 8888
+- Phase 8.6 â€” MCP Tool Profiles + Manifest Slimming
+- Phase 8.7 â€” Agent Install Helper + Hook Integration Foundation
+- Phase 8.8 â€” Multi-repo Registry + Project Groups
+- Phase 9.0 â€” Language Backend Architecture
+- Phase 9.1 â€” LSP Backend MVP
+- Phase 9.2 â€” Web Application Priority Support A
+- Phase 9.2.1 â€” Node.js / REST API Intelligence
+- Phase 9.2.2 â€” React / TSX Component Intelligence
+- Phase 9.2.3 â€” Next.js Intelligence
+- Phase 9.2.3.1 â€” Indexer Module Split / Refactor Checkpoint B
+- Phase 9.2.4 â€” Angular Intelligence
+- Phase 9.2.4.1 â€” Web Module Split / Refactor Checkpoint C
+- Phase 9.2.5 â€” ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6 â€” ORM / Database Access Intelligence
+- Phase 9.2.7 â€” Realtime / Socket Intelligence
+- Phase 9.2.8 â€” Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
 - Phase 9.2.10 - Go Language Support
 - Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 - Phase 9.2.12 - .NET Desktop / WPF Intelligence
+- Phase 10.0 - Local Embeddings + Vector Search Architecture
 
-Next:
-- Phase 10 - Local Embeddings + Vector Search
+Current:
+- Phase 10.1 - Local Embedding Provider MVP
+
+Upcoming:
+- Phase 10.2 - SQLite Vector Storage / Search Index
+- Phase 10.3 - Hybrid Search Ranking
+- Phase 10.4 - MCP / Control API Integration
+- Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11 - Cross-Project Architecture Intelligence
 
-Later:
-- Phase 9.3 — Symbolic Editing MVP
-- Phase 9.4 — Rename / Refactor MVP
-- Phase 9.5 — Additional Backend Language Support
-- Phase 9.6 — Systems / Mobile Language Support
-- Phase 9.7 — Config / Data / Web File Support
-- Phase 9.8 — Language and Technology Quality Audit
-- Phase 9.9 — Refactor Checkpoint D
-- Phase 9.10 — Performance Optimization Pass B
-- Phase 10 — Local Embeddings + Vector Search
-- Phase 10.1 — Semantic Context Upgrade
-- Phase 10.2 — Session Memory + Context Virtualization
-- Phase 10.3 — Transcript Discovery / Token Opportunity Report
-- Phase 10.4 — Web UI Developer Console Refresh
-- Phase 11 — Cross-Project Architecture Intelligence
-- Phase 12 — Git Intelligence
-- Phase 13 — Duplicate / Similarity Detection
-- Phase 14 — Real Plugin System
-- Phase 15 — Packaging + Installers
+Later / Deferred:
+- Phase 9.3 â€” Symbolic Editing MVP
+- Phase 9.4 â€” Rename / Refactor MVP
+- Phase 9.5 â€” Additional Backend Language Support
+- Phase 9.6 â€” Systems / Mobile Language Support
+- Phase 9.7 â€” Config / Data / Web File Support
+- Phase 9.8 â€” Language and Technology Quality Audit
+- Phase 9.9 â€” Refactor Checkpoint D
+- Phase 9.10 â€” Performance Optimization Pass B
+- Session Memory + Context Virtualization
+- Transcript Discovery / Token Opportunity Report
+- Web UI Developer Console Refresh
 ```
+
+Current capability truth:
+
+- Vector/embedding architecture exists.
+- Real local embedding provider is not completed yet.
+- SQLite vector search is not completed yet.
+- Hybrid semantic ranking is not completed yet.
+- MCP semantic search tool is not added yet.
+- Hosted vector DB, OpenAI API, cloud embeddings, telemetry, and internet are
+  not required.
 
 ---
 
@@ -177,22 +187,22 @@ This requirement overrides all roadmap decisions.
 
 ## Design Principles
 
-1. **Local-first and offline-first** — B3 must work without internet access.
-2. **Free-by-default** — core functionality must be free to run locally.
-3. **MCP runtime stays thin** — protocol/tool adapter only.
-4. **Storage owns persistence** — SQLite schema, migrations, transactions, repositories, and adapters live in `b3-storage`.
-5. **Indexer owns indexing** — parsing, discovery, hashing, incremental indexing, watcher, parser worker, parse failures, and language/technology extraction live in `b3-indexer`.
-6. **Query owns intelligence** — graph traversal, ranking, context packing, impact analysis, dependency tracing, cycle detection, and query trace live in `b3-query`.
-7. **Control server is an adapter** — localhost HTTP/SSE only; no storage internals or query intelligence.
-8. **Web UI talks only to local control server** — no cloud calls.
-9. **Graph first, semantic second** — AST, graph, and FTS are core; embeddings are optional future secondary signals.
-10. **Benchmark before optimization** — measure first, optimize measured bottlenecks only.
-11. **Refactor only after verified milestones** — prefer small targeted refactors.
-12. **Language support must be layered** — language syntax support, framework/library detection, and framework intelligence are separate layers.
-13. **LSP complements tree-sitter** — tree-sitter for fast indexing; local LSP for semantic operations.
-14. **Project model supports standalone and grouped projects** — `1 project = 1 .b3/b3.db` by default.
-15. **Framework detection must be conservative** — do not invent routes, handlers, components, topics, queues, infrastructure resources, or relationships with low confidence.
-16. **UI follows data maturity** — major UI refresh should happen after enough backend intelligence exists to display useful information.
+1. **Local-first and offline-first** â€” B3 must work without internet access.
+2. **Free-by-default** â€” core functionality must be free to run locally.
+3. **MCP runtime stays thin** â€” protocol/tool adapter only.
+4. **Storage owns persistence** â€” SQLite schema, migrations, transactions, repositories, and adapters live in `b3-storage`.
+5. **Indexer owns indexing** â€” parsing, discovery, hashing, incremental indexing, watcher, parser worker, parse failures, and language/technology extraction live in `b3-indexer`.
+6. **Query owns intelligence** â€” graph traversal, ranking, context packing, impact analysis, dependency tracing, cycle detection, and query trace live in `b3-query`.
+7. **Control server is an adapter** â€” localhost HTTP/SSE only; no storage internals or query intelligence.
+8. **Web UI talks only to local control server** â€” no cloud calls.
+9. **Graph first, semantic second** â€” AST, graph, and FTS are core; embeddings are optional future secondary signals.
+10. **Benchmark before optimization** â€” measure first, optimize measured bottlenecks only.
+11. **Refactor only after verified milestones** â€” prefer small targeted refactors.
+12. **Language support must be layered** â€” language syntax support, framework/library detection, and framework intelligence are separate layers.
+13. **LSP complements tree-sitter** â€” tree-sitter for fast indexing; local LSP for semantic operations.
+14. **Project model supports standalone and grouped projects** â€” `1 project = 1 .b3/b3.db` by default.
+15. **Framework detection must be conservative** â€” do not invent routes, handlers, components, topics, queues, infrastructure resources, or relationships with low confidence.
+16. **UI follows data maturity** â€” major UI refresh should happen after enough backend intelligence exists to display useful information.
 
 ---
 
@@ -286,7 +296,7 @@ The current UI is a local single-project developer console. Dedicated views for 
 
 Support levels are intentionally honest.
 
-### Rust — Good
+### Rust â€” Good
 
 Backend:
 
@@ -300,7 +310,7 @@ Capabilities:
 - import extraction
 - basic relationship extraction
 
-### JavaScript — Basic
+### JavaScript â€” Basic
 
 Backend:
 
@@ -318,7 +328,7 @@ Capabilities:
 - CommonJS `require`
 - conservative `CONTAINS` and `IMPORTS` relationships
 
-### TypeScript — Basic
+### TypeScript â€” Basic
 
 Backend:
 
@@ -338,7 +348,7 @@ Capabilities:
 - imports / exports
 - conservative `CONTAINS` and `IMPORTS` relationships
 
-### JSX / TSX — Basic
+### JSX / TSX â€” Basic
 
 Backend:
 
@@ -353,7 +363,7 @@ Capabilities:
 - imports / exports
 - conservative relationships
 
-### C# — Basic Static
+### C# â€” Basic Static
 
 Backend:
 
@@ -412,11 +422,11 @@ Project group example:
 
 ```text
 Business Application
-├── Backend API
-├── Frontend App
-├── Worker Service
-├── Desktop Client
-└── Runtime Infrastructure
+â”œâ”€â”€ Backend API
+â”œâ”€â”€ Frontend App
+â”œâ”€â”€ Worker Service
+â”œâ”€â”€ Desktop Client
+â””â”€â”€ Runtime Infrastructure
 ```
 
 Deferred:
@@ -518,7 +528,7 @@ Desktop / Graphics:
 
 ## Roadmap Details
 
-## Phase 9.2.1 — Node.js / REST API Intelligence
+## Phase 9.2.1 â€” Node.js / REST API Intelligence
 
 Status: Completed with basic static/local REST route intelligence.
 
@@ -539,7 +549,7 @@ Status: Completed with basic static/local REST route intelligence.
 
 ---
 
-## Phase 9.2.2 — React / TSX Component Intelligence
+## Phase 9.2.2 â€” React / TSX Component Intelligence
 
 Status: Completed with basic static/local React component intelligence.
 
@@ -564,7 +574,7 @@ Status: Completed with basic static/local React component intelligence.
 
 ---
 
-## Phase 9.2.3 — Next.js Intelligence
+## Phase 9.2.3 â€” Next.js Intelligence
 
 Status: Completed with basic static/local Next.js intelligence.
 
@@ -589,7 +599,7 @@ Status: Completed with basic static/local Next.js intelligence.
 
 ---
 
-## Phase 9.2.3.1 — Indexer Module Split / Refactor Checkpoint B
+## Phase 9.2.3.1 â€” Indexer Module Split / Refactor Checkpoint B
 
 Status: Completed as a behavior-preserving refactor checkpoint.
 
@@ -601,7 +611,7 @@ No runtime behavior, storage schema, control API response, MCP tool/profile, or 
 
 ---
 
-## Phase 9.2.4 — Angular Intelligence
+## Phase 9.2.4 â€” Angular Intelligence
 
 Status: Completed with basic static/local Angular intelligence.
 
@@ -631,7 +641,7 @@ Status: Completed with basic static/local Angular intelligence.
 
 ---
 
-## Phase 9.2.4.1 — Web Module Split / Refactor Checkpoint C
+## Phase 9.2.4.1 â€” Web Module Split / Refactor Checkpoint C
 
 Status: Completed as a behavior-preserving refactor checkpoint.
 
@@ -643,7 +653,7 @@ No runtime behavior, storage schema, control API response, MCP tool/profile, dep
 
 ---
 
-## Phase 9.2.5 — ASP.NET Core / C# Web API Intelligence
+## Phase 9.2.5 â€” ASP.NET Core / C# Web API Intelligence
 
 Status: Completed with basic static/local ASP.NET Core route intelligence.
 
@@ -675,7 +685,7 @@ Implemented as `crates/b3-indexer/src/csharp.rs`, outside the JS/TS `web/` modul
 
 ---
 
-## Phase 9.2.6 — ORM / Database Access Intelligence
+## Phase 9.2.6 â€” ORM / Database Access Intelligence
 
 Status: Completed with basic static/local ORM/data-access metadata.
 
@@ -709,7 +719,7 @@ Implemented as focused `crates/b3-indexer/src/data_access/` static extraction.
 
 ---
 
-## Phase 9.2.7 — Realtime / Socket Intelligence
+## Phase 9.2.7 â€” Realtime / Socket Intelligence
 
 Status: Completed with basic static/local realtime metadata.
 
@@ -741,7 +751,7 @@ Implemented as focused `crates/b3-indexer/src/realtime/` static extraction.
 
 ---
 
-## Phase 9.2.8 — Messaging / Event-driven Intelligence
+## Phase 9.2.8 â€” Messaging / Event-driven Intelligence
 
 Status: Completed with basic static/local messaging metadata.
 
@@ -778,9 +788,9 @@ Implemented as focused `crates/b3-indexer/src/messaging/` static extraction.
 
 ---
 
-## Phase 9.2.9 — Cloud / Infrastructure Intelligence
+## Phase 9.2.9 â€” Cloud / Infrastructure Intelligence
 
-Status: Next.
+Status: Completed.
 
 ### Purpose
 
@@ -842,7 +852,7 @@ deployment matching.
 
 ---
 
-## Phase 9.2.10 — Go Language Support
+## Phase 9.2.10 â€” Go Language Support
 
 Status: Completed.
 
@@ -870,7 +880,7 @@ embeddings, semantic search, or cross-project architecture intelligence.
 
 ---
 
-## Phase 9.2.11 — Scoped Indexing + Intelligence Targets
+## Phase 9.2.11 â€” Scoped Indexing + Intelligence Targets
 
 Status: Completed.
 
@@ -904,7 +914,7 @@ Status: Completed.
 
 ---
 
-## Phase 9.2.12 — .NET Desktop / WPF Intelligence
+## Phase 9.2.12 â€” .NET Desktop / WPF Intelligence
 
 Status: Completed.
 
@@ -939,7 +949,12 @@ Status: Completed.
 
 ---
 
-## Phase 9.3 — Symbolic Editing MVP
+## Deferred / Later Roadmap
+
+The following older Phase 9.x items are intentionally deferred. They are not
+part of the Phase 10 local embedding/vector search sequence.
+
+## Phase 9.3 â€” Symbolic Editing MVP
 
 Status: Planned.
 
@@ -964,7 +979,7 @@ Status: Planned.
 
 ---
 
-## Phase 9.4 — Rename / Refactor MVP
+## Phase 9.4 â€” Rename / Refactor MVP
 
 Status: Planned.
 
@@ -986,7 +1001,7 @@ Status: Planned.
 
 ---
 
-## Phase 9.5 — Additional Backend Language Support
+## Phase 9.5 â€” Additional Backend Language Support
 
 Status: Planned.
 
@@ -1001,7 +1016,7 @@ Go is handled earlier in Phase 9.2.10 because it is part of the planned web/back
 
 ---
 
-## Phase 9.6 — Systems / Mobile Language Support
+## Phase 9.6 â€” Systems / Mobile Language Support
 
 Status: Planned.
 
@@ -1015,7 +1030,7 @@ Targets:
 
 ---
 
-## Phase 9.7 — Config / Data / Web File Support
+## Phase 9.7 â€” Config / Data / Web File Support
 
 Status: Planned.
 
@@ -1032,7 +1047,7 @@ Targets:
 
 ---
 
-## Phase 9.8 — Language and Technology Quality Audit
+## Phase 9.8 â€” Language and Technology Quality Audit
 
 Status: Planned.
 
@@ -1053,7 +1068,7 @@ Measure:
 
 ---
 
-## Phase 9.9 — Refactor Checkpoint D
+## Phase 9.9 â€” Refactor Checkpoint D
 
 Status: Planned.
 
@@ -1074,7 +1089,7 @@ This checkpoint is named **D** because:
 
 ---
 
-## Phase 9.10 — Performance Optimization Pass B
+## Phase 9.10 â€” Performance Optimization Pass B
 
 Status: Planned.
 
@@ -1087,124 +1102,102 @@ Rules:
 
 ---
 
-## Phase 10 — Local Embeddings + Vector Search
+## Current Phase 10 Roadmap
 
-Status: Planned.
+## Phase 10.0 - Local Embeddings + Vector Search Architecture
 
-### Purpose
-
-Add semantic retrieval as a secondary signal.
-
-### Allowed Local/Free Providers
-
-- local embedding model abstraction
-- fastembed if feasible
-- Candle if feasible
-- Ollama if used as an optional local provider
-- local vector index/storage
-
-### Rules
-
-- no cloud embeddings required
-- no OpenAI / Anthropic / Gemini required
-- no hosted vector database required
-- no internet required at runtime
-- cloud providers are optional plugins only, disabled by default
-- semantic signal remains secondary to AST/graph/FTS
-
----
-
-## Phase 10.1 — Semantic Context Upgrade
-
-Status: Planned.
-
-Scope:
-
-- semantic search
-- hybrid search: FTS + graph + vector
-- graph-aware reranking
-- semantic fallback
-- duplicate deduplication
-- embedding freshness tracking
-- benchmark context quality impact
-
----
-
-## Phase 10.2 — Session Memory + Context Virtualization
-
-Status: Planned.
-
-Scope:
-
-- `SessionEvent`
-- `SessionSnapshot`
-- `DecisionMemory`
-- `TaskMemory`
-- `ErrorFixMemory`
-- `ResumeContext`
-- compact/resume support
-- local SQLite memory
-- no telemetry
-
----
-
-## Phase 10.3 — Transcript Discovery / Token Opportunity Report
-
-Status: Planned.
-
-Scope:
-
-- detect repeated grep/read chains
-- detect missed context-pack opportunities
-- detect long command output opportunities
-- produce local adoption report
-- suggest better B3 tool usage
-- local logs only
-- no uploads
-- no telemetry
-
----
-
-## Phase 10.4 — Web UI Developer Console Refresh
-
-Status: Planned.
+Status: Completed.
 
 Purpose:
 
-Upgrade the B3 Web UI into a polished local developer console after core language, route, framework, messaging, infrastructure, semantic search, and project-group capabilities are mature enough to display useful data.
+Add the local/offline architecture foundation for embeddings and vector search without making semantic search usable yet.
 
-Scope:
+Scope completed:
 
-- app shell
-- sidebar navigation
-- dashboard cards
-- project status
-- indexing status
-- language support page
-- technology intelligence page
-- route view
-- component view
-- data access view
-- realtime view
-- messaging view
-- infrastructure view
-- service view
-- registry/project group visibility
-- diagnostics/events improvements
-- better empty/loading/error states
+- embedding provider contracts and truthful provider capabilities
+- offline/free embedding config defaults with embeddings disabled by default
+- vector document, source kind, metadata, embedding vector, search request/result, and store traits
+- deterministic chunk planning with symbol-level preference and file-level fallback
+- SQLite-compatible vector document and embedding vector tables using normal SQLite storage
+- read-only control endpoints: `GET /api/vector/status` and `GET /api/vector/stats`
+- tests for defaults, provider metadata, chunking, vector hashes, SQLite upsert/search/cleanup, and control status
 
 Rules:
 
-- no paid UI kit
-- no telemetry
-- no cloud dependency
-- no runtime internet requirement
-- no fake data
-- no backend intelligence hidden in UI
+- no OpenAI, Anthropic, Gemini, or cloud embedding API integration
+- no hosted vector database requirement
+- no model download or tokenizer requirement
+- no Qdrant requirement
+- no semantic search MCP tool
+- no hybrid ranking
+- no telemetry, SaaS auth, API keys, or internet requirement
 
 ---
 
-## Phase 11 — Cross-Project Architecture Intelligence
+## Phase 10.1 - Local Embedding Provider MVP
+
+Status: Current.
+
+Scope:
+
+- add one real local/free embedding provider
+- no model download by default
+- provider must be explicitly configured when model files or local runtimes are needed
+- deterministic test provider remains test/development only
+- no cloud provider defaults
+
+---
+
+## Phase 10.2 - SQLite Vector Storage / Search Index
+
+Status: Planned.
+
+Scope:
+
+- finalize SQLite vector persistence and cleanup semantics
+- add practical local vector search over stored embeddings
+- avoid required native SQLite vector extensions by default
+- keep hosted vector databases optional and disabled
+
+---
+
+## Phase 10.3 - Hybrid Search Ranking
+
+Status: Planned.
+
+Scope:
+
+- combine FTS/BM25, graph proximity, exact symbol signals, and vector similarity
+- keep semantic signal secondary to AST/graph/FTS
+- benchmark quality impact before tuning
+
+---
+
+## Phase 10.4 - MCP / Control API Integration
+
+Status: Planned.
+
+Scope:
+
+- expose semantic/vector capabilities only after local provider and storage are ready
+- keep MCP runtime thin
+- do not change MCP profiles until tools are genuinely usable
+
+---
+
+## Phase 10.5 - Benchmark + Quality Evaluation
+
+Status: Planned.
+
+Scope:
+
+- add deterministic local quality fixtures
+- measure retrieval quality and token savings
+- no external services, cloud APIs, API keys, or telemetry
+
+---
+
+## Phase 11 â€” Cross-Project Architecture Intelligence
 
 Status: Planned.
 
@@ -1235,7 +1228,7 @@ Algorithms:
 
 ---
 
-## Phase 12 — Git Intelligence
+## Phase 12 â€” Git Intelligence
 
 Status: Planned.
 
@@ -1256,7 +1249,7 @@ Rules:
 
 ---
 
-## Phase 13 — Duplicate / Similarity Detection
+## Phase 13 â€” Duplicate / Similarity Detection
 
 Status: Planned.
 
@@ -1271,7 +1264,7 @@ Scope:
 
 ---
 
-## Phase 14 — Real Plugin System
+## Phase 14 â€” Real Plugin System
 
 Status: Planned.
 
@@ -1293,7 +1286,7 @@ Rules:
 
 ---
 
-## Phase 15 — Packaging + Installers
+## Phase 15 â€” Packaging + Installers
 
 Status: Planned.
 
@@ -1333,7 +1326,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | ORM / database access intelligence | Usable now, basic/static |
 | WebSocket / Socket.IO / SignalR / RSocket | Usable now, basic/static |
 | AMQP / RabbitMQ / Kafka / Google Pub/Sub / NestJS messaging | Usable now, basic/static |
-| Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Phase 9.2.9 |
+| Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Usable now, basic/static |
 | Go language support | Usable now, basic/static |
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Usable now, basic/static |
@@ -1341,14 +1334,15 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
 | Refactor assistant | Phase 9.3 / 9.4 |
-| Local embeddings / vector search | Phase 10 |
-| Full memory/context platform | Phase 10.2+ |
+| Local embeddings / vector search | Phase 10.0-10.5 |
+| Full memory/context platform | Later phase |
 | Cross-project architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
-Local embeddings, vector search, and cross-project architecture intelligence depend on Phase 10 and later.
+Local embeddings and vector search progress through Phase 10.0-10.5.
+Cross-project architecture intelligence begins in Phase 11.
 
 ---
 
@@ -1572,7 +1566,7 @@ Covered by Phase 8.5.
 
 B3 learns session continuity, context virtualization, local session event log, and compact/resume workflow.
 
-Covered by future Phase 10.2.
+Covered by a later memory/context phase after Phase 10 vector search work.
 
 ### Token Savior
 
