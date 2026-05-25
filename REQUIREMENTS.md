@@ -649,8 +649,8 @@ Must defer:
 - cost estimation
 - policy enforcement
 - cross-project deployment/service matching
-- scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
-  embeddings, semantic search, and cross-project architecture intelligence
+- WPF/XAML, symbolic editing, rename/refactor, embeddings, semantic search,
+  and cross-project architecture intelligence
 
 ## Go Language Support
 
@@ -683,8 +683,39 @@ Must defer:
 - full interface implementation graphs
 - full module workspace analysis
 - deep Gin/Echo/Fiber/Chi/gRPC intelligence
-- scoped indexing targets, WPF/XAML, symbolic editing, rename/refactor,
-  embeddings, semantic search, and cross-project architecture intelligence
+- WPF/XAML, symbolic editing, rename/refactor, embeddings, semantic search,
+  and cross-project architecture intelligence
+
+## Scoped Indexing + Intelligence Targets
+
+Phase 9.2.11 adds targeted indexing plans for a single local project.
+
+Must support:
+- shared `IndexScope` model and structured preview responses
+- deterministic parsing for project, path, file, glob, language, framework,
+  route, component, module, data access, realtime, messaging, and
+  infrastructure scopes
+- path/file/glob/language/framework filtering without shell expansion or
+  command execution
+- target scopes from existing indexed metadata only
+- dry-run preview with matched files, samples, languages, frameworks,
+  warnings, skipped reasons, and metadata target labels
+- scoped index/reindex through the local control CLI and control API
+- zero-match scopes as non-fatal results
+- full-project indexing as the default when no scope is provided
+- scoped reindex preserving unrelated indexed files
+
+Must not require:
+- package manager execution, app execution, runtime discovery, external APIs,
+  cloud services, database connections, broker connections, cluster access,
+  telemetry, paid services, internet access, embeddings, or semantic search
+
+Must defer:
+- cross-project scoped indexing
+- WPF/XAML/.NET Desktop intelligence
+- symbolic editing and rename/refactor
+- local embeddings and vector search
+- cross-project architecture intelligence
 
 ## Graph Requirements
 
@@ -843,10 +874,10 @@ Avoid:
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
+- Phase 9.2.11: Scoped Indexing + Intelligence Targets
 
 ### Planned Phases
 
-- Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 9.3/9.4: Symbolic editing and rename/refactor support
 - Phase 10: Local Embeddings + Vector Search

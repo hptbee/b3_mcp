@@ -68,7 +68,9 @@ npm run dev
 The Project Status section shows the current project path, database path,
 indexed file/symbol/edge counts, last index status, parse failures, and local
 duration. It also includes `Run Index` and `Reindex Project` buttons. Reindex is
-safe incremental reindexing in this phase and skips unchanged files.
+safe incremental reindexing in this phase and skips unchanged files. Scoped
+indexing is available through the control server API/CLI, but dedicated scoped
+indexing controls in the Web UI are deferred.
 
 Node.js REST route metadata is available through the local control API, but the
 current Web UI does not include a dedicated route browser yet.

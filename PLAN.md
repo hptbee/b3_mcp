@@ -57,12 +57,12 @@ Completed:
 - Phase 9.2.8 — Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
 - Phase 9.2.10 - Go Language Support
-
-Next:
 - Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 
+Next:
+- Phase 9.2.12 - .NET Desktop / WPF Intelligence
+
 Later:
-- Phase 9.2.12 — .NET Desktop / WPF Intelligence
 - Phase 9.3 — Symbolic Editing MVP
 - Phase 9.4 — Rename / Refactor MVP
 - Phase 9.5 — Additional Backend Language Support
@@ -120,7 +120,7 @@ B3 combines:
 - basic static realtime/socket intelligence
 - basic static messaging/event-driven intelligence
 - future cloud/infrastructure intelligence
-- future scoped indexing targets
+- scoped indexing targets
 - future symbolic editing
 - future local embeddings and vector search
 - future local session memory
@@ -869,15 +869,35 @@ embeddings, semantic search, or cross-project architecture intelligence.
 
 ## Phase 9.2.11 — Scoped Indexing + Intelligence Targets
 
-Status: Planned.
+Status: Completed.
 
 ### Scope
 
-- explicit include/exclude indexing targets
-- framework intelligence target selection
-- route/component/module/topic/queue/routing-key/infrastructure scopes
-- dry-run summaries before broad reindexing
-- no automatic cross-project execution
+- shared `IndexScope` and `ScopePreview` contracts in `b3-core`
+- deterministic parser/validator for `project`, `path`, `file`, `glob`,
+  `language`, `framework`, `route`, `component`, `module`, `data_access`,
+  `realtime`, `messaging.*`, and `infrastructure` scopes
+- dry-run preview with matched file counts, sample files, languages,
+  frameworks, existing metadata targets, warnings, and skipped reasons
+- scoped manual indexing and reindexing through `b3-control-server`
+  `--scope`, `--dry-run`, and `--force`
+- local API support through `POST /api/index/preview`,
+  `POST /api/index/run`, and `POST /api/index/reindex`
+- path/file/glob/language/framework filtering through local file discovery
+- target scopes using existing indexed metadata for routes, components,
+  data access, realtime, messaging, and infrastructure
+
+### Boundaries
+
+- Full-project indexing remains the default when no scope is provided.
+- Target scopes do not invent metadata; zero matches are explicit and
+  non-fatal, with a warning that a broader first index may be needed.
+- Scoped reindex only touches matched files and preserves unrelated indexed
+  files. Full reindex cleanup semantics are unchanged.
+- No MCP tools or MCP profile counts changed.
+- No command execution, package-manager execution, database/broker/cloud
+  connection, embeddings, semantic search, symbolic editing, rename/refactor,
+  runtime discovery, cross-project matching, or WPF/XAML intelligence was added.
 
 ---
 
@@ -1295,7 +1315,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | AMQP / RabbitMQ / Kafka / Google Pub/Sub / NestJS messaging | Usable now, basic/static |
 | Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Phase 9.2.9 |
 | Go language support | Usable now, basic/static |
-| Scoped indexing targets | Phase 9.2.11 |
+| Scoped indexing targets | Usable now |
 | C# WPF / XAML | Phase 9.2.12 |
 | Three.js / WebGL | Deferred |
 | Registry Web UI | Deferred |
@@ -1308,7 +1328,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, and basic static Go language support.
 
-Scoped indexing targets, WPF/XAML, local embeddings, and cross-project architecture intelligence depend on Phase 9.2.11 and later.
+WPF/XAML, local embeddings, and cross-project architecture intelligence depend on Phase 9.2.12 and later.
 
 ---
 

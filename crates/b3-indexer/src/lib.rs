@@ -13,6 +13,7 @@ mod infrastructure;
 pub mod lsp;
 mod messaging;
 mod realtime;
+pub mod scope;
 mod web;
 
 pub use csharp::detect_csproj_technologies as detect_dotnet_project_technologies;
@@ -1356,6 +1357,53 @@ where
         })
     }
 
+    pub fn index_scope(&self, plan: scope::ScopePlan) -> ContractResult<IndexSummary> {
+        let project_id = ProjectId::new(
+            plan.scope
+                .project_id
+                .clone()
+                .unwrap_or_else(|| "default".to_string()),
+        );
+        self.publish(DomainEvent::IndexStarted(IndexStarted {
+            project_id: project_id.clone(),
+            branch_id: self.config.branch_id.clone(),
+            root_path: String::new(),
+        }))?;
+
+        let files_seen = plan.files.len();
+        let mut files_parsed = 0;
+        let mut symbols_indexed = 0;
+        let worker_pool = BoundedWorkerPool::new(self.config.max_workers);
+
+        for range in worker_pool.batches(&plan.files) {
+            for file in &plan.files[range] {
+                if self.cancellation.is_cancelled() {
+                    break;
+                }
+
+                if let Some(parsed) =
+                    self.index_discovered_with_force(&project_id, file.clone(), plan.scope.force)?
+                {
+                    files_parsed += 1;
+                    symbols_indexed += parsed.symbols.len();
+                }
+            }
+        }
+
+        self.publish(DomainEvent::IndexCompleted(IndexCompleted {
+            project_id,
+            branch_id: self.config.branch_id.clone(),
+            files_seen,
+            files_parsed,
+        }))?;
+
+        Ok(IndexSummary {
+            files_seen,
+            files_parsed,
+            symbols_indexed,
+        })
+    }
+
     fn discover_inner(
         &self,
         root: &Path,
@@ -1427,8 +1475,17 @@ where
         project_id: &ProjectId,
         file: DiscoveredFile,
     ) -> ContractResult<Option<ParsedFile>> {
+        self.index_discovered_with_force(project_id, file, false)
+    }
+
+    fn index_discovered_with_force(
+        &self,
+        project_id: &ProjectId,
+        file: DiscoveredFile,
+        force: bool,
+    ) -> ContractResult<Option<ParsedFile>> {
         if let Some(existing) = self.store.existing_file(&file.id)? {
-            if existing.content_hash == file.content_hash {
+            if existing.content_hash == file.content_hash && !force {
                 self.publish(DomainEvent::FileSkipped(FileSkipped {
                     project_id: project_id.clone(),
                     file_id: Some(file.id),

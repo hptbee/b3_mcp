@@ -95,14 +95,17 @@ Completed:
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
 - Phase 9.2.10 - Go Language Support
+- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 
 Next:
 
-- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
+- Phase 9.2.12 - .NET Desktop / WPF Intelligence
+- Phase 10 - Local Embeddings + Vector Search
+- Phase 11 - Cross-Project Architecture Intelligence
 
 B3 can run today as a local MCP/runtime/control/UI platform.
 
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. LSP remains local-only and disabled by default, and scoped indexing targets, WPF/XAML, embeddings, semantic search, and deeper app-stack intelligence remain planned for later phases.
+Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. Scoped indexing can preview and run path/file/glob/language/framework scopes and target existing route, component, data access, realtime, messaging, and infrastructure metadata. Target scopes may need an earlier broader index. LSP remains local-only and disabled by default, and WPF/XAML, embeddings, semantic search, symbolic editing, rename/refactor, and cross-project architecture intelligence remain planned for later phases.
 
 ---
 
@@ -140,6 +143,8 @@ Without this phase, B3 can index internally, but users do not yet have a clean `
 - Start the control server at `http://127.0.0.1:7777`.
 - Start the web UI at `http://127.0.0.1:8888`.
 - Trigger indexing from CLI, control API, or the web UI.
+- Preview and run scoped indexing for paths, files, globs, languages,
+  frameworks, and existing intelligence metadata targets.
 - Run local benchmark baselines.
 
 ## Current Limitations
@@ -325,6 +330,13 @@ Reindex safely:
 cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db"
 ```
 
+Preview or run a scoped index:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "path:crates/b3-indexer" --dry-run
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "language:go"
+```
+
 ## MCP Runtime Usage
 
 ```powershell
@@ -402,9 +414,13 @@ http://127.0.0.1:7777
 
 Manual index API:
 
+- `POST /api/index/preview`
 - `POST /api/index/run`
 - `POST /api/index/reindex`
 - `GET /api/index/status`
+
+`POST /api/index/run` and `POST /api/index/reindex` accept optional `scope`,
+`dry_run`, and `force` JSON fields. Omit `scope` for full-project indexing.
 
 ## Web UI Usage
 
@@ -469,10 +485,13 @@ Recently completed:
 - Phase 9.2.8 - Messaging / Event-driven Intelligence
 - Phase 9.2.9 - Cloud / Infrastructure Intelligence
 - Phase 9.2.10 - Go Language Support
+- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
 
 Next:
 
-- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
+- Phase 9.2.12 - .NET Desktop / WPF Intelligence
+- Phase 10 - Local Embeddings + Vector Search
+- Phase 11 - Cross-Project Architecture Intelligence
 
 See `PLAN.md` for the full roadmap.
 
@@ -532,6 +551,7 @@ For the full plan, see `PLAN.md`.
 | RabbitMQ | Phase 9.2.8 |
 | Docker / docker-compose | Phase 9.2.9 |
 | SignalR | Phase 9.2.7 |
+| Scoped indexing targets | Usable now |
 | C# WPF | Deferred |
 | Three.js / WebGL | Deferred |
 | Refactor assistant | Phase 9.3 / 9.4 |

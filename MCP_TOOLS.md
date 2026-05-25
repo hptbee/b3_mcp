@@ -6,6 +6,10 @@ requests, maps DTOs, calls the owning layer, and returns stable serializable
 responses. It does not perform indexing, storage operations, ranking,
 traversal, embeddings, command execution, or UI work.
 
+Scoped indexing from Phase 9.2.11 is exposed through the local control
+server/CLI only. It does not add MCP tools, change MCP profile counts, or move
+indexing logic into the MCP runtime.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

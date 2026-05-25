@@ -53,8 +53,25 @@ branch. It does not delete unrelated project data.
 cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db"
 ```
 
-This phase is single-project only. Multi-repo registry and project groups are
-deferred to Phase 8.8.
+Scoped indexing can preview or run targeted index work without broadening to
+the whole project:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "path:src/orders" --dry-run
+cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db" --scope "glob:**/*.controller.ts"
+```
+
+Supported scope forms include `project`, `path:<relative-path>`,
+`file:<relative-file>`, `glob:<pattern>`, `language:<id>`,
+`framework:<id>`, `route:<path>`, `component:<name>`, `module:<name>`,
+`data_access:<technology>`, `realtime:<technology>`,
+`messaging.topic:<topic>`, `messaging.queue:<queue>`,
+`messaging.routing_key:<routing-key>`, and `infrastructure:<technology>`.
+Target scopes use existing indexed metadata and may return zero matches until a
+broader path/project index has populated the local database.
+
+This phase is single-project only. Multi-repo registry and project groups stay
+metadata-only.
 
 The `b3` install helper prints these init/index/serve commands as local next
 steps after generating Codex or Cursor MCP config. It does not run init,
@@ -80,9 +97,25 @@ Health and project status:
 
 Manual indexing:
 
+- `POST /api/index/preview`
 - `POST /api/index/run`
 - `POST /api/index/reindex`
 - `GET /api/index/status`
+
+`POST /api/index/run` and `POST /api/index/reindex` accept optional JSON
+fields:
+
+```json
+{
+  "scope": "framework:aspnetcore",
+  "dry_run": true,
+  "force": false
+}
+```
+
+Dry-run responses include matched file counts, sample files, matched languages,
+matched frameworks, existing metadata targets when available, warnings, and
+skipped reasons. Dry-run does not mutate SQLite.
 
 Query adapter endpoints:
 
@@ -164,6 +197,9 @@ Current truth:
   detection, packages, imports, functions, receiver methods, structs,
   interfaces, type declarations, const/var declarations, local call edges, and
   conservative HTTP route hints.
+- Scoped indexing is available for path/file/glob/language/framework scopes
+  and for existing metadata targets such as routes, components, data access,
+  realtime, messaging, and infrastructure.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 

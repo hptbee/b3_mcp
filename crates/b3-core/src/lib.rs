@@ -12,6 +12,7 @@ mod ids;
 mod language;
 mod plugin;
 mod query;
+mod scope;
 
 pub use config::*;
 pub use contracts::*;
@@ -20,6 +21,7 @@ pub use ids::*;
 pub use language::*;
 pub use plugin::*;
 pub use query::*;
+pub use scope::*;
 
 pub const PRODUCT_NAME: &str = "b3_mcp";
 

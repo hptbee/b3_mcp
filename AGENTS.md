@@ -302,5 +302,20 @@ calls when local router construction is visible, but it must not run `go`,
 access, package restore, app code, compiler/type checking, or external parsers.
 It does not implement full semantic Go analysis, dependency resolution, full
 interface implementation graphs, deep framework intelligence, gRPC
-intelligence, scoped indexing targets, symbolic editing, rename/refactor,
-embeddings, semantic search, or cross-project architecture intelligence.
+intelligence, symbolic editing, rename/refactor, embeddings, semantic search,
+or cross-project architecture intelligence.
+
+## Scoped Indexing Boundaries
+
+Phase 9.2.11 scoped indexing is completed as local static target planning only.
+It may parse explicit scope strings, validate local paths under the project
+root, preview matched files, filter path/file/glob/language/framework scopes,
+and use existing indexed route/component/data-access/realtime/messaging/
+infrastructure metadata to select source files. Full-project indexing remains
+the default when no scope is provided.
+
+It must not broaden invalid scopes to the whole project, execute commands,
+expand shell globs, run package managers or app code, connect to databases,
+brokers, clusters, cloud APIs, or external services, add embeddings or semantic
+search, perform symbolic editing or rename/refactor, implement WPF/XAML, or do
+cross-project scoped indexing/architecture matching.

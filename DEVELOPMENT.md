@@ -70,8 +70,19 @@ server through `NEXT_PUBLIC_B3_API_BASE_URL`.
 
 `reindex` is currently a safe incremental reindex. It skips unchanged files,
 cleans deleted files for the current branch, and does not delete unrelated
-project data. The workflow is single-project only; multi-repo registry support
-is deferred to Phase 8.8.
+project data.
+
+Scoped indexing can be previewed and run locally:
+
+```powershell
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "path:crates/b3-indexer" --dry-run
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "language:go"
+```
+
+Supported scopes include path, file, glob, language, framework, route,
+component, module, data access, realtime, messaging topic/queue/routing key,
+and infrastructure. Target scopes use existing local metadata, so zero matches
+are valid when a broader first index has not populated the database.
 
 The CI skeleton mirrors these commands with:
 
@@ -214,8 +225,8 @@ registries, package managers, or app code. Phase
 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The
-current roadmap is completed through Phase 9.2.10; the next planned
-implementation phase is Phase 9.2.11 - Scoped Indexing + Intelligence Targets.
+current roadmap is completed through Phase 9.2.11; the next planned
+implementation phase is Phase 9.2.12 - .NET Desktop / WPF Intelligence.
 
 ## Offline-First Expectations
 

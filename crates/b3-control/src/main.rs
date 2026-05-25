@@ -42,6 +42,16 @@ async fn main() {
                     summary.duration_ms,
                     summary.behavior
                 );
+                if let Some(scope) = summary.scope {
+                    println!("scope={scope}\ndry_run={}", summary.dry_run);
+                }
+                if let Some(preview) = summary.preview {
+                    println!(
+                        "matched_files={}\nsample_files={}",
+                        preview.matched_files,
+                        preview.sample_files.join(",")
+                    );
+                }
             }
             Err(error) => {
                 eprintln!("{error:?}");
@@ -159,6 +169,15 @@ fn parse_project_options(
             "--database" => {
                 options.database_path = PathBuf::from(next_arg(args, "--database")?);
             }
+            "--scope" => {
+                options.scope = Some(next_arg(args, "--scope")?);
+            }
+            "--dry-run" => {
+                options.dry_run = true;
+            }
+            "--force" => {
+                options.force = true;
+            }
             "--help" | "-h" => {
                 print_help();
                 std::process::exit(0);
@@ -183,6 +202,6 @@ fn next_arg(
 
 fn print_help() {
     println!(
-        "Usage:\n  b3-control-server init --project . --database .b3/b3.db\n  b3-control-server index --project . --database .b3/b3.db\n  b3-control-server reindex --project . --database .b3/b3.db\n  b3-control-server serve --project . --database .b3/b3.db --port 7777 --watch"
+        "Usage:\n  b3-control-server init --project . --database .b3/b3.db\n  b3-control-server index --project . --database .b3/b3.db [--scope path:src] [--dry-run] [--force]\n  b3-control-server reindex --project . --database .b3/b3.db [--scope language:go] [--dry-run] [--force]\n  b3-control-server serve --project . --database .b3/b3.db --port 7777 --watch"
     );
 }

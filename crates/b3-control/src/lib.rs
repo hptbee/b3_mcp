@@ -26,12 +26,15 @@ use axum::{
 };
 use b3_core::{
     default_language_backend_registry, AppConfig, BranchId, BranchMetadata, ContractError,
-    ContractResult, EventBus, IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest,
-    QueryResult, SymbolRepository, PRODUCT_NAME,
+    ContractResult, EventBus, IndexScope, IndexScopeKind, IndexSummary, Indexer,
+    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, ScopePreview, SymbolRepository,
+    PRODUCT_NAME,
 };
 use b3_indexer::{
-    lsp::LspBackend, DefaultLanguagePack, IndexerConfig, LocalIndexer, NotifyFileWatcher,
-    ParserIsolation, WatchConfig, WatchEventKind,
+    lsp::LspBackend,
+    scope::{parse_scope, plan_scope, ScopeTarget, ScopeTargetProvider},
+    DefaultLanguagePack, IndexerConfig, LocalIndexer, NotifyFileWatcher, ParserIsolation,
+    WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
@@ -89,6 +92,9 @@ pub struct ServeOptions {
 pub struct ProjectCommandOptions {
     pub project_path: PathBuf,
     pub database_path: PathBuf,
+    pub scope: Option<String>,
+    pub dry_run: bool,
+    pub force: bool,
 }
 
 impl Default for ProjectCommandOptions {
@@ -96,6 +102,9 @@ impl Default for ProjectCommandOptions {
         Self {
             project_path: PathBuf::from("."),
             database_path: PathBuf::from(".b3").join("b3.db"),
+            scope: None,
+            dry_run: false,
+            force: false,
         }
     }
 }
@@ -113,6 +122,9 @@ pub struct ManualIndexSummary {
     pub duration_ms: u128,
     pub reindex: bool,
     pub behavior: String,
+    pub scope: Option<String>,
+    pub dry_run: bool,
+    pub preview: Option<ScopePreview>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,6 +158,13 @@ impl Default for IndexStatusResponse {
             last_error: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct IndexRunRequest {
+    pub scope: Option<String>,
+    pub dry_run: Option<bool>,
+    pub force: Option<bool>,
 }
 
 impl Default for ServeOptions {
@@ -249,6 +268,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/status", get(status))
         .route("/api/projects", get(projects))
         .route("/api/project", get(project))
+        .route("/api/index/preview", post(index_preview))
         .route("/api/index/run", post(index_run))
         .route("/api/index/reindex", post(index_reindex))
         .route("/api/index/status", get(index_status))
@@ -366,14 +386,45 @@ async fn project(State(state): State<ControlState>) -> Result<Json<ProjectDetail
 
 async fn index_run(
     State(state): State<ControlState>,
+    payload: Option<Json<IndexRunRequest>>,
 ) -> Result<Json<ManualIndexSummary>, ControlError> {
-    run_index_for_state(state, false).await.map(Json)
+    run_index_for_state(state, false, payload.map(|value| value.0))
+        .await
+        .map(Json)
 }
 
 async fn index_reindex(
     State(state): State<ControlState>,
+    payload: Option<Json<IndexRunRequest>>,
 ) -> Result<Json<ManualIndexSummary>, ControlError> {
-    run_index_for_state(state, true).await.map(Json)
+    run_index_for_state(state, true, payload.map(|value| value.0))
+        .await
+        .map(Json)
+}
+
+async fn index_preview(
+    State(state): State<ControlState>,
+    payload: Option<Json<IndexRunRequest>>,
+) -> Result<Json<ScopePreview>, ControlError> {
+    let request = payload.map(|value| value.0).unwrap_or_default();
+    let scope_text = request.scope.unwrap_or_else(|| "project".to_string());
+    let mut scope = parse_scope(&scope_text).map_err(ControlError::from_scope)?;
+    scope.dry_run = true;
+    scope.force = request.force.unwrap_or(false);
+    scope.project_id = Some("default".to_string());
+    scope.branch_id = Some("main".to_string());
+    let storage = state.storage.lock().await;
+    let provider = StorageScopeTargetProvider { storage: &storage };
+    let plan = plan_scope(
+        &state.project_path,
+        "default",
+        "main",
+        scope,
+        &IndexerConfig::default().ignore,
+        &provider,
+    )
+    .map_err(ControlError::from_scope)?;
+    Ok(Json(plan.preview))
 }
 
 async fn index_status(
@@ -533,53 +584,13 @@ pub fn index_project(
     options: &ProjectCommandOptions,
     reindex: bool,
 ) -> Result<ManualIndexSummary, ControlError> {
-    init_project(options)?;
-    let started = Instant::now();
-    let project_id = ProjectId::new("default");
-    let branch_id = BranchId::new("main");
-    let before_failures = SqliteStorage::open(&options.database_path)
-        .map_err(ControlError::internal)?
-        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
-        .map_err(ControlError::internal)?;
-    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
-    let indexer = LocalIndexer::new(
-        DefaultLanguagePack,
-        SharedSqliteIndexStore::new(storage),
-        NoopEventBus,
-        IndexerConfig {
-            branch_id: branch_id.clone(),
-            parser_isolation: ParserIsolation::InProcess,
-            ..IndexerConfig::default()
-        },
-    );
-    let summary = indexer
-        .index(b3_core::IndexJob {
-            project_id: project_id.clone(),
-            root_path: options.project_path.to_string_lossy().to_string(),
-        })
-        .map_err(ControlError::internal)?;
-    let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
-    let graph = storage
-        .graph_summary(Some(project_id.as_str()), Some(branch_id.as_str()))
-        .map_err(ControlError::internal)?;
-    let parse_failures = storage
-        .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
-        .map_err(ControlError::internal)?
-        .saturating_sub(before_failures);
-
-    Ok(index_summary_response(
-        options,
-        summary,
-        graph.edge_count,
-        parse_failures,
-        started.elapsed(),
-        reindex,
-    ))
+    run_index_project(options, reindex, EventHub::new(1))
 }
 
 async fn run_index_for_state(
     state: ControlState,
     reindex: bool,
+    request: Option<IndexRunRequest>,
 ) -> Result<ManualIndexSummary, ControlError> {
     let started_at = now_unix_ms();
     {
@@ -600,6 +611,15 @@ async fn run_index_for_state(
     let options = ProjectCommandOptions {
         project_path: (*state.project_path).clone(),
         database_path: (*state.database_path).clone(),
+        scope: request.as_ref().and_then(|request| request.scope.clone()),
+        dry_run: request
+            .as_ref()
+            .and_then(|request| request.dry_run)
+            .unwrap_or(false),
+        force: request
+            .as_ref()
+            .and_then(|request| request.force)
+            .unwrap_or(false),
     };
     let started = Instant::now();
     let result = run_index_with_events(&options, reindex, state.events.clone());
@@ -647,15 +667,92 @@ fn run_index_with_events(
     reindex: bool,
     events: EventHub,
 ) -> Result<ManualIndexSummary, ControlError> {
-    init_project(options)?;
+    run_index_project(options, reindex, events)
+}
+
+fn run_index_project(
+    options: &ProjectCommandOptions,
+    reindex: bool,
+    events: EventHub,
+) -> Result<ManualIndexSummary, ControlError> {
     let started = Instant::now();
     let project_id = ProjectId::new("default");
     let branch_id = BranchId::new("main");
+    if options.dry_run {
+        let scope_text = options.scope.as_deref().unwrap_or("project");
+        let mut scope = parse_scope(scope_text).map_err(ControlError::from_scope)?;
+        scope.dry_run = true;
+        scope.force = options.force;
+        scope.project_id = Some(project_id.as_str().to_string());
+        scope.branch_id = Some(branch_id.as_str().to_string());
+        let preview = if options.database_path.exists() {
+            let storage =
+                SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+            let provider = StorageScopeTargetProvider { storage: &storage };
+            plan_scope(
+                &options.project_path,
+                project_id.as_str(),
+                branch_id.as_str(),
+                scope,
+                &IndexerConfig::default().ignore,
+                &provider,
+            )
+            .map_err(ControlError::from_scope)?
+            .preview
+        } else {
+            plan_scope(
+                &options.project_path,
+                project_id.as_str(),
+                branch_id.as_str(),
+                scope,
+                &IndexerConfig::default().ignore,
+                &b3_indexer::scope::EmptyScopeTargetProvider,
+            )
+            .map_err(ControlError::from_scope)?
+            .preview
+        };
+        return Ok(index_summary_response(
+            options,
+            IndexSummary {
+                files_seen: preview.matched_files,
+                files_parsed: 0,
+                symbols_indexed: 0,
+            },
+            0,
+            0,
+            started.elapsed(),
+            reindex,
+            Some(preview),
+        ));
+    }
+
+    init_project(options)?;
     let before_failures = SqliteStorage::open(&options.database_path)
         .map_err(ControlError::internal)?
         .parse_failure_count(Some(project_id.as_str()), Some(branch_id.as_str()))
         .map_err(ControlError::internal)?;
     let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
+    let scoped_plan = if let Some(scope_text) = options.scope.as_deref() {
+        let mut scope = parse_scope(scope_text).map_err(ControlError::from_scope)?;
+        scope.dry_run = options.dry_run;
+        scope.force = options.force;
+        scope.project_id = Some(project_id.as_str().to_string());
+        scope.branch_id = Some(branch_id.as_str().to_string());
+        let provider = StorageScopeTargetProvider { storage: &storage };
+        let plan = plan_scope(
+            &options.project_path,
+            project_id.as_str(),
+            branch_id.as_str(),
+            scope,
+            &IndexerConfig::default().ignore,
+            &provider,
+        )
+        .map_err(ControlError::from_scope)?;
+        let preview = plan.preview.clone();
+        Some((plan, preview))
+    } else {
+        None
+    };
     let indexer = LocalIndexer::new(
         DefaultLanguagePack,
         SharedSqliteIndexStore::new(storage),
@@ -668,12 +765,22 @@ fn run_index_with_events(
             ..IndexerConfig::default()
         },
     );
-    let summary = indexer
-        .index(b3_core::IndexJob {
-            project_id: project_id.clone(),
-            root_path: options.project_path.to_string_lossy().to_string(),
-        })
-        .map_err(ControlError::internal)?;
+    let (summary, preview) = if let Some((plan, preview)) = scoped_plan {
+        (
+            indexer.index_scope(plan).map_err(ControlError::internal)?,
+            Some(preview),
+        )
+    } else {
+        (
+            indexer
+                .index(b3_core::IndexJob {
+                    project_id: project_id.clone(),
+                    root_path: options.project_path.to_string_lossy().to_string(),
+                })
+                .map_err(ControlError::internal)?,
+            None,
+        )
+    };
     let storage = SqliteStorage::open(&options.database_path).map_err(ControlError::internal)?;
     let graph = storage
         .graph_summary(Some(project_id.as_str()), Some(branch_id.as_str()))
@@ -689,6 +796,7 @@ fn run_index_with_events(
         parse_failures,
         started.elapsed(),
         reindex,
+        preview,
     ))
 }
 
@@ -699,7 +807,9 @@ fn index_summary_response(
     parse_failures: usize,
     duration: Duration,
     reindex: bool,
+    preview: Option<ScopePreview>,
 ) -> ManualIndexSummary {
+    let scope = options.scope.clone();
     ManualIndexSummary {
         project_path: path_string(&options.project_path),
         database_path: path_string(&options.database_path),
@@ -712,11 +822,195 @@ fn index_summary_response(
         duration_ms: duration.as_millis(),
         reindex,
         behavior: if reindex {
-            "safe incremental reindex: unchanged files are skipped; deleted files are cleaned for the current branch".to_string()
+            if scope.is_some() {
+                "scoped incremental reindex: only matched files are considered; unrelated indexed files are preserved".to_string()
+            } else {
+                "safe incremental reindex: unchanged files are skipped; deleted files are cleaned for the current branch".to_string()
+            }
         } else {
             "incremental index: unchanged files are skipped by content hash".to_string()
         },
+        scope,
+        dry_run: options.dry_run,
+        preview,
     }
+}
+
+struct StorageScopeTargetProvider<'a> {
+    storage: &'a SqliteStorage,
+}
+
+impl ScopeTargetProvider for StorageScopeTargetProvider<'_> {
+    fn targets(
+        &self,
+        scope: &IndexScope,
+        project_id: &str,
+        branch_id: &str,
+        limit: usize,
+    ) -> Result<Vec<ScopeTarget>, b3_core::ScopeError> {
+        let value = scope.value.as_deref().unwrap_or_default();
+        let targets = match scope.kind {
+            IndexScopeKind::Route => self
+                .storage
+                .routes(project_id, branch_id, None, None, Some(value), limit)
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|route| ScopeTarget {
+                    label: format!("route:{} {}", route.method, route.path),
+                    file_path: route.file_path,
+                    language: None,
+                    framework: Some(route.framework),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            IndexScopeKind::Component => self
+                .storage
+                .components(project_id, branch_id, None, Some(value), None, limit)
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|component| ScopeTarget {
+                    label: format!("component:{}", component.name),
+                    file_path: component.file_path,
+                    language: None,
+                    framework: Some(component.framework),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            IndexScopeKind::Module => self
+                .storage
+                .components(
+                    project_id,
+                    branch_id,
+                    Some("angular"),
+                    Some(value),
+                    None,
+                    limit,
+                )
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|component| ScopeTarget {
+                    label: format!("module:{}", component.name),
+                    file_path: component.file_path,
+                    language: None,
+                    framework: Some(component.framework),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            IndexScopeKind::DataAccess => self
+                .storage
+                .data_access(project_id, branch_id, Some(value), None, None, None, limit)
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|record| ScopeTarget {
+                    label: format!("data_access:{}:{}", record.technology, record.kind),
+                    file_path: record.file_path,
+                    language: None,
+                    framework: Some(record.technology),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            IndexScopeKind::Realtime => self
+                .storage
+                .realtime(project_id, branch_id, Some(value), None, None, None, limit)
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|record| ScopeTarget {
+                    label: format!(
+                        "realtime:{}:{}",
+                        record.technology,
+                        record
+                            .event_name
+                            .or(record.hub_name)
+                            .or(record.method_name)
+                            .unwrap_or(record.kind)
+                    ),
+                    file_path: record.file_path,
+                    language: None,
+                    framework: Some(record.technology),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            IndexScopeKind::Messaging => {
+                messaging_targets(self.storage, project_id, branch_id, value, limit)?
+            }
+            IndexScopeKind::Infrastructure => self
+                .storage
+                .infrastructure(project_id, branch_id, Some(value), None, None, limit)
+                .map_err(scope_storage_error)?
+                .into_iter()
+                .map(|record| ScopeTarget {
+                    label: format!(
+                        "infrastructure:{}:{}",
+                        record.technology,
+                        record.name.unwrap_or(record.kind)
+                    ),
+                    file_path: record.file_path,
+                    language: None,
+                    framework: Some(record.technology),
+                    estimated_symbols: 1,
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        Ok(targets)
+    }
+}
+
+fn messaging_targets(
+    storage: &SqliteStorage,
+    project_id: &str,
+    branch_id: &str,
+    value: &str,
+    limit: usize,
+) -> Result<Vec<ScopeTarget>, b3_core::ScopeError> {
+    let (topic, queue, routing_key) = match value.split_once('=') {
+        Some(("topic", value)) => (Some(value), None, None),
+        Some(("queue", value)) => (None, Some(value), None),
+        Some(("routing_key", value)) => (None, None, Some(value)),
+        Some((_field, _value)) => (None, None, None),
+        None => (None, None, None),
+    };
+    Ok(storage
+        .messaging(
+            project_id,
+            branch_id,
+            None,
+            None,
+            topic,
+            queue,
+            routing_key,
+            limit,
+        )
+        .map_err(scope_storage_error)?
+        .into_iter()
+        .filter(|record| match value.split_once('=') {
+            Some(("exchange", value)) => record.exchange.as_deref() == Some(value),
+            Some(("pattern", value)) => record.pattern.as_deref() == Some(value),
+            Some(_) => true,
+            None => record.technology == value,
+        })
+        .map(|record| ScopeTarget {
+            label: format!(
+                "messaging:{}:{}",
+                record.technology,
+                record
+                    .topic
+                    .or(record.queue)
+                    .or(record.routing_key)
+                    .or(record.exchange)
+                    .or(record.pattern)
+                    .unwrap_or(record.kind)
+            ),
+            file_path: record.file_path,
+            language: None,
+            framework: Some(record.technology),
+            estimated_symbols: 1,
+        })
+        .collect())
+}
+
+fn scope_storage_error(error: impl std::fmt::Display) -> b3_core::ScopeError {
+    b3_core::ScopeError::new("scope_metadata_error", error.to_string())
 }
 
 async fn graph_summary(
@@ -1692,6 +1986,13 @@ impl ControlError {
     fn internal(error: impl std::fmt::Display) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: error.to_string(),
+        }
+    }
+
+    fn from_scope(error: b3_core::ScopeError) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
             message: error.to_string(),
         }
     }
@@ -2981,15 +3282,6 @@ impl From<SavingsSummary> for SavingsSummaryResponse {
 }
 
 #[derive(Clone)]
-struct NoopEventBus;
-
-impl EventBus for NoopEventBus {
-    fn publish(&self, _event: DomainEvent) -> ContractResult<()> {
-        Ok(())
-    }
-}
-
-#[derive(Clone)]
 struct EventForwarder {
     events: EventHub,
 }
@@ -3699,6 +3991,7 @@ mod tests {
         let options = ProjectCommandOptions {
             project_path: dir.path().join("repo"),
             database_path: dir.path().join("repo").join(".b3").join("b3.db"),
+            ..ProjectCommandOptions::default()
         };
 
         init_project(&options).expect("init");
@@ -3723,6 +4016,7 @@ mod tests {
         let options = ProjectCommandOptions {
             project_path: root,
             database_path: dir.path().join("b3.db"),
+            ..ProjectCommandOptions::default()
         };
 
         let first = index_project(&options, false).expect("index");

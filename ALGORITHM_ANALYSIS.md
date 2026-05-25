@@ -161,6 +161,22 @@ tooling, or app code. It does not implement full React Server Components
 semantics, middleware execution order, Vercel/deployment intelligence,
 auth-specific intelligence, or deep data fetching semantics.
 
+### Scoped Indexing Planning
+
+Phase 9.2.11 adds a deterministic scope-planning layer before indexing:
+
+1. parse explicit scope strings without fuzzy interpretation
+2. validate path and glob scopes under the project root
+3. discover local files with the existing ignore rules and stable ordering
+4. filter by path, file, glob, language, or conservative framework hints
+5. resolve target scopes only from existing indexed metadata
+6. return dry-run previews without SQLite mutation
+7. run scoped index/reindex only against matched files
+
+The algorithm is intentionally local and static. It does not execute shells,
+package managers, app code, brokers, databases, cloud APIs, clusters, semantic
+search, embeddings, or cross-project matching.
+
 ### Angular Static Extraction
 
 Phase 9.2.4 adds conservative static Angular intelligence on top of TypeScript
@@ -543,10 +559,10 @@ Added requirements:
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support
+- Phase 9.2.11: Scoped Indexing + Intelligence Targets
 
 ### Planned Phases
 
-- Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
 - Phase 10: Local Embeddings + Vector Search
 - Phase 10.1: Semantic Context Upgrade
