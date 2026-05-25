@@ -1,334 +1,110 @@
-# B3 MCP Code Intelligence
+# B3 — Local Code Intelligence (Concise)
 
 B3 is a local-first, offline-first, free-by-default code intelligence platform
-for MCP-compatible coding agents such as Codex and Cursor.
+for MCP-compatible coding agents and local developer workflows. `PLAN.md` is
+the source of truth for the full roadmap and detailed phase notes.
 
-B3 indexes a repository into a local SQLite-backed code graph so agents can ask
-structured questions about symbols, files, calls, relationships, impact, and
-context instead of repeatedly scanning the same source files.
-
-## Core Features
-
-- Thin stdio MCP runtime.
-- Local SQLite graph, FTS/BM25 search, and token savings ledger.
-- Rust tree-sitter indexing with incremental unchanged-file skips.
-- Symbol lookup, code search, callers/callees, related symbols, dependency
-  paths, cycle detection, impact analysis, and context packs.
-- Query trace and explainability DTOs.
-- PageRank/centrality snapshots for ranking and impact scoring.
-- Localhost control server with health, project, graph, query, diagnostics, and
-  manual index endpoints.
-- Local Next.js web UI with project status, Run Index, Reindex Project, graph
-  explorer, query trace, diagnostics, and SSE event display.
-- File watcher, parser isolation worker boundary, parse failure registry,
-  benchmark harness, and deterministic command output compaction.
-
-## Offline And Free Requirement
-
-Core B3 functionality must not require external APIs, cloud services, hosted
-databases, SaaS auth, telemetry, paid UI kits, proprietary plugins, internet
-access, or OpenAI/Anthropic/Gemini/cloud embedding APIs.
-
-Optional integrations may be added later only as disabled-by-default plugins.
-The default system must remain fully local.
-B3 is offline-first and free-by-default.
-
-Core functionality must not require:
-
-- external APIs
-- cloud services
-- hosted vector databases
-- SaaS authentication
-- telemetry
-- paid UI kits
-- paid backend services
-- paid/proprietary plugins
-- OpenAI / Anthropic / Gemini / cloud embedding APIs
-- JetBrains paid plugin
-- internet access
-
-Allowed in core:
-
-- local SQLite
-- local FTS5
-- local parser worker
-- local benchmark harness
-- local command output compaction
-- local LSP servers when explicitly enabled/configured
-- local embeddings when implemented later
-- local Qdrant only as an optional local component when implemented later
-
-External/cloud/paid integrations are allowed only as optional plugins:
-
-- disabled by default
-- not required for install
-- not required for tests
-- not required for benchmarks
-- not required for core features
-
-This requirement overrides all roadmap decisions.
+Quick links:
+- Roadmap (source of truth): PLAN.md
+- Dev docs: DEVELOPMENT.md
+- MCP tools: MCP_TOOLS.md
 
 ---
 
-## Current Status
+## What B3 Is
 
-Completed:
+- A Rust-native indexer that builds a local SQLite-backed code graph (.b3/b3.db).
+- A thin MCP runtime exposing a curated toolset for agent integrations.
+- A localhost control server and a local Next.js web UI for inspection and manual workflows.
+- Scoped indexing and conservative, explainable static intelligence for supported stacks.
 
-- Phase 8.5 - Command Output Compaction
-- Phase 8.5.1 - Project Init + Manual Index Command
-- Phase 8.5.1.1 - Repository Structure Audit + Folder/File Cleanup
-- Phase 8.6 - MCP Tool Profiles + Manifest Slimming
-- Phase 8.7 - Agent Install Helper + Hook Integration Foundation
-- Phase 8.8 - Multi-repo Registry + Project Groups
-- Phase 9.0 - Language Backend Architecture
-- Phase 9.1 - LSP Backend MVP
-- Phase 9.2 - Web Application Priority Support A
-- Phase 9.2.1 - Node.js / REST API Intelligence
-- Phase 9.2.2 - React / TSX Component Intelligence
-- Phase 9.2.3 - Next.js Intelligence
-- Phase 9.2.3.1 - Indexer Module Split / Refactor Checkpoint B
-- Phase 9.2.4 - Angular Intelligence
-- Phase 9.2.4.1 - Web Module Split / Refactor Checkpoint C
-- Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
-- Phase 9.2.6 - ORM / Database Access Intelligence
-- Phase 9.2.7 - Realtime / Socket Intelligence
-- Phase 9.2.8 - Messaging / Event-driven Intelligence
-- Phase 9.2.9 - Cloud / Infrastructure Intelligence
-- Phase 9.2.10 - Go Language Support
-- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
-- Phase 9.2.12 - .NET Desktop / WPF Intelligence
+## Roadmap (short)
 
-Completed:
+Current / Next:
+- Phase 10.3 — Hybrid Search Ranking (current/next)
 
-- Phase 10.0 - Local Embeddings + Vector Search Architecture
-- Phase 10.1 - Local Embedding Provider MVP
-- Phase 10.2 - SQLite Vector Storage / Search Index
+Upcoming major phases:
+- Phase 10.4 — MCP / Control API Integration
+- Phase 10.5 — Benchmark + Quality Evaluation
+- Phase 11 — Cross-Project Architecture Intelligence
+- Phase 12–20 — Symbolic editing, refactor assistant, additional language and UI work
 
-Current/Next:
-
-- Phase 10.3 - Hybrid Search Ranking
-
-Upcoming:
-
-- Phase 10.4 - MCP / Control API Integration
-- Phase 10.5 - Benchmark + Quality Evaluation
-- Phase 11 - Cross-Project Architecture Intelligence
-
-B3 can run today as a local MCP/runtime/control/UI platform.
-
-Rust currently has the best language support. JavaScript, TypeScript, JSX, and TSX have basic local tree-sitter indexing for symbols/imports. Node.js REST route intelligence is basic/static/local for Express, NestJS, and Fastify. React/TSX component intelligence is basic/static/local for common components, props types, JSX usages, and hooks. Next.js intelligence is basic/static/local for common App Router and Pages Router file-system routes, app route handlers, exported HTTP methods, dynamic segments, and `"use client"` boundaries. Angular intelligence is basic/static/local for common decorators, components, services, modules, route configs, selectors, template/style references, and constructor DI type names. ASP.NET Core / C# Web API intelligence is basic/static/local for `.csproj` framework detection, controllers, common route attributes, composed routes, action methods, and constructor DI type names. ORM/database access intelligence is basic/static/local for EF Core, Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious query callsites. Realtime/socket intelligence is basic/static/local for common WebSocket, Socket.IO, SignalR, and minimal RSocket package/request patterns. Messaging/event-driven intelligence is basic/static/local for common AMQP/RabbitMQ, Kafka, Google Pub/Sub, and NestJS messaging usage. Cloud/infrastructure intelligence is basic/static/local for Dockerfile, Docker Compose, Kubernetes YAML, Terraform, and GCP/GKE hints. Go language support is basic/static/local for `.go` and `go.mod` detection, packages, imports, functions, receiver methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative HTTP route hints. Scoped indexing can preview and run path/file/glob/language/framework scopes and target existing route, component, data access, realtime, messaging, and infrastructure metadata. .NET Desktop / WPF intelligence is basic/static/local for modern and older WPF project hints, XAML Application/Window/UserControl/Page/ResourceDictionary metadata, x:Class, code-behind hints, binding paths, command bindings, resource references, and ViewModel hints. Target scopes may need an earlier broader index. LSP remains local-only and disabled by default. Phase 10.2 adds local_hash embeddings plus SQLite vector persistence and raw local cosine vector search; hybrid ranking, MCP semantic search tools, symbolic editing, rename/refactor, and cross-project architecture intelligence remain planned for later phases.
+See `PLAN.md` for the full, authoritative roadmap and phase details.
 
 ---
 
-## Why Phase 8.5.1 Exists
+## What Works Today (concise)
 
-B3 already has the indexing engine, storage, query engine, watcher, and UI.
+- Repository indexing into `.b3/b3.db` (local project model).
+- MCP runtime (stdio) and curated MCP tool profiles for agent testing.
+- Local control server (`http://127.0.0.1:7777`) and local web UI (`http://127.0.0.1:8888`).
+- Scoped indexing (path / file / glob / language / framework filters).
+- Registry and project-groups metadata (local only, metadata-first).
+- Language & technology support (basic/static/local):
+  - Rust (best support)
+  - JavaScript / TypeScript / JSX / TSX
+  - Node.js REST (Express / NestJS / Fastify)
+  - React / Next.js / Angular (basic static extraction)
+  - ASP.NET Core / C# Web API
+  - ORM / data-access hints (EF Core, Dapper, Prisma, TypeORM, Sequelize)
+  - Realtime / Socket hints (WebSocket, Socket.IO, SignalR)
+  - Messaging/event-driven hints (AMQP/RabbitMQ, Kafka, Google Pub/Sub)
+  - Cloud/infrastructure hints (Docker, Compose, Kubernetes, Terraform)
+  - Go (basic static support)
+  - C# WPF / XAML (basic static/local)
 
-However, it still needs a simple user workflow for:
-
-```text
-init project -> index project -> open UI -> see files/symbols/edges
-```
-
-Phase 8.5.1 turns the existing indexing capability into an easy workflow:
-
-- CLI init command
-- CLI index command
-- CLI reindex command
-- control API index trigger
-- UI Run Index button
-- indexing status/events
-
-Without this phase, B3 can index internally, but users do not yet have a clean `b3 init` / `b3 index` style experience.
+- Local embeddings & vectors (Phase 10 work): `local_hash` embeddings and
+  SQLite vector storage/search are implemented (local/offline raw vector search);
+  production semantic embedding providers, hybrid ranking, and MCP semantic tools
+  are staged in later phases.
 
 ---
 
-## What Works Today
+## Current Limitations (short)
 
-- Index this Rust repo into `.b3/b3.db`.
-- Query indexed symbols, graph relationships, context packs, and impact data.
-- Run the MCP runtime from an MCP client.
-- Choose an MCP tool profile to reduce `tools/list` manifest noise.
-- Generate or apply local Codex/Cursor MCP config with the `b3` helper.
-- Register local projects and metadata-only project groups in a local registry.
-- Start the control server at `http://127.0.0.1:7777`.
-- Start the web UI at `http://127.0.0.1:8888`.
-- Trigger indexing from CLI, control API, or the web UI.
-- Preview and run scoped indexing for paths, files, globs, languages,
-  frameworks, and existing intelligence metadata targets.
-- Run local benchmark baselines.
+- Most non-Rust stacks are supported with conservative, static extraction (not full semantic analysis).
+- `local_hash` embeddings are lexical/hash-based, not neural semantic-quality vectors.
+- Hybrid ranking and semantic integration are in Phase 10.3–10.4 (not yet general-purpose).
+- Quality benchmarking and user-facing quality reports are Phase 10.5.
+- Cross-project architecture intelligence is Phase 11.
+- Symbolic editing and rename/refactor are Phase 12 / Phase 13.
+- B3 does not execute code, call cloud APIs, or connect to external brokers/databases by default.
 
-## Current Limitations
+---
 
-- Cross-project query execution, graph merging, and architecture intelligence
-  are deferred.
-- Rust has the strongest implemented parser backend.
-- JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
-- Python, Java, and other planned languages are
-  detect-only or unsupported until their phases land.
-- XAML is basic/static/local for WPF metadata extraction and does not require
-  Visual Studio, MSBuild, `dotnet`, Windows runtime, or a XAML compiler.
-- Go is basic/static/local and does not require the Go toolchain, `go build`,
-  `go test`, `go list`, module downloads, or package registry access.
-- Neural/model embedding providers, semantic search, Qdrant, session memory, symbolic
-  editing, and domain-specific intelligence beyond current static extractors
-  are deferred. Phase 10.2 provides local/offline `local_hash` vectors and raw
-  SQLite cosine vector search, but hybrid ranking is still a later phase.
-- LSP exists as a local backend foundation and is disabled by default.
-- Reindex is currently safe incremental reindexing, not a separate force-delete
-  full rebuild.
-- Web UI dependencies must be installed locally before frontend checks/builds.
-- Rust has the best current language support.
-- JavaScript, TypeScript, JSX, and TSX have basic local indexing for symbols/imports.
-- Node.js REST route extraction for Express, NestJS, and Fastify is basic/static/local.
-- React/TSX component extraction is basic/static/local for common function,
-  arrow, class, memo/forwardRef components, props type names, JSX usages, and
-  hook names.
-- Next.js extraction is basic/static/local for App Router and Pages Router
-  routes, app route handlers, exported HTTP methods, dynamic route segments,
-  route groups, and `"use client"` / `"use server"` boundaries.
-- Angular extraction is basic/static/local for common decorators, components,
-  services, modules, route configs, selector metadata, template/style
-  references, and constructor DI type names.
-- ASP.NET Core / C# Web API extraction is basic/static/local for `.csproj`
-  ASP.NET Core references, controller classes, `[ApiController]`, common route
-  and HTTP method attributes, composed controller/action routes, action
-  methods, and constructor DI type names.
-- ORM/database access extraction is basic/static/local for EF Core, Dapper,
-  Prisma, TypeORM, and Sequelize packages/imports/usings, obvious data access
-  callsites, operations, model/entity/context names, and direct literal SQL
-  snippets where safely visible.
-- Realtime/socket extraction is basic/static/local for WebSocket constructors,
-  listeners, sends, Socket.IO `on`/`emit`, SignalR hubs/client calls, and
-  minimal RSocket package/request metadata.
-- Messaging/event-driven extraction is basic/static/local for AMQP/RabbitMQ,
-  Kafka, Google Pub/Sub, and NestJS messaging packages/imports/usings plus
-  obvious producers, consumers, topics, queues, exchanges, routing keys, and
-  message patterns.
-- Cloud/infrastructure extraction is basic/static/local for Dockerfile,
-  Docker Compose, Kubernetes manifests, Terraform blocks, and obvious GCP/GKE
-  resource hints, including images, services, workloads, ports, env keys,
-  providers, resources, modules, variables, and outputs.
-- Deep middleware order, runtime routing, Nest module graphs, guards/interceptors,
-  deep dependency injection, Angular compiler behavior, template type checking,
-  RxJS/NgRx flow, Roslyn semantics, full DI graphs, EF/Dapper query analysis,
-  full LINQ/SQL semantics, database connections, migrations, middleware
-  pipeline analysis, runtime realtime or broker flow, payload schema inference,
-  message contract analysis, cross-project producer/consumer matching,
-  runtime infrastructure discovery, Docker/Kubernetes/Terraform/gcloud
-  execution, cloud API calls, cloud credentials, security scanning, cost
-  estimation, full WPF binding type checking, runtime DataContext inference,
-  designer integration, deep MVVM framework analysis, and request lifecycle
-  inference are deferred.
-- Manual project init/index workflow is planned for Phase 8.5.1.
-- MCP tool profiles start in Phase 8.6.
-- Multi-repo registry and project groups are planned for Phase 8.8.
-- Full React Server Components semantics, Next.js
-  runtime/deployment/auth intelligence, deep React runtime behavior, deep Node
-  runtime behavior, deep Angular DI/module/template behavior, full semantic C#,
-  deep database semantics, Docker, ksqlDB, WPF/XAML, Three.js,
-  and other app-stack support are planned for Phase 9.x.
-- Phase 10.2 stores and searches vectors in local SQLite using brute-force
-  cosine over filtered candidates. It requires no native vector extension,
-  hosted vector database, API key, model download, or internet access. Hybrid
-  ranking and MCP semantic tools are not implemented yet.
-- Symbolic editing and rename/refactor tools are not implemented yet.
-- Session memory remains deferred beyond the current vector-search roadmap.
-- Command output compaction is rule-based and conservative.
-- Token savings estimates are approximate and not tokenizer-exact.
+## When Can We Use It? (short table)
 
-## Architecture Summary
+| Use case | Status |
+|---|---|
+| MCP runtime (Codex/Cursor) | Usable now |
+| Local repository indexing (.b3/b3.db) | Usable now |
+| Project init / index / reindex | Usable now |
+| MCP tool profiles | Usable now |
+| Multi-project local workflow / groups | Usable now, metadata-only |
+| JS/TS / JSX / TSX indexing | Usable now, basic/static |
+| Node.js REST route intelligence | Usable now, basic/static |
+| React / Next.js / Angular | Usable now, basic/static |
+| C# Web API / ASP.NET Core | Usable now, basic/static |
+| ORM / data-access hints | Usable now, basic/static |
+| Realtime / Socket hints | Usable now, basic/static |
+| Messaging (Kafka/RabbitMQ) | Usable now, basic/static |
+| Docker / Compose / Kubernetes / Terraform | Usable now, basic/static |
+| SignalR | Usable now, basic/static |
+| Scoped indexing targets | Usable now |
+| C# WPF / XAML | Usable now, basic/static/local |
+| Local embeddings & SQLite vector search | Usable now, local/offline raw vector search |
+| Hybrid semantic ranking | Phase 10.3 |
+| MCP semantic search tool | Phase 10.4 |
+| Cross-project architecture intelligence | Phase 11 |
+| Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
-```text
-MCP Client / Agent
-        |
-        v
-b3-mcp-runtime
-        |
-        v
-b3-query -------- b3-storage
-        |              |
-        v              v
-b3-indexer ------ SQLite / FTS / Graph
-        |
-        v
-tree-sitter / parser worker
+Refer to `PLAN.md` for complete phase definitions and caveats.
 
-Web UI -> b3-control -> query / storage / indexer
-```
+---
 
-Boundary rules:
+## Quick Start (keeps core commands)
 
-- `b3-mcp-runtime` handles protocol and tool routing only.
-- `b3-control` is a localhost HTTP/SSE adapter and may trigger the indexer.
-- `b3-indexer` owns discovery, parsing, indexing, watcher, and parser workers.
-- `b3-storage` owns SQLite persistence and migrations.
-- `b3-query` owns graph traversal, ranking, context packs, and impact analysis.
-- `apps/web-ui` talks only to the local control server.
-
-## Project Model
-
-Today B3 uses a single-project model:
-
-```text
-1 repository = 1 local .b3/b3.db
-```
-
-Future project groups are generic workspace groupings, for example:
-
-```text
-Business Application
-â”œâ”€â”€ Backend API
-â”œâ”€â”€ Frontend App
-â”œâ”€â”€ Worker Service
-â”œâ”€â”€ Desktop Client
-â””â”€â”€ Runtime Infrastructure
-```
-
-Project groups are metadata only in Phase 8.8. Each project keeps its own
-repo-local `.b3/b3.db`.
-
-## Repository Layout
-
-- `crates/` - Rust workspace crates.
-- `apps/web-ui/` - local Next.js web UI.
-- `benchmarks/fixtures/` - deterministic benchmark repositories.
-- `scripts/` - development scripts.
-- `.github/workflows/` - CI skeleton.
-- `.skills/` - local agent skills.
-- `docs/reference/` - preserved external/reference material.
-- `docs/archive/` - historical phase and patch notes.
-
-## MCP Tools
-
-B3 has 11 current MCP tools. The default `optimized` profile exposes 7 of
-them to reduce manifest tokens:
-
-```text
-find_symbol
-search_code
-related_symbols
-impact_analysis
-get_context_pack
-compact_command_output
-savings_report
-```
-
-Use `--profile full` for all 11 tools, `--profile tiny` for the smallest
-5-tool set, or `--profile enterprise` for 9 graph/impact-oriented tools. Hidden
-tools are rejected with a structured profile-aware error. See `MCP_TOOLS.md` for
-profile tables and request/response details.
-
-## Command Output Compaction
-
-`compact_command_output` is deterministic and local. It compacts provided
-stdout/stderr for common command families such as `git`, `cargo`, `npm`,
-`dotnet`, `docker`, `rg`, `grep`, `cat`, and `tree`.
-
-It never executes commands, opens shells, calls an LLM, uploads output, or emits
-telemetry.
-
-## Quick Start
+Run checks and tests:
 
 ```powershell
 cargo fmt --check
@@ -336,328 +112,54 @@ cargo check --workspace
 cargo test --workspace
 ```
 
-Initialize and index the repository:
+Initialize and index a repository (example):
 
 ```powershell
 cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
 cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
 ```
 
-Reindex safely:
-
-```powershell
-cargo run -p b3-control --bin b3-control-server -- reindex --project "." --database ".b3/b3.db"
-```
-
-Preview or run a scoped index:
-
-```powershell
-cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "path:crates/b3-indexer" --dry-run
-cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db" --scope "language:go"
-```
-
-## MCP Runtime Usage
-
-```powershell
-cargo run -p b3-mcp-runtime -- serve --project "." --database ".b3/b3.db"
-```
-
-Equivalent explicit optimized profile:
-
-```powershell
-cargo run -p b3-mcp-runtime -- serve --project "." --database ".b3/b3.db" --profile optimized
-```
-
-MCP clients should launch this process over stdio.
-
-## Agent Install Helper
-
-Generate Codex or Cursor MCP config without writing:
-
-```powershell
-cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --dry-run
-cargo run -p b3-cli -- install --agent cursor --project "." --database ".b3/b3.db" --profile optimized --dry-run
-```
-
-Apply with backup:
-
-```powershell
-cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --apply --backup
-```
-
-Run local diagnostics:
-
-```powershell
-cargo run -p b3-cli -- doctor --project "." --database ".b3/b3.db" --profile optimized
-```
-
-The helper only edits local config files. Hooks are documented as future
-foundation and remain disabled by default.
-
-## Registry And Groups
-
-The optional registry is local JSON at `~/.b3/registry.json` unless `B3_HOME`
-or `--registry` points elsewhere.
-
-```powershell
-cargo run -p b3-cli -- register "." --name "B3 MCP" --tag rust --tag mcp
-cargo run -p b3-cli -- list
-cargo run -p b3-cli -- status b3-mcp
-cargo run -p b3-cli -- group create "Business Application" --id business-app
-cargo run -p b3-cli -- group add business-app b3-mcp
-cargo run -p b3-cli -- group status business-app
-```
-
-Registry use is optional. Existing single-project commands still work without
-`~/.b3/registry.json`.
-
-## Language Backends
-
-Phase 9.0 adds shared language backend contracts, local detection, support
-levels, and capability discovery. Rust reports an available tree-sitter backend
-with symbol/import/relationship extraction. Go reports an available basic
-static backend. Planned languages are detected where possible but only report
-detect-file support until later phases.
-
-## Control Server Usage
+Run the control server:
 
 ```powershell
 cargo run -p b3-control --bin b3-control-server -- serve --project "." --database ".b3/b3.db" --port 7777
 ```
 
-Control server URL:
+Run the MCP runtime:
 
-```text
-http://127.0.0.1:7777
+```powershell
+cargo run -p b3-mcp-runtime -- serve --project "." --database ".b3/b3.db"
 ```
 
-Manual index API:
-
-- `POST /api/index/preview`
-- `POST /api/index/run`
-- `POST /api/index/reindex`
-- `GET /api/index/status`
-
-`POST /api/index/run` and `POST /api/index/reindex` accept optional `scope`,
-`dry_run`, and `force` JSON fields. Omit `scope` for full-project indexing.
-
-## Web UI Usage
+Start the web UI (local):
 
 ```powershell
 cd apps/web-ui
 npm install
 npm run dev
-```
-
-Web UI URL:
-
-```text
-http://127.0.0.1:8888
-```
-
-The UI still targets the control server at `http://127.0.0.1:7777` by default.
-Override with `NEXT_PUBLIC_B3_API_BASE_URL` when needed.
-
-## Benchmarks
-
-```powershell
-cargo run -p b3-bench -- baseline
-```
-
-Output:
-
-```text
-target/benchmarks/baseline.json
-```
-
-Benchmark data stays local.
-
-## Documentation
-
-- `PLAN.md` - detailed roadmap and phase plan.
-- `REQUIREMENTS.md` - product and architecture requirements.
-- `DEVELOPMENT.md` - local development and verification workflow.
-- `ALGORITHM_ANALYSIS.md` - algorithm notes and benchmark methodology.
-- `MCP_TOOLS.md` - MCP tool reference.
-- `CONTROL_SERVER.md` - control server commands and API notes.
-- `WEB_UI.md` - web UI usage and sections.
-- `AGENTS.md` - contributor and agent guidance.
-- `docs/reference/` - reference material.
-- `docs/archive/` - historical documents.
-
-`PLAN.md` is the source of truth for the detailed roadmap.
-
-## Roadmap
-
-Recently completed:
-
-- Phase 9.0 - Language Backend Architecture
-- Phase 9.1 - LSP Backend MVP
-- Phase 9.2 - Web Application Priority Support A
-- Phase 9.2.1 - Node.js / REST API Intelligence
-- Phase 9.2.2 - React / TSX Component Intelligence
-- Phase 9.2.3 - Next.js Intelligence
-- Phase 9.2.4 - Angular Intelligence
-- Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
-- Phase 9.2.6 - ORM / Database Access Intelligence
-- Phase 9.2.7 - Realtime / Socket Intelligence
-- Phase 9.2.8 - Messaging / Event-driven Intelligence
-- Phase 9.2.9 - Cloud / Infrastructure Intelligence
-- Phase 9.2.10 - Go Language Support
-- Phase 9.2.11 - Scoped Indexing + Intelligence Targets
-- Phase 9.2.12 - .NET Desktop / WPF Intelligence
-
-Completed:
-
-- Phase 10.0 - Local Embeddings + Vector Search Architecture
-- Phase 10.1 - Local Embedding Provider MVP
-- Phase 10.2 - SQLite Vector Storage / Search Index
-
-Current/Next:
-
-- Phase 10.3 - Hybrid Search Ranking
-
-Upcoming:
-
-- Phase 10.4 - MCP / Control API Integration
-- Phase 10.5 - Benchmark + Quality Evaluation
-- Phase 11 - Cross-Project Architecture Intelligence
-
-See `PLAN.md` for the full roadmap.
-
-Upcoming roadmap highlights:
-
-- project init/index workflow
-- MCP tool profiles
-- agent install helper
-- multi-repo registry
-- project groups
-- language backend architecture
-- LSP backend foundation, local-only and disabled by default
-- basic JavaScript / TypeScript / JSX / TSX indexing
-- basic Node.js REST route intelligence
-- basic React / TSX component intelligence
-- basic Next.js static route and boundary intelligence
-- C# / Angular deeper support
-- Node.js REST API intelligence, basic/static/local
-- Kafka / ksqlDB / RabbitMQ intelligence
-- Docker runtime infrastructure intelligence
-- SignalR intelligence
-- Basic static C# WPF/XAML intelligence
-- Three.js / WebGL intelligence
-- symbolic editing
-- rename/refactor support
-- local embeddings
-- session memory
-- architecture intelligence
-- git intelligence
-- duplicate/similarity detection
-- plugin system
-- packaging/installers
-
-For the full plan, see `PLAN.md`.
-
----
-
-## When Can We Use It?
-
-| Use case | Status |
-|---|---|
-| Test MCP runtime with Codex/Cursor | Usable now |
-| Rust repositories | Usable now |
-| Command output compaction | Usable now |
-| Project init/index workflow | Phase 8.5.1 |
-| MCP tool profiles | Phase 8.6 |
-| Multi-project local workflow | Phase 8.8 |
-| Project groups | Phase 8.8 |
-| Basic JavaScript / TypeScript / JSX / TSX indexing | Phase 9.2 |
-| Basic Node.js REST route intelligence | Usable now, basic/static |
-| C# Web API / backend services | Phase 9.2.5 |
-| Basic React / TSX component intelligence | Usable now, basic/static |
-| Next.js intelligence | Usable now, basic/static |
-| Angular intelligence | Usable now, basic/static |
-| Node.js REST API | Usable now, basic/static |
-| Kafka / ksqlDB | Phase 9.2.8 |
-| RabbitMQ | Phase 9.2.8 |
-| Docker / docker-compose | Phase 9.2.9 |
-| SignalR | Phase 9.2.7 |
-| Scoped indexing targets | Usable now |
-| C# WPF / XAML | Basic static/local |
-| Three.js / WebGL | Deferred |
-| Refactor assistant | Phase 12 / Phase 13 |
-| Full memory/context platform | Deferred |
-
----
-
-## Reference Models
-
-B3 is inspired by several projects and product patterns, but does not depend on them.
-
-References include:
-
-- codebase-memory-mcp
-- TokenSave
-- RTK / Rust Token Killer
-- Context Mode
-- Token Savior
-- CodeGraph
-- GitNexus
-- Serena
-- Neo4j Browser-style graph UX
-- Sourcegraph/Cursor-style code intelligence workflows
-
-These are architectural inspirations only.
-
-B3 remains:
-
-```text
-local-first
-offline-first
-free-by-default
-Rust-native where appropriate
-MCP-compatible
-SQLite-backed
+# web UI: http://127.0.0.1:8888
 ```
 
 ---
 
-## Security and Privacy
+## Project Model (ASCII)
 
-B3 is designed for local development.
-
-By default:
-
-- repository data stays local
-- command output stays local
-- benchmark data stays local
-- SQLite database stays local
-- no telemetry is sent
-- no cloud service is required
-- no external API is required
-
-Command output compaction only processes output that is provided to B3. It does not execute commands or capture terminal output automatically.
+Business Application
+├── Backend API
+├── Frontend App
+├── Worker Service
+├── Desktop Client
+└── Runtime Infrastructure
 
 ---
 
-## License
+## Offline / Free Guarantee
 
-License information should be reviewed before public distribution.
-
-If this repository is intended to be open source, add or verify the final license file before release.
+B3 remains offline-first and free-by-default. Core features do not require any
+external APIs, cloud services, hosted vector DBs, OpenAI/cloud embedding APIs,
+telemetry, or internet access. Optional external or paid integrations are
+explicit plugins disabled by default.
 
 ---
 
-## Status Note
-
-B3 is under active development.
-
-Current best use:
-
-- local MCP experiments
-- Rust code intelligence
-- graph/query debugging
-- command output compaction
-- benchmark-driven development
-- dogfooding on the B3 repository itself
-
-For production-like usage on full React Server Components semantics, Next.js middleware/deployment/auth behavior, deep React runtime behavior, deep Node.js REST behavior, full semantic C#, deep EF/Dapper/ORM query analysis, SQL execution, schema introspection, deep Angular DI/module/template graphs, Docker, Kafka, RabbitMQ, SignalR, full WPF binding/runtime semantics, Three.js, and other application stacks, wait for the later roadmap phases.
+For detailed roadmap, phase status, and implementation notes see `PLAN.md`.
