@@ -23,7 +23,8 @@ Current roadmap status:
 - Completed: Phase 9.2.4.1 - Web Module Split / Refactor Checkpoint C
 - Completed: Phase 9.2.5 - ASP.NET Core / C# Web API Intelligence
 - Completed: Phase 9.2.6 - ORM / Database Access Intelligence
-- Next: Phase 9.2.7 - Realtime / Socket Intelligence
+- Completed: Phase 9.2.7 - Realtime / Socket Intelligence
+- Next: Phase 9.2.8 - Messaging / Event-driven Intelligence
 
 ---
 
@@ -1323,6 +1324,30 @@ Understand realtime communication flows.
 - command execution
 - telemetry
 
+### Completion Notes
+
+Implemented as focused `crates/b3-indexer/src/realtime/` static extraction.
+Realtime records are encoded on existing symbols with `realtime.*` metadata and
+exposed through storage/control adapters without a schema migration.
+
+Support is basic, static, local, and conservative:
+
+- WebSocket package/import hints, browser `new WebSocket(...)`, message
+  listeners, and `send()` callsites where WebSocket context is present
+- Socket.IO package/import hints plus literal `on(...)` and `emit(...)` event
+  metadata when Socket.IO context is present
+- SignalR `.csproj`/using hints, C# `Hub` classes, hub methods,
+  `Clients.*.SendAsync(...)`, JS/TS `HubConnectionBuilder`, `on(...)`, and
+  `invoke(...)`
+- RSocket package/import hints and minimal request method metadata for
+  `requestResponse`, `fireAndForget`, `requestStream`, and `requestChannel`
+
+The implementation does not start servers, connect to sockets or network
+endpoints, execute app code, run `node`, `npm`, `dotnet`, framework CLIs, or
+package managers, call registries, infer payload schemas, decode protocols, or
+match producers/consumers across projects. Messaging/broker intelligence remains
+deferred to Phase 9.2.8.
+
 ---
 
 ## Phase 9.2.8 â€” Messaging / Event-driven Intelligence
@@ -1902,7 +1927,7 @@ Basic local agent install helpers already exist from Phase 8.7. This phase is ab
 | Architecture intelligence | Phase 11 |
 | Release-grade packaging | Phase 15 |
 
-B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, basic static ASP.NET Core / C# Web API route intelligence, and basic static ORM/database access metadata. Broader real-world app-stack intelligence depends on Phase 9.2.7 and later.
+B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular decorator/route/component metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, and basic static realtime/socket metadata. Broader messaging, cloud, Go, WPF/XAML, local embeddings, and cross-project architecture intelligence depends on Phase 9.2.8 and later.
 
 ---
 

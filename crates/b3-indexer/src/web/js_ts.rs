@@ -234,6 +234,14 @@ pub fn detect_package_json_technologies(source: &str) -> ContractResult<Vec<Dete
             technologies.push(technology);
         }
     }
+    for technology in realtime::detect_package_json_realtime_technologies(source)? {
+        if !technologies
+            .iter()
+            .any(|existing: &DetectedTechnology| existing.id == technology.id)
+        {
+            technologies.push(technology);
+        }
+    }
     Ok(technologies)
 }
 

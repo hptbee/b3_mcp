@@ -589,7 +589,11 @@ fn detects_package_json_node_rest_technologies() {
                     "react-dom": "^18.0.0",
                     "@prisma/client": "^5.0.0",
                     "typeorm": "^0.3.0",
-                    "sequelize": "^6.0.0"
+                    "sequelize": "^6.0.0",
+                    "ws": "^8.0.0",
+                    "socket.io": "^4.0.0",
+                    "@microsoft/signalr": "^8.0.0",
+                    "rsocket-core": "^0.0.0"
                 },
                 "devDependencies": {
                     "typescript": "^5.0.0",
@@ -628,6 +632,14 @@ fn detects_package_json_node_rest_technologies() {
     assert!(detected.iter().any(|tech| tech.id == "sequelize"));
     assert!(detected
         .iter()
+        .any(|tech| tech.id == "websocket" && tech.kind == TechnologyKind::Realtime));
+    assert!(detected.iter().any(|tech| tech.id == "socketio"));
+    assert!(detected.iter().any(|tech| tech.id == "signalr"));
+    assert!(detected
+        .iter()
+        .any(|tech| tech.id == "rsocket" && tech.support_level == TechnologySupportLevel::Basic));
+    assert!(detected
+        .iter()
         .any(|tech| tech.id == "typescript" && tech.kind == TechnologyKind::Language));
     assert!(detect_package_json_technologies("{not-json").is_err());
     assert!(detect_nextjs_config_path(Path::new("next.config.js")).is_some());
@@ -635,6 +647,21 @@ fn detects_package_json_node_rest_technologies() {
     assert!(detect_angular_config_path(Path::new("angular.json")).is_some());
     assert!(detect_angular_config_path(Path::new("tsconfig.app.json")).is_some());
     assert!(detect_angular_config_path(Path::new("next.config.js")).is_none());
+}
+
+#[test]
+fn detects_signalr_project_technologies() {
+    let detected = detect_csproj_realtime_technologies(
+        r#"<Project>
+            <ItemGroup>
+                <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1" />
+            </ItemGroup>
+        </Project>"#,
+    )
+    .expect("detect signalr csproj");
+
+    assert!(detected.iter().any(|tech| tech.id == "signalr"));
+    assert!(detect_csproj_realtime_technologies("<Project><Broken").is_ok());
 }
 
 #[test]
@@ -821,6 +848,159 @@ fn data_access_negative_cases_do_not_classify_plain_sql_words() {
         .expect("parse plain");
     assert!(!parsed.symbols.iter().any(|symbol| {
         data_access_metadata_value(
+            symbol.visibility.as_deref().unwrap_or_default(),
+            "technology",
+        )
+        .is_some()
+    }));
+}
+
+#[test]
+fn web_realtime_detects_websocket_socketio_signalr_and_rsocket() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("realtime-web"),
+            path: PathBuf::from("src/realtime.ts"),
+            source: r#"
+                import WebSocket from "ws";
+                import { Server } from "socket.io";
+                import * as signalR from "@microsoft/signalr";
+                import { RSocketClient } from "rsocket-core";
+
+                const browserSocket = new WebSocket("ws://localhost:3000/ws");
+                browserSocket.onmessage = (event) => console.log(event.data);
+                browserSocket.addEventListener("message", handler);
+                browserSocket.send("hello");
+
+                const io = new Server();
+                io.on("connection", socket => {
+                    socket.on("join-room", handler);
+                    socket.emit("room-joined", data);
+                    io.emit("broadcast", data);
+                });
+
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/chatHub")
+                    .build();
+                connection.on("ReceiveMessage", handler);
+                connection.invoke("SendMessage", "u", "m");
+
+                client.requestResponse({ metadata: "chat.route" });
+                client.fireAndForget(payload);
+            "#
+            .to_string(),
+        })
+        .expect("parse realtime web");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            realtime_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "technology").as_deref() == Some("websocket")
+            && realtime_metadata_value(metadata, "endpoint").as_deref()
+                == Some("ws://localhost:3000/ws")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "technology").as_deref() == Some("socketio")
+            && realtime_metadata_value(metadata, "event").as_deref() == Some("join-room")
+            && realtime_metadata_value(metadata, "kind").as_deref() == Some("Listener")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "technology").as_deref() == Some("signalr")
+            && realtime_metadata_value(metadata, "method").as_deref() == Some("SendMessage")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "technology").as_deref() == Some("rsocket")
+            && realtime_metadata_value(metadata, "source").as_deref()
+                == Some("RSocketRequestResponse")
+    }));
+}
+
+#[test]
+fn csharp_realtime_detects_signalr_hubs_and_sends() {
+    let parsed = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("signalr-csharp"),
+            path: PathBuf::from("Hubs/ChatHub.cs"),
+            source: r#"
+                using Microsoft.AspNetCore.SignalR;
+
+                public class ChatHub : Hub
+                {
+                    public async Task SendMessage(string user, string message)
+                    {
+                        await Clients.All.SendAsync("ReceiveMessage", user, message);
+                    }
+                }
+
+                public class NotRealtime
+                {
+                    public void Run() { var message = "message"; }
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse signalr csharp");
+
+    let records: Vec<&ExtractedSymbol> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            realtime_metadata_value(
+                symbol.visibility.as_deref().unwrap_or_default(),
+                "technology",
+            )
+            .is_some()
+        })
+        .collect();
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "kind").as_deref() == Some("Hub")
+            && realtime_metadata_value(metadata, "hub").as_deref() == Some("ChatHub")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "kind").as_deref() == Some("HubMethod")
+            && realtime_metadata_value(metadata, "method").as_deref() == Some("SendMessage")
+    }));
+    assert!(records.iter().any(|symbol| {
+        let metadata = symbol.visibility.as_deref().unwrap_or_default();
+        realtime_metadata_value(metadata, "source").as_deref() == Some("SignalRSendAsync")
+            && realtime_metadata_value(metadata, "event").as_deref() == Some("ReceiveMessage")
+    }));
+}
+
+#[test]
+fn realtime_negative_cases_do_not_classify_plain_events() {
+    let parsed = WebLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("plain-events"),
+            path: PathBuf::from("src/events.ts"),
+            source: r#"
+                export function render(emitter) {
+                    const message = "message";
+                    emitter.on("message", handler);
+                    emitter.emit("message", message);
+                    return message;
+                }
+            "#
+            .to_string(),
+        })
+        .expect("parse plain events");
+    assert!(!parsed.symbols.iter().any(|symbol| {
+        realtime_metadata_value(
             symbol.visibility.as_deref().unwrap_or_default(),
             "technology",
         )

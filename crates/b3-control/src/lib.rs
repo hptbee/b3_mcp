@@ -37,7 +37,7 @@ use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
     StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredParseFailure,
-    StoredRoute,
+    StoredRealtime, StoredRoute,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -267,6 +267,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/routes", get(routes))
         .route("/api/components", get(components))
         .route("/api/data-access", get(data_access))
+        .route("/api/realtime", get(realtime))
         .route("/api/config", get(config))
         .route("/api/config/validate", post(validate_config))
         .route("/api/events", get(events))
@@ -1030,6 +1031,20 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                     "use_client_boundaries": true
                 }
             },
+            "realtime": {
+                "available": true,
+                "support": "basic_static",
+                "technologies": {
+                    "websocket": "basic",
+                    "socketio": "basic",
+                    "signalr": "basic",
+                    "rsocket": "basic"
+                },
+                "runtime_execution_required": false,
+                "network_connection_required": false,
+                "payload_schema_inference": false,
+                "cross_project_event_matching": false
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -1049,6 +1064,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "lsp_status": true,
             "routes": true,
             "data_access": true,
+            "realtime": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1242,6 +1258,39 @@ async fn data_access(
         project_id,
         branch_id,
         data_access: records,
+    }))
+}
+
+async fn realtime(
+    State(state): State<ControlState>,
+    Query(query): Query<RealtimeQuery>,
+) -> Result<Json<RealtimeResponse>, ControlError> {
+    let project_id = query.project_id.unwrap_or_else(|| "default".to_string());
+    let branch_id = query.branch_id.unwrap_or_else(|| "main".to_string());
+    let limit = bounded_limit(query.limit);
+    let records = state
+        .storage
+        .lock()
+        .await
+        .realtime(
+            &project_id,
+            &branch_id,
+            query.technology.as_deref(),
+            query.kind.as_deref(),
+            query.event.as_deref(),
+            query.file.as_deref(),
+            limit,
+        )
+        .map_err(ControlError::internal)?
+        .into_iter()
+        .map(RealtimeDto::from)
+        .collect();
+
+    Ok(Json(RealtimeResponse {
+        status: "ok".to_string(),
+        project_id,
+        branch_id,
+        realtime: records,
     }))
 }
 
@@ -2005,6 +2054,25 @@ struct DataAccessResponse {
     data_access: Vec<DataAccessDto>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct RealtimeQuery {
+    project_id: Option<String>,
+    branch_id: Option<String>,
+    technology: Option<String>,
+    kind: Option<String>,
+    event: Option<String>,
+    file: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RealtimeResponse {
+    status: String,
+    project_id: String,
+    branch_id: String,
+    realtime: Vec<RealtimeDto>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct DataAccessDto {
     id: String,
@@ -2019,6 +2087,27 @@ struct DataAccessDto {
     context_name: Option<String>,
     repository_name: Option<String>,
     query_text: Option<String>,
+    line_start: usize,
+    line_end: usize,
+    confidence: u16,
+    source_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RealtimeDto {
+    id: String,
+    technology: String,
+    kind: String,
+    direction: String,
+    event_name: Option<String>,
+    channel_name: Option<String>,
+    hub_name: Option<String>,
+    method_name: Option<String>,
+    endpoint: Option<String>,
+    file_path: String,
+    symbol_id: String,
+    class_name: Option<String>,
+    function_name: Option<String>,
     line_start: usize,
     line_end: usize,
     confidence: u16,
@@ -2118,6 +2207,30 @@ impl From<StoredDataAccess> for DataAccessDto {
             context_name: value.context_name,
             repository_name: value.repository_name,
             query_text: value.query_text,
+            line_start: value.line_start,
+            line_end: value.line_end,
+            confidence: value.confidence,
+            source_kind: value.source_kind,
+        }
+    }
+}
+
+impl From<StoredRealtime> for RealtimeDto {
+    fn from(value: StoredRealtime) -> Self {
+        Self {
+            id: value.id,
+            technology: value.technology,
+            kind: value.kind,
+            direction: value.direction,
+            event_name: value.event_name,
+            channel_name: value.channel_name,
+            hub_name: value.hub_name,
+            method_name: value.method_name,
+            endpoint: value.endpoint,
+            file_path: value.file_path,
+            symbol_id: value.symbol_id,
+            class_name: value.class_name,
+            function_name: value.function_name,
             line_start: value.line_start,
             line_end: value.line_end,
             confidence: value.confidence,
@@ -2868,6 +2981,51 @@ mod tests {
         ))
     }
 
+    fn realtime_app() -> Router {
+        let storage = SqliteStorage::open_in_memory().expect("open storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("realtime-file"),
+                        project_id: project_id.clone(),
+                        path: "src/socket.ts".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 32,
+                    content: "socket.on('message', handler);".to_string(),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new("realtime-symbol"),
+                        file_id: FileId::new("realtime-file"),
+                        name: "Socket.IO on message".to_string(),
+                        kind: NodeKind::Endpoint,
+                        start_byte: 0,
+                        end_byte: 29,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 29,
+                        visibility: Some("realtime.technology=socketio;realtime.kind=Listener;realtime.direction=inbound;realtime.event=message;realtime.file=src/socket.ts;realtime.function=connect;realtime.source=SocketIoOn;realtime.line_start=1;realtime.line_end=1;realtime.confidence=9000".to_string()),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("realtime file");
+        app(ControlState::from_storage(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+        ))
+    }
+
     fn graph_app(with_centrality: bool, with_other_branch: bool) -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         seed_graph(&storage, "project", "main", with_centrality);
@@ -3505,6 +3663,88 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn index_api_exposes_static_realtime_metadata() {
+        let dir = tempdir().expect("temp dir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::create_dir_all(root.join("Hubs")).expect("hubs");
+        fs::write(
+            root.join("src").join("socket.ts"),
+            r#"
+                import { Server } from "socket.io";
+                import * as signalR from "@microsoft/signalr";
+                const ws = new WebSocket("ws://localhost/ws");
+                ws.addEventListener("message", handler);
+                ws.send("hello");
+                const io = new Server();
+                io.on("connection", socket => {
+                    socket.on("join-room", handler);
+                    socket.emit("room-joined", data);
+                });
+                const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+                connection.on("ReceiveMessage", handler);
+                connection.invoke("SendMessage", "u", "m");
+            "#,
+        )
+        .expect("web realtime");
+        fs::write(
+            root.join("Hubs").join("ChatHub.cs"),
+            r#"
+                using Microsoft.AspNetCore.SignalR;
+                public class ChatHub : Hub
+                {
+                    public async Task SendMessage(string user, string message)
+                    {
+                        await Clients.All.SendAsync("ReceiveMessage", user, message);
+                    }
+                }
+            "#,
+        )
+        .expect("signalr hub");
+        let database_path = dir.path().join("b3.db");
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let app = app(ControlState::from_storage(root, database_path, storage));
+
+        let run_response = post_json(app.clone(), "/api/index/run", "{}").await;
+        assert_eq!(run_response.status(), StatusCode::OK);
+
+        let socketio_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/realtime?technology=socketio&event=join-room")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(socketio_response.status(), StatusCode::OK);
+        let socketio_body = response_json(socketio_response).await;
+        assert!(socketio_body["realtime"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["kind"] == "Listener"));
+
+        let signalr_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/realtime?technology=signalr&event=ReceiveMessage")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(signalr_response.status(), StatusCode::OK);
+        let signalr_body = response_json(signalr_response).await;
+        assert!(signalr_body["realtime"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .any(|record| record["source_kind"] == "SignalRSendAsync"));
+    }
+
+    #[tokio::test]
     async fn components_endpoint_returns_indexed_react_components_and_filters() {
         let response = component_app()
             .oneshot(
@@ -3545,6 +3785,28 @@ mod tests {
         assert_eq!(body["components"][0]["name"], "UserCardComponent");
         assert_eq!(body["components"][0]["framework"], "angular");
         assert_eq!(body["components"][0]["component_kind"], "component");
+    }
+
+    #[tokio::test]
+    async fn realtime_endpoint_returns_indexed_socket_metadata_and_filters() {
+        let response = realtime_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/realtime?technology=socketio&kind=listener&event=message")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["realtime"].as_array().expect("realtime").len(), 1);
+        assert_eq!(body["realtime"][0]["technology"], "socketio");
+        assert_eq!(body["realtime"][0]["kind"], "Listener");
+        assert_eq!(body["realtime"][0]["event_name"], "message");
+        assert_eq!(body["realtime"][0]["source_kind"], "SocketIoOn");
     }
 
     #[tokio::test]

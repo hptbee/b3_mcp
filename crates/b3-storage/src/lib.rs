@@ -489,6 +489,29 @@ pub struct StoredDataAccess {
     pub source_kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredRealtime {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub technology: String,
+    pub kind: String,
+    pub direction: String,
+    pub event_name: Option<String>,
+    pub channel_name: Option<String>,
+    pub hub_name: Option<String>,
+    pub method_name: Option<String>,
+    pub endpoint: Option<String>,
+    pub file_path: String,
+    pub symbol_id: String,
+    pub class_name: Option<String>,
+    pub function_name: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCentralityRecord {
     pub node_id: String,
@@ -1346,6 +1369,52 @@ impl SqliteStorage {
         }
         if let Some(operation) = operation {
             records.retain(|record| record.operation.as_deref() == Some(operation));
+        }
+        if let Some(file) = file {
+            records.retain(|record| record.file_path == file);
+        }
+        Ok(records)
+    }
+
+    pub fn realtime(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        technology: Option<&str>,
+        kind: Option<&str>,
+        event: Option<&str>,
+        file: Option<&str>,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredRealtime>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT s.id, s.project_id, s.branch_id, s.name, s.file_id, f.path,
+                        s.start_line, s.end_line, s.visibility
+                 FROM symbols s
+                 JOIN files f ON f.id = s.file_id AND f.branch_id = s.branch_id
+                 WHERE s.project_id = ?1 AND s.branch_id = ?2
+                   AND s.visibility LIKE '%realtime.technology=%'
+                 ORDER BY f.path, s.start_line, s.name
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+
+        let rows = statement
+            .query_map(
+                params![project_id, branch_id, limit as i64],
+                realtime_from_row,
+            )
+            .map_err(to_contract_error)?;
+        let mut records = collect_rows(rows)?;
+        if let Some(technology) = technology {
+            records.retain(|record| record.technology == technology);
+        }
+        if let Some(kind) = kind {
+            records.retain(|record| record.kind.eq_ignore_ascii_case(kind));
+        }
+        if let Some(event) = event {
+            records.retain(|record| record.event_name.as_deref() == Some(event));
         }
         if let Some(file) = file {
             records.retain(|record| record.file_path == file);
@@ -2747,6 +2816,48 @@ fn data_access_from_row(row: &Row<'_>) -> rusqlite::Result<StoredDataAccess> {
     })
 }
 
+fn realtime_from_row(row: &Row<'_>) -> rusqlite::Result<StoredRealtime> {
+    let symbol_id: String = row.get(0)?;
+    let project_id: String = row.get(1)?;
+    let branch_id: String = row.get(2)?;
+    let file_path: String = row.get(5)?;
+    let line_start = row.get::<_, i64>(6)? as usize;
+    let line_end = row.get::<_, i64>(7)? as usize;
+    let metadata = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+    Ok(StoredRealtime {
+        id: symbol_node_id(&SymbolId::new(symbol_id.clone()))
+            .as_str()
+            .to_string(),
+        project_id,
+        branch_id,
+        technology: realtime_metadata_value(&metadata, "technology")
+            .unwrap_or_else(|| "unknown".to_string()),
+        kind: realtime_metadata_value(&metadata, "kind").unwrap_or_else(|| "Unknown".to_string()),
+        direction: realtime_metadata_value(&metadata, "direction")
+            .unwrap_or_else(|| "unknown".to_string()),
+        event_name: realtime_metadata_value(&metadata, "event"),
+        channel_name: realtime_metadata_value(&metadata, "channel"),
+        hub_name: realtime_metadata_value(&metadata, "hub"),
+        method_name: realtime_metadata_value(&metadata, "method"),
+        endpoint: realtime_metadata_value(&metadata, "endpoint"),
+        file_path: realtime_metadata_value(&metadata, "file").unwrap_or(file_path),
+        symbol_id,
+        class_name: realtime_metadata_value(&metadata, "class"),
+        function_name: realtime_metadata_value(&metadata, "function"),
+        line_start: realtime_metadata_value(&metadata, "line_start")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_start),
+        line_end: realtime_metadata_value(&metadata, "line_end")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(line_end),
+        confidence: realtime_metadata_value(&metadata, "confidence")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(0),
+        source_kind: realtime_metadata_value(&metadata, "source")
+            .unwrap_or_else(|| "unknown".to_string()),
+    })
+}
+
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("route.{key}=");
     metadata.split(';').find_map(|part| {
@@ -2765,6 +2876,14 @@ fn component_metadata_value(metadata: &str, key: &str) -> Option<String> {
 
 fn data_access_metadata_value(metadata: &str, key: &str) -> Option<String> {
     let full_key = format!("data_access.{key}=");
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&full_key)
+            .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
+    })
+}
+
+fn realtime_metadata_value(metadata: &str, key: &str) -> Option<String> {
+    let full_key = format!("realtime.{key}=");
     metadata.split(';').find_map(|part| {
         part.strip_prefix(&full_key)
             .map(|value| value.replace("%3B", ";").replace("\\n", "\n"))
@@ -3312,6 +3431,70 @@ mod tests {
         assert!(storage
             .data_access("project", "main", None, None, None, None, 10)
             .expect("data access after cleanup")
+            .is_empty());
+    }
+
+    #[test]
+    fn realtime_round_trip_without_duplicates_and_cleanup_with_files() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let indexed = IndexedFileRecord {
+            file: FileRecord {
+                id: FileId::new("realtime-file"),
+                project_id: project_id.clone(),
+                path: "src/socket.ts".to_string(),
+                content_hash: "hash".to_string(),
+            },
+            language: Some("typescript".to_string()),
+            size_bytes: 32,
+            content: "socket.on('message', handler);".to_string(),
+            symbols: vec![SymbolRecord {
+                id: SymbolId::new("realtime-symbol"),
+                file_id: FileId::new("realtime-file"),
+                name: "Socket.IO on message".to_string(),
+                kind: NodeKind::Endpoint,
+                start_byte: 0,
+                end_byte: 29,
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 29,
+                visibility: Some("realtime.technology=socketio;realtime.kind=Listener;realtime.direction=inbound;realtime.event=message;realtime.file=src/socket.ts;realtime.function=connect;realtime.source=SocketIoOn;realtime.line_start=1;realtime.line_end=1;realtime.confidence=9000".to_string()),
+            }],
+            edges: Vec::new(),
+        };
+
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed.clone())
+            .expect("first realtime upsert");
+        storage
+            .upsert_indexed_file(&project_id, &branch_id, indexed)
+            .expect("second realtime upsert");
+        let records = storage
+            .realtime(
+                "project",
+                "main",
+                Some("socketio"),
+                Some("listener"),
+                Some("message"),
+                Some("src/socket.ts"),
+                10,
+            )
+            .expect("realtime");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].event_name.as_deref(), Some("message"));
+        assert_eq!(records[0].function_name.as_deref(), Some("connect"));
+
+        storage
+            .cleanup_deleted_files(&project_id, &branch_id, &[])
+            .expect("cleanup deleted file");
+        assert!(storage
+            .realtime("project", "main", None, None, None, None, 10)
+            .expect("realtime after cleanup")
             .is_empty());
     }
 

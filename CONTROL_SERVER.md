@@ -115,6 +115,7 @@ Diagnostics and config:
 - `GET /api/routes`
 - `GET /api/components`
 - `GET /api/data-access`
+- `GET /api/realtime`
 - `GET /api/config`
 - `POST /api/config/validate`
 - `GET /api/events`
@@ -147,6 +148,8 @@ Current truth:
 - ORM/database access intelligence is `Basic`, static, and local for EF Core,
   Dapper, Prisma, TypeORM, and Sequelize package/use detection plus obvious
   query callsites and operations.
+- Realtime/socket intelligence is `Basic`, static, and local for WebSocket,
+  Socket.IO, SignalR, and minimal RSocket package/request metadata.
 - LSP metadata is exposed, but LSP remains disabled by default.
 - Semantic search and deeper framework intelligence remain deferred.
 
@@ -172,6 +175,14 @@ symbols with `data_access.*` metadata. Optional filters include `project_id`,
 `branch_id`, `technology`, `kind`, `operation`, `file`, and `limit`. Supported
 technology values are `ef_core`, `dapper`, `prisma`, `typeorm`, `sequelize`,
 and `raw_sql` for driver/raw-SQL hints.
+
+`GET /api/realtime` returns locally indexed static realtime/socket metadata from
+symbols with `realtime.*` metadata. Optional filters include `project_id`,
+`branch_id`, `technology`, `kind`, `event`, `file`, and `limit`. Supported
+technology values are `websocket`, `socketio`, `signalr`, and `rsocket`.
+Responses include technology, kind, direction, event/channel/hub/method/endpoint
+where available, file, symbol, class/function name, line range, confidence, and
+source kind.
 
 Route support is intentionally basic and static. It does not execute `npm`,
 `node`, `tsc`, `eslint`, `dotnet`, framework CLIs, package registries, app code, or
@@ -212,6 +223,7 @@ curl http://127.0.0.1:7777/api/routes?framework=express
 curl http://127.0.0.1:7777/api/routes?framework=nextjs
 curl http://127.0.0.1:7777/api/routes?framework=aspnetcore
 curl http://127.0.0.1:7777/api/data-access?technology=ef_core
+curl http://127.0.0.1:7777/api/realtime?technology=socketio
 curl http://127.0.0.1:7777/api/components?framework=react
 ```
 
@@ -259,6 +271,8 @@ Limits are bounded by the server. Full-file dumps and full graph dumps are disab
   control API.
 - Dedicated component browser UI is deferred; component metadata is exposed
   through the control API.
+- Dedicated realtime/socket browser UI is deferred; realtime metadata is exposed
+  through `GET /api/realtime`.
 - Manual indexing is synchronous for this phase; `GET /api/index/status`
   reports the current or last run for the current server process.
 

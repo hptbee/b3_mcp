@@ -88,6 +88,9 @@ ASP.NET Core views yet.
 ORM/database access metadata is available through the local data access API,
 but the current Web UI does not include dedicated ORM/database views yet.
 
+Realtime/socket metadata is available through the local realtime API, but the
+current Web UI does not include dedicated realtime/socket views yet.
+
 React/TSX component metadata is available through the local control API, but
 the current Web UI does not include a dedicated component browser yet.
 
@@ -251,6 +254,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
   currently available through `GET /api/routes?framework=aspnetcore`.
 - Dedicated ORM/database views are deferred; data access metadata is currently
   available through `GET /api/data-access`.
+- Dedicated realtime/socket views are deferred; realtime metadata is currently
+  available through `GET /api/realtime`.
 - Future technology intelligence views are deferred until the underlying backend
   intelligence is completed.
 - The broader Web UI Developer Console Refresh remains deferred until after

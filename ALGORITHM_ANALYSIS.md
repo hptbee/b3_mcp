@@ -238,6 +238,28 @@ full SQL parsing, full LINQ semantics, full TypeScript/C# type checking,
 runtime DB behavior, schema introspection, cross-project data lineage, cloud
 APIs, and telemetry.
 
+### Basic Realtime / Socket Intelligence
+
+Phase 9.2.7 adds conservative static realtime/socket extraction:
+
+1. detect WebSocket, Socket.IO, SignalR, and RSocket package/project hints from
+   local `package.json`, `.csproj`, imports, and usings
+2. inspect JS/TS text for browser/native WebSocket constructors, message
+   listeners, and sends where WebSocket context is present
+3. inspect JS/TS text for Socket.IO literal `on(...)` and `emit(...)` event
+   names where Socket.IO context is present
+4. inspect C# text for SignalR `Hub` classes, hub methods, and
+   `Clients.*.SendAsync(...)`; inspect JS/TS text for SignalR
+   `HubConnectionBuilder`, `on(...)`, and `invoke(...)`
+5. record minimal RSocket package/request metadata for obvious request methods
+6. encode records as existing symbols with `realtime.*` metadata and expose
+   them through `GET /api/realtime`
+
+The extractor intentionally avoids network connections, socket startup,
+protocol execution, payload schema inference, runtime event discovery,
+cross-project event matching, package managers, package registries, external
+APIs, and telemetry.
+
 ### Relationship Extraction
 
 Build graph edges from AST and import analysis.

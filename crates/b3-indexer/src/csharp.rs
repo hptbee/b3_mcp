@@ -48,6 +48,7 @@ fn parse_csharp_file(input: ParseInput) -> ContractResult<ParsedFile> {
         collect_class_members(&input, class, &mut symbols);
     }
     symbols.extend(data_access::collect_csharp_data_access(&input, &symbols));
+    symbols.extend(realtime::collect_csharp_realtime(&input, &symbols));
 
     let relationships = collect_csharp_relationships(&symbols);
     Ok(ParsedFile {
@@ -125,6 +126,14 @@ pub fn detect_csproj_technologies(source: &str) -> ContractResult<Vec<DetectedTe
             capabilities: vec![TechnologyCapability::DetectPackage],
             source: ".csproj".to_string(),
         });
+    }
+    for technology in realtime::detect_csproj_realtime_technologies(source)? {
+        if !detected
+            .iter()
+            .any(|existing: &DetectedTechnology| existing.id == technology.id)
+        {
+            detected.push(technology);
+        }
     }
     Ok(detected)
 }

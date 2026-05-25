@@ -9,6 +9,7 @@
 mod csharp;
 mod data_access;
 pub mod lsp;
+mod realtime;
 mod web;
 
 pub use csharp::detect_csproj_technologies as detect_dotnet_project_technologies;
@@ -18,6 +19,11 @@ pub(crate) use csharp::{aspnet_metadata_value, detect_csproj_technologies};
 pub(crate) use data_access::data_access_metadata_value;
 pub use data_access::{
     detect_csproj_data_access_technologies, detect_package_json_data_access_technologies,
+};
+#[cfg(test)]
+pub(crate) use realtime::realtime_metadata_value;
+pub use realtime::{
+    detect_csproj_realtime_technologies, detect_package_json_realtime_technologies,
 };
 #[cfg(test)]
 pub(crate) use web::{angular_metadata_value, component_metadata_value, route_metadata_value};
@@ -278,6 +284,26 @@ pub struct DataAccessMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RealtimeMetadata {
+    pub technology: String,
+    pub kind: String,
+    pub direction: String,
+    pub event_name: Option<String>,
+    pub channel_name: Option<String>,
+    pub hub_name: Option<String>,
+    pub method_name: Option<String>,
+    pub endpoint: Option<String>,
+    pub file_path: String,
+    pub symbol_id: Option<SymbolId>,
+    pub class_name: Option<String>,
+    pub function_name: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+    pub confidence: u16,
+    pub source_kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TechnologyKind {
     Language,
     WebBackend,
@@ -307,6 +333,7 @@ pub enum TechnologyCapability {
     DetectImport,
     ExtractRoutes,
     ExtractComponents,
+    ExtractRealtime,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

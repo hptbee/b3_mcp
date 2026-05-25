@@ -534,9 +534,45 @@ Must defer:
 - schema introspection from live databases
 - runtime DB/ORM behavior
 - cross-project data lineage
-- realtime/socket, messaging/event-driven, cloud/infrastructure, Go,
-  WPF/XAML, symbolic editing, rename/refactor, embeddings, semantic search, and
-  cross-project architecture intelligence
+- messaging/event-driven, cloud/infrastructure, Go, WPF/XAML, symbolic editing,
+  rename/refactor, embeddings, semantic search, and cross-project architecture
+  intelligence
+
+## Realtime / Socket Intelligence
+
+Phase 9.2.7 adds basic static realtime/socket intelligence.
+
+Must support:
+- local package/project detection for WebSocket, Socket.IO, SignalR, and RSocket
+  package hints
+- browser/native `new WebSocket(...)`, message listener, and `send()` metadata
+  where WebSocket context is present
+- Socket.IO literal `on(...)` listener and `emit(...)` emitter metadata where
+  Socket.IO context is present
+- SignalR C# `Hub` classes, hub methods, `Clients.*.SendAsync(...)`, JS/TS
+  `HubConnectionBuilder`, `connection.on(...)`, and `connection.invoke(...)`
+- minimal RSocket package/import and request method metadata where obvious
+- read-only realtime listing through `GET /api/realtime`
+- metadata cleanup through normal deleted-file index cleanup
+
+Must not require:
+- network connections
+- socket server or client startup
+- protocol decoding
+- payload schema inference
+- `npm install`, `node`, package-manager scripts, package registries, `dotnet`,
+  restore/build/run/test commands, app code, external APIs, telemetry, or paid
+  dependencies
+
+Must defer:
+- runtime event discovery and packet capture
+- payload schema inference
+- backpressure/protocol semantics
+- room/group membership semantics beyond obvious literal metadata
+- cross-project event producer/consumer matching
+- messaging/broker intelligence such as Kafka, RabbitMQ, AMQP, or Pub/Sub
+- cloud/infrastructure, Go, WPF/XAML, symbolic editing, rename/refactor,
+  embeddings, semantic search, and cross-project architecture intelligence
 
 ## Graph Requirements
 
@@ -691,10 +727,10 @@ Avoid:
 - Phase 9.2.4: Angular Intelligence
 - Phase 9.2.5: ASP.NET Core / C# Web API Intelligence
 - Phase 9.2.6: ORM / Database Access Intelligence
+- Phase 9.2.7: Realtime / Socket Intelligence
 
 ### Planned Phases
 
-- Phase 9.2.7: Realtime / Socket Intelligence
 - Phase 9.2.8: Messaging / Event-driven Intelligence
 - Phase 9.2.9: Cloud / Infrastructure Intelligence
 - Phase 9.2.10: Go Language Support

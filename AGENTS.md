@@ -250,3 +250,17 @@ type checking, runtime DB behavior, schema introspection, or cross-project data
 lineage.
 
 Do not start Realtime / Socket Intelligence until Phase 9.2.7.
+
+## Realtime / Socket Boundaries
+
+Phase 9.2.7 Realtime / Socket intelligence is completed as basic local static
+analysis only. It may detect common WebSocket, Socket.IO, SignalR, and minimal
+RSocket package/import/project hints, constructors, listeners, emitters, hub
+classes, hub methods, client invocations, and obvious literal event/channel/hub
+metadata, but it must not open network connections, start socket servers, run
+`node`, `npm`, `dotnet`, framework CLIs, package scripts, package registries, or
+app code. It does not implement runtime event flow, protocol decoding, payload
+schema inference, auth negotiation analysis, broker/messaging intelligence,
+room/group semantics beyond obvious metadata, or cross-project event matching.
+
+Do not start Messaging / Event-driven Intelligence until Phase 9.2.8.
