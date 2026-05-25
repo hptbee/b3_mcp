@@ -37,7 +37,7 @@ Completed:
 - Phase 9.2.3 Next.js Intelligence
 ## Previously Deferred -> Scheduled Phases (12–20)
 
-The items previously listed under an older deferred block (Phase 9.3–9.10)
+The items previously listed under an older deferred block
 have been renumbered and scheduled in the Phase 12–20 sequence below.
 
 ## Phase 12 Symbolic Editing MVP
@@ -512,13 +512,12 @@ Status: Completed with basic static/local React component intelligence.
 
 ---
 
-## Phase 9.2.3 Next.js Intelligence
+- Phase 9.2.3 Next.js Intelligence
+## Previously Deferred -> Scheduled Phases (12â€“20)
 
-Status: Completed with basic static/local Next.js intelligence.
+The items previously listed under an older deferred block have been renumbered and scheduled in the Phase 12â€“20 sequence below.
 
-### Scope
-
-- Next.js package/config detection
+## Phase 12 Symbolic Editing MVP
 - App Router detection
 - Pages Router detection
 - dynamic route detection
@@ -1013,7 +1012,7 @@ Algorithms:
 
 ---
 
-## Phase 12 Git Intelligence
+## Phase 21 Git Intelligence
 
 Status: Planned.
 
@@ -1034,7 +1033,7 @@ Rules:
 
 ---
 
-## Phase 13 Duplicate / Similarity Detection
+## Phase 22 Duplicate / Similarity Detection
 
 Status: Planned.
 
@@ -1049,7 +1048,7 @@ Scope:
 
 ---
 
-## Phase 14 Real Plugin System
+## Phase 23 Real Plugin System
 
 Status: Planned.
 
@@ -1071,7 +1070,7 @@ Rules:
 
 ---
 
-## Phase 15 Packaging + Installers
+## Phase 24 Packaging + Installers
 
 Status: Planned.
 
@@ -1118,11 +1117,11 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Three.js / WebGL | Deferred |
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
-| Refactor assistant | Phase 9.3 / 9.4 |
+| Refactor assistant | Phase 12 / 13 |
 | Local embeddings / vector search | Phase 10.0-10.5 |
 | Full memory/context platform | Later phase |
 | Cross-project architecture intelligence | Phase 11 |
-| Release-grade packaging | Phase 15 |
+| Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
@@ -1375,7 +1374,7 @@ Covered by Phase 8.7, Phase 8.8, and Phase 11.
 
 B3 learns LSP backend, IDE-grade semantic operations, find definition/references/implementations, symbolic editing, rename/refactor, and mode/profile system.
 
-Covered by Phase 8.6, Phase 9.0, Phase 9.1, Phase 9.3, and Phase 9.4.
+Covered by Phase 8.6, Phase 9.0, Phase 9.1, Phase 12, and Phase 13.
 
 ### Neo4j Browser-style UX
 
