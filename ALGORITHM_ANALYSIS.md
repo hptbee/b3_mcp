@@ -737,6 +737,33 @@ identity attached. The federation layer deliberately does not create
 cross-project edges, infer route/message/package relationships, merge
 databases, or build a service map.
 
+### Phase 11.1.1 Context Efficiency Benchmark
+
+Phase 11.1.1 adds an end-to-end local efficiency benchmark in `b3-bench`. It
+models a deterministic file-by-file exploration baseline and compares it with
+`search_code_only`, `semantic_search_only`,
+`semantic_search_context_pack:minimal`, `semantic_search_context_pack:balanced`,
+`semantic_search_context_pack:deep`, and a low-risk `group_federated_summary`
+workflow. The group workflow measures summary efficiency only and does not
+perform cross-project matching.
+
+Each task has expected files, optional symbols, source kinds, answer facts, and
+coverage tags. Answer quality is scored from those deterministic fixture hits
+plus top-k relevance, producing a compact `0.0..1.0` approximation. This is not
+human answer grading and does not require an LLM.
+
+Token estimates use `chars / 4`, avoiding external tokenizers and billing
+claims. Tool-call estimates use a fixed local model: the naive baseline counts
+broad search plus full-file opens, while B3-assisted modes count the modeled
+search, context assembly, metadata, or group-summary call. Output includes
+`current_value`, `target_value`, `target_met`, and `gap_to_target`.
+
+Current balanced context-pack fixture results are about `1.11x` fewer tokens
+against the `10.0x` target, `4.05x` fewer modeled tool calls against the `2.1x`
+target, and `0.699` answer-quality approximation against the `0.8` target. The
+benchmark therefore proves only the tool-call target for this fixture/model.
+Token reduction and quality remain work items.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

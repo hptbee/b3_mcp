@@ -30,6 +30,7 @@ Completed:
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11.0 - Cross-Project Architecture Model + Contracts
 - Phase 11.1 - Group Query Federation
+- Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
 
 Current / Next:
 - Phase 11.2 - Cross-Repo Route / API Matching
@@ -37,6 +38,9 @@ Current / Next:
 Upcoming (major):
 - Phase 11.3 - Cross-Repo Messaging Matching
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5 - Group-Level Impact + Context Pack
+- Phase 11.6 - Architecture Graph / Service Map API
+- Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 — Symbolic Editing MVP
 - Phase 13 — Rename / Refactor MVP
 
@@ -73,11 +77,13 @@ Vector foundation:
 - Hybrid ranking combines lexical, vector, and metadata signals inside `b3-query`.
 - Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
 - Fixture-based benchmark/quality evaluation is available through `cargo run -p b3-bench -- baseline`.
+- Phase 11.1.1 adds a local context-efficiency benchmark comparing deterministic file-by-file exploration, `search_code`, `semantic_search`, context-pack-style selection, and a group-summary model.
 - Production-grade neural embedding providers are planned in later optional-provider phases.
 
 Cross-project architecture foundation:
 - Phase 11.0 adds serializable local architecture contracts for projects, groups, services, nodes, edges, match candidates, confidence, provenance, and normalization.
 - Phase 11.1 resolves local registry groups and federates read-only summaries across repo-local `.b3/b3.db` files.
+- Phase 11.1.1 measures token/context reduction, tool-call reduction, and fixture-based answer-quality approximation. Current measured balanced context-pack baseline is about `1.11x` fewer tokens, `4.05x` fewer modeled tool calls, and `0.699` answer-quality score; the `10x` token target and `0.8` quality target are not met yet.
 - B3 still preserves `1 project = 1 repo-local .b3/b3.db`; matching is deferred to later Phase 11 subphases.
 
 ---
@@ -88,6 +94,7 @@ Cross-project architecture foundation:
 - `local_hash` embeddings are lexical/hash-based, not neural semantic-quality vectors.
 - MCP/control semantic search is local/offline and uses lexical/hash-based `local_hash`, not neural semantic vectors.
 - Quality metrics are fixture baselines, not production guarantees.
+- Efficiency metrics are deterministic benchmark estimates. Token estimates use chars/4, tool-call counts use a fixed local workflow model, and answer quality is fixture coverage rather than human grading.
 - Cross-project relationship matching and service maps are not usable yet; Phase 11.1 only adds group federation/status/summary.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
@@ -118,6 +125,7 @@ Cross-project architecture foundation:
 | Hybrid semantic ranking | Usable now, local/offline |
 | MCP semantic search tool | Usable now, local/offline |
 | Search quality benchmark | Usable now, local fixture baseline |
+| Context efficiency benchmark | Usable now, local deterministic baseline |
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |
 | Cross-project matching | Phase 11.2+ |

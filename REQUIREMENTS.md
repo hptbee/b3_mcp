@@ -923,6 +923,16 @@ Avoid:
 - Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11.0: Cross-Project Architecture Model + Contracts
 - Phase 11.1: Group Query Federation
+- Phase 11.1.1: Context Efficiency + Tool Call Reduction Benchmark
+
+Phase 11.1.1 is benchmark/measurement only. It must remain local,
+deterministic, offline-first, and free-by-default. It measures chars/4 token
+estimates, deterministic workflow tool-call counts, and fixture answer-quality
+coverage for file-by-file exploration versus B3-assisted `search_code`,
+`semantic_search`, context-pack profiles, and group-summary workflows. It must
+not add MCP tools, cross-repo matching, group-level impact/context pack,
+service-map APIs, symbolic editing, rename/refactor, telemetry, cloud APIs,
+hosted vector databases, paid dependencies, or internet requirements.
 
 ### Planned Phases
 

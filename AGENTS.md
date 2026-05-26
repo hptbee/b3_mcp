@@ -432,3 +432,16 @@ matching, package/contract/infra matching, group-level impact analysis,
 architecture graph UI, service map APIs, global database merges, cloud graph
 databases, hosted vector databases, external APIs, telemetry, symbolic editing,
 rename/refactor, session memory, or cross-project relationship inference.
+
+Phase 11.1.1 is completed as context efficiency and tool-call reduction
+benchmarking only. It may define deterministic local file-by-file and
+B3-assisted workflow baselines, context profiles, chars/4 token estimates,
+modeled tool-call counts, fixture answer-quality scoring, target comparisons,
+benchmark JSON output, tests, and docs.
+
+It must not implement cross-repo route/API matching, cross-repo messaging
+matching, package/contract/infra matching, group-level impact/context pack,
+architecture graph UI, service map APIs, symbolic editing, rename/refactor,
+neural embedding providers, hosted vector databases, cloud embeddings, external
+APIs, telemetry, paid dependencies, model downloads, internet requirements, or
+cross-project relationship inference.

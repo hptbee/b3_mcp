@@ -35,6 +35,47 @@ Completed:
 - Phase 9.2.1 Node.js / REST API Intelligence
 - Phase 9.2.2 React / TSX Component Intelligence
 - Phase 9.2.3 Next.js Intelligence
+- Phase 9.2.3.1 Indexer Module Split / Refactor Checkpoint B
+- Phase 9.2.4 Angular Intelligence
+- Phase 9.2.4.1 Web Module Split / Refactor Checkpoint C
+- Phase 9.2.5 ASP.NET Core / C# Web API Intelligence
+- Phase 9.2.6 ORM / Database Access Intelligence
+- Phase 9.2.7 Realtime / Socket Intelligence
+- Phase 9.2.8 Messaging / Event-driven Intelligence
+- Phase 9.2.9 Cloud / Infrastructure Intelligence
+- Phase 9.2.10 Go Language Support
+- Phase 9.2.11 Scoped Indexing + Intelligence Targets
+- Phase 9.2.12 .NET Desktop / WPF Intelligence
+- Phase 10.0 Local Embeddings + Vector Search Architecture
+- Phase 10.1 Local Embedding Provider MVP
+- Phase 10.2 SQLite Vector Storage / Search Index
+- Phase 10.3 Hybrid Search Ranking
+- Phase 10.4 MCP / Control API Integration
+- Phase 10.5 Benchmark + Quality Evaluation
+- Phase 11.0 Cross-Project Architecture Model + Contracts
+- Phase 11.1 Group Query Federation
+- Phase 11.1.1 Context Efficiency + Tool Call Reduction Benchmark
+
+Current/Next:
+- Phase 11.2 Cross-Repo Route / API Matching
+
+Upcoming:
+- Phase 11.3 Cross-Repo Messaging Matching
+- Phase 11.4 Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5 Group-Level Impact + Context Pack
+- Phase 11.6 Architecture Graph / Service Map API
+- Phase 11.7 Cross-Project Benchmark + Docs
+- Phase 12 Symbolic Editing MVP
+- Phase 13 Rename / Refactor MVP
+- Phase 14 Additional Backend Language Support
+- Phase 15 Systems / Mobile Language Support
+- Phase 16 Config / Data / Web File Support
+- Phase 17 Language and Technology Quality Audit
+- Phase 18 Refactor Checkpoint D
+- Phase 19 Performance Optimization Pass B
+- Phase 20 Web UI Developer Console Refresh
+```
+
 ## Previously Deferred -> Scheduled Phases (12–20)
 
 The items previously listed under an older deferred block
@@ -898,6 +939,7 @@ Completed:
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11.0 - Cross-Project Architecture Model + Contracts
 - Phase 11.1 - Group Query Federation
+- Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
 
 Current/Next:
 
@@ -1138,6 +1180,39 @@ Rules:
 - no global DB merge
 - no cloud graph database, hosted vector database, telemetry, external API, or internet requirement
 - no MCP architecture tool or MCP tool count change
+
+## Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
+
+Status: Completed.
+
+Scope completed:
+
+- added `b3-bench::efficiency` as a local/offline benchmark module over the checked-in `semantic_search_repo` fixture
+- defined deterministic `naive_file_by_file`, `search_code_only`, `semantic_search_only`, `semantic_search_context_pack`, and `group_federated_summary` workflow models
+- added minimal, balanced, and deep context profiles for context-pack-style selection
+- added task-level expected files, optional symbols, source kinds, answer facts, and coverage tags
+- added chars/4 token estimates, deterministic tool-call estimates, target comparison objects, warnings, limitations, and JSON serialization under `efficiency_metrics`
+- added human-readable efficiency output to `cargo run -p b3-bench -- baseline`
+- verified `semantic_search`, `get_context_pack`, and Phase 10.4 MCP profile counts without adding MCP tools
+
+Current local fixture baseline:
+
+- selected comparison: `semantic_search_context_pack:balanced`
+- token reduction multiplier: about `1.11x` versus the `10.0x` target, not met
+- tool-call reduction multiplier: about `4.05x` versus the `2.1x` target, met by the deterministic model
+- answer-quality approximation: about `0.699` versus the documented `0.8` target, not met
+- prior Phase 10.5 context baseline remains about `31%` estimated token reduction, or about `1.45x` fewer tokens
+
+Rules:
+
+- benchmark/measurement only
+- no cross-repo route/API matching
+- no cross-repo messaging matching
+- no package/contract/infra matching
+- no group-level impact or context pack
+- no architecture graph UI or service map API
+- no symbolic editing or rename/refactor
+- no neural embedding provider, hosted vector database, cloud embeddings, external APIs, telemetry, paid dependency, model download, or internet requirement
 
 ## Phase 11.2 - Cross-Repo Route / API Matching
 

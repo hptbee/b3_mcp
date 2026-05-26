@@ -256,6 +256,9 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Phase 11.0 adds architecture contracts and `GET /api/architecture/status`,
   and Phase 11.1 adds group federation status/summary endpoints, but no
   architecture graph UI or service map UI is included yet.
+- Phase 11.1.1 adds local benchmark JSON/terminal output for context
+  efficiency and tool-call reduction. It does not add a benchmark dashboard,
+  architecture graph UI, service map UI, or Web UI redesign.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - A dedicated Node.js REST route browser is deferred; route metadata is
   currently available through `GET /api/routes`.

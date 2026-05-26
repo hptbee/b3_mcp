@@ -142,6 +142,18 @@ matching, package/contract/infra matching, group impact, and service maps are
 still pending. The local storage model remains one repo-local `.b3/b3.db` per
 project.
 
+Phase 11.1.1 adds context efficiency and tool-call reduction measurements to
+the same local baseline. The JSON output includes `efficiency_metrics` with
+target comparisons for `10.0x` token reduction, `2.1x` tool-call reduction, and
+a fixture answer-quality target of `0.8`. The deterministic model compares
+file-by-file exploration with `search_code`, `semantic_search`,
+`semantic_search_context_pack` profiles (`minimal`, `balanced`, `deep`), and a
+Phase 11.1 group-summary workflow. Token estimates use chars/4, tool calls are
+modeled counts, and answer quality is fixture coverage, not LLM grading. The
+current balanced context-pack fixture result is about `1.11x` fewer tokens,
+`4.05x` fewer modeled tool calls, and `0.699` quality, so the token and quality
+targets are not yet met.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

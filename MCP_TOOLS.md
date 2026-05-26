@@ -48,6 +48,13 @@ subphases.
 Phase 11.1 adds local Control API group federation only. It still does not add
 architecture MCP tools, change MCP profiles, or change tool counts.
 
+Phase 11.1.1 adds benchmark-only verification that `semantic_search` and
+`get_context_pack` remain available in the expected profiles. It does not add
+new MCP tools or change tool counts. The efficiency benchmark models
+file-by-file exploration, `search_code`, `semantic_search`, and context-pack
+selection locally without invoking an LLM, network, telemetry, hosted vector
+database, or external API.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

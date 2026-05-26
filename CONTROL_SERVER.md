@@ -232,6 +232,10 @@ Current truth:
   service maps are not ready yet. Group endpoints read the local registry and
   existing repo-local project DBs only; no global database merge, cloud graph
   database, hosted vector database, telemetry, or remote lookup is required.
+- Phase 11.1.1 adds benchmark-only efficiency checks for the existing
+  `POST /api/search/hybrid` path and MCP profile/tool availability. It does not
+  add Control API endpoints, service maps, group impact APIs, route/API
+  matching, messaging matching, telemetry, or external service calls.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

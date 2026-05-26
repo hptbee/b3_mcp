@@ -3,6 +3,7 @@
 //! This crate measures current behavior only. It should not become a product
 //! feature surface, and it must not upload results or call external services.
 
+pub mod efficiency;
 pub mod search_quality;
 
 use std::{
@@ -32,6 +33,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower::ServiceExt;
 
+use efficiency::{format_efficiency_summary, run_efficiency_benchmark, EfficiencyBenchmarkReport};
 use search_quality::{
     format_semantic_quality_summary, run_semantic_quality_benchmark, SemanticQualityReport,
 };
@@ -78,6 +80,7 @@ pub struct BenchmarkRun {
     pub thresholds: BenchmarkThresholdConfig,
     pub results: Vec<BenchmarkResult>,
     pub semantic_quality: Option<SemanticQualityReport>,
+    pub efficiency_metrics: Option<EfficiencyBenchmarkReport>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -147,6 +150,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), String> {
             println!("{}", format_results_table(&run.results));
             if let Some(report) = &run.semantic_quality {
                 println!("{}", format_semantic_quality_summary(report));
+            }
+            if let Some(report) = &run.efficiency_metrics {
+                println!("{}", format_efficiency_summary(report));
             }
             println!("wrote JSON baseline: {}", output_path.display());
             Ok(())
@@ -232,6 +238,8 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     results.push(bench_command_compaction_latency()?);
     let (semantic_quality, semantic_results) = run_semantic_quality_benchmark(&semantic)?;
     results.extend(semantic_results);
+    let (efficiency_metrics, efficiency_results) = run_efficiency_benchmark(&semantic)?;
+    results.extend(efficiency_results);
 
     let run = BenchmarkRun {
         timestamp_unix_ms: now_unix_ms(),
@@ -239,6 +247,7 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
         thresholds,
         results,
         semantic_quality: Some(semantic_quality),
+        efficiency_metrics: Some(efficiency_metrics),
     };
     write_json_output(&options.output_path, &run)?;
     Ok(run)
