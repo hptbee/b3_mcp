@@ -67,12 +67,12 @@ Completed:
 - Phase 15 Systems / Mobile / Config / Web File Support A
 - Phase 16 Config / Data / Web File Support B / Hardening
 - Phase 17 Language and Technology Quality Audit
-
-Current/Next:
 - Phase 18.2 Control Server Route Module Split
 
-Upcoming:
+Current/Next:
 - Phase 18.3 Storage Module Split
+
+Upcoming:
 - Phase 18.4 Indexer Pipeline / Dispatch Split
 - Phase 18.5 Shared Helper Consolidation
 - Phase 18.6 Optional Core / Query Architecture Split Review
@@ -383,7 +383,19 @@ Completed scope:
 - left control and storage embedded tests untouched for later checkpoints because the indexer split was the primary safe target
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend changes
 
-Next: Phase 18.2 Control Server Route Module Split.
+### Phase 18.2 Control Server Route Module Split
+
+Status: Completed.
+
+Completed scope:
+
+- split `crates/b3-control/src/lib.rs` route registration and HTTP handlers into focused `crates/b3-control/src/routes/` modules
+- kept `lib.rs` responsible for public crate exports, shared state, server startup, shared helpers, and router glue
+- preserved endpoint paths, request/response DTOs, status semantics, capability/language reporting, and production behavior
+- did not change database schema, migrations, metadata formats, MCP tools/profiles, benchmark targets, frontend files, or feature behavior
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
+
+Next: Phase 18.3 Storage Module Split.
 
 ---
 
@@ -1124,14 +1136,14 @@ Completed:
 - Phase 16 - Config / Data / Web File Support B / Hardening
 - Phase 17 - Language and Technology Quality Audit
 - Phase 18.1 - Test Organization Split
+- Phase 18.2 - Control Server Route Module Split
 
 Current/Next:
 
-- Phase 18.2 - Control Server Route Module Split
+- Phase 18.3 - Storage Module Split
 
 Upcoming:
 
-- Phase 18.3 - Storage Module Split
 - Phase 18.4 - Indexer Pipeline / Dispatch Split
 - Phase 18.5 - Shared Helper Consolidation
 - Phase 18.6 - Optional Core / Query Architecture Split Review
