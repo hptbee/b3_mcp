@@ -3,6 +3,7 @@
 //! This crate measures current behavior only. It should not become a product
 //! feature surface, and it must not upload results or call external services.
 
+pub mod architecture;
 pub mod efficiency;
 pub mod search_quality;
 
@@ -33,6 +34,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower::ServiceExt;
 
+use architecture::{
+    format_cross_project_summary, run_cross_project_benchmark, CrossProjectBenchmarkReport,
+};
 use efficiency::{format_efficiency_summary, run_efficiency_benchmark, EfficiencyBenchmarkReport};
 use search_quality::{
     format_semantic_quality_summary, run_semantic_quality_benchmark, SemanticQualityReport,
@@ -81,6 +85,7 @@ pub struct BenchmarkRun {
     pub results: Vec<BenchmarkResult>,
     pub semantic_quality: Option<SemanticQualityReport>,
     pub efficiency_metrics: Option<EfficiencyBenchmarkReport>,
+    pub cross_project_benchmark: Option<CrossProjectBenchmarkReport>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -153,6 +158,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), String> {
             }
             if let Some(report) = &run.efficiency_metrics {
                 println!("{}", format_efficiency_summary(report));
+            }
+            if let Some(report) = &run.cross_project_benchmark {
+                println!("{}", format_cross_project_summary(report));
             }
             println!("wrote JSON baseline: {}", output_path.display());
             Ok(())
@@ -240,6 +248,8 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     results.extend(semantic_results);
     let (efficiency_metrics, efficiency_results) = run_efficiency_benchmark(&semantic)?;
     results.extend(efficiency_results);
+    let (cross_project_benchmark, architecture_results) = run_cross_project_benchmark(&workspace)?;
+    results.extend(architecture_results);
 
     let run = BenchmarkRun {
         timestamp_unix_ms: now_unix_ms(),
@@ -248,6 +258,7 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
         results,
         semantic_quality: Some(semantic_quality),
         efficiency_metrics: Some(efficiency_metrics),
+        cross_project_benchmark: Some(cross_project_benchmark),
     };
     write_json_output(&options.output_path, &run)?;
     Ok(run)
@@ -827,6 +838,23 @@ mod tests {
         let json = serde_json::to_string(&result).expect("json");
         assert!(json.contains("duration_ms"));
         assert!(json.contains("unit"));
+    }
+
+    #[test]
+    fn benchmark_run_schema_keeps_architecture_quality_and_efficiency_sections() {
+        let run = BenchmarkRun {
+            timestamp_unix_ms: 1,
+            git_commit: None,
+            thresholds: BenchmarkThresholdConfig::default(),
+            results: Vec::new(),
+            semantic_quality: None,
+            efficiency_metrics: None,
+            cross_project_benchmark: None,
+        };
+        let json = serde_json::to_string(&run).expect("json");
+        assert!(json.contains("semantic_quality"));
+        assert!(json.contains("efficiency_metrics"));
+        assert!(json.contains("cross_project_benchmark"));
     }
 
     #[test]

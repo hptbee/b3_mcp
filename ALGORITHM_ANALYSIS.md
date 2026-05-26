@@ -934,6 +934,37 @@ counts, confidence distribution, connected projects, isolated projects,
 unresolved count, and warning count. The API is intentionally non-UI; graph
 visualization remains deferred.
 
+### Phase 11.7 Cross-Project Benchmark + Docs
+
+Phase 11.7 measures Phase 11 architecture behavior with local fixture data and
+optional local repository candidates from `benchmarks/b3.benchmark.toml`. The
+benchmark adds a `cross_project_benchmark` JSON section while preserving the
+existing `semantic_quality` and `efficiency_metrics` sections. It does not
+upload results, call external APIs, run package managers, run
+Docker/Kubernetes/Terraform, connect to brokers, execute runtime HTTP calls,
+merge databases, or require hosted graph/vector databases.
+
+The architecture benchmark creates a deterministic local fixture group with
+frontend, API, worker, and shared-package projects. It measures group
+federation, route/API matching, messaging matching, package/contract/infra
+matching, group impact, cross-repo context pack generation, architecture graph
+construction, and service map construction. Optional local repos such as
+`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` are
+inspected only when present; missing paths or DBs become warnings.
+
+Metrics include readiness flags, match counts, impact counts, graph/service map
+counts, warning and unresolved ratios, context-pack chars and chars/4 token
+estimates, modeled token/tool-call reduction, and deterministic task coverage.
+Targets are reported as comparisons: `10.0x` token reduction, `2.1x` tool-call
+reduction, and `0.8` answer quality. They are not treated as product claims
+unless the current local run meets them, and even then the result is scoped to
+the local fixture/config inputs.
+
+Branch safety is warning-only. The benchmark reports requested/used branch
+assumptions and notes that after switching branches users should reindex before
+comparing results. Full Git history, blame, branch diff, PR, remote, and GitHub
+API intelligence remain Phase 21.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

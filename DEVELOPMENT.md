@@ -196,6 +196,16 @@ a global graph, merge databases, execute HTTP requests, connect to brokers, run
 package managers, run Docker/Kubernetes/Terraform/cloud CLIs, add MCP tools, or
 add architecture graph UI.
 
+Phase 11.7 adds cross-project benchmark coverage and documentation in
+`b3-bench::architecture`. The baseline command now writes a
+`cross_project_benchmark` JSON section and prints a human-readable Phase 11
+architecture summary. It benchmarks a deterministic local fixture group and
+inspects optional local candidates from `benchmarks/b3.benchmark.toml`; missing
+`Project_B` or `Tuvi_B` paths/DBs warn and skip. It does not index optional real
+repos automatically, merge DBs, call external services, run package managers,
+run Docker/Kubernetes/Terraform, connect to brokers, execute HTTP requests, or
+implement graph UI, symbolic editing, rename/refactor, or full Git Intelligence.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.
@@ -215,14 +225,13 @@ The default local benchmark configuration path is:
 benchmarks/b3.benchmark.toml
 ```
 
-This file is the planned Phase 11.7 input for broader real-local benchmark
-runs. It may reference optional local repositories such as
+This file is the Phase 11.7 input for broader real-local benchmark runs. It may
+reference optional local repositories such as
 `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B`.
 Missing optional repositories must be reported as warnings, not failures, and
 normal `cargo build`, `cargo check`, and `cargo test --workspace` runs must not
-require those paths to exist. The current `b3-bench baseline` command remains a
-deterministic fixture-based local benchmark unless/until Phase 11.7 wires this
-TOML input into a broader runner.
+require those paths to exist. The current `b3-bench baseline` command uses this
+config for optional project discovery and still remains local/offline.
 
 ## Agent Install Helper
 

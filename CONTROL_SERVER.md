@@ -280,6 +280,11 @@ Current truth:
   do not persist a global graph, merge DBs, run package managers, run Docker,
   Kubernetes, Terraform, or cloud CLIs, connect to brokers, execute HTTP
   requests, call external APIs, or implement a graph UI.
+- Phase 11.7 adds benchmark coverage and docs for these Phase 11 Control/API
+  capabilities through `cargo run -p b3-bench -- baseline`. The benchmark uses
+  library/API-equivalent local calls and does not start network listeners, call
+  external APIs, execute runtime HTTP requests, connect to brokers, merge DBs,
+  or implement graph UI.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

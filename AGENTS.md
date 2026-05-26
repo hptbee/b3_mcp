@@ -511,6 +511,20 @@ connections, global database merges, persisted global architecture graphs, cloud
 graph databases, hosted vector databases, external APIs, telemetry, paid
 dependencies, model downloads, or internet requirements.
 
+Phase 11.7 is completed as cross-project benchmark + docs only. It may add
+local benchmark coverage for Phase 11 federation, matching, group impact,
+context packs, architecture graph API, and service map API; parse
+`benchmarks/b3.benchmark.toml`; report optional local project warnings; write
+benchmark JSON; and document current capability/limitations.
+
+It must not implement architecture graph UI, symbolic editing, rename/refactor,
+full Git Intelligence, package manager execution, Docker/Kubernetes/Terraform/
+cloud CLI execution, runtime HTTP calls, broker connections, global database
+merges, persisted global architecture graphs, cloud graph databases, hosted
+vector databases, cloud embeddings, external APIs, telemetry, paid
+dependencies, model downloads, or internet requirements. `Project_B` and
+`Tuvi_B` benchmark paths must remain optional.
+
 ## Local Benchmark Config Boundaries
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark config path for

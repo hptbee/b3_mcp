@@ -81,6 +81,10 @@ Control API only. It does not add MCP graph/service-map tools, change MCP
 profiles, or change tool counts. Existing MCP graph/query tools remain scoped to
 their current local behavior.
 
+Phase 11.7 adds cross-project architecture benchmark/docs only. It does not add
+MCP benchmark, graph, service-map, symbolic editing, rename/refactor, or Git
+Intelligence tools, and it does not change MCP profiles or tool counts.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

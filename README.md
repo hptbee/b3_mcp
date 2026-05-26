@@ -36,12 +36,12 @@ Completed:
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
-
-Current / Next:
 - Phase 11.7 - Cross-Project Benchmark + Docs
 
+Current / Next:
+- Phase 12 - Symbolic Editing MVP
+
 Upcoming (major):
-- Phase 12 — Symbolic Editing MVP
 - Phase 13 — Rename / Refactor MVP
 
 See `PLAN.md` for the full, authoritative roadmap and phase details.
@@ -78,6 +78,7 @@ Vector foundation:
 - Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
 - Fixture-based benchmark/quality evaluation is available through `cargo run -p b3-bench -- baseline`.
 - The default local benchmark config path is `benchmarks/b3.benchmark.toml`; its real-local repository paths are optional candidates and missing paths are warnings, not build/test failures.
+- Phase 11.7 adds a local cross-project architecture benchmark section to `cargo run -p b3-bench -- baseline`; optional local repos such as `Project_B` and `Tuvi_B` warn when missing or unindexed.
 - Phase 11.1.1 adds a local context-efficiency benchmark comparing deterministic file-by-file exploration, `search_code`, `semantic_search`, context-pack-style selection, and a group-summary model.
 - Production-grade neural embedding providers are planned in later optional-provider phases.
 
@@ -90,6 +91,7 @@ Cross-project architecture foundation:
 - Phase 11.4 adds local/read-only cross-repo package, contract, and infrastructure matching inside registry project groups.
 - Phase 11.5 adds local/read-only group impact analysis and bounded cross-repo context packs.
 - Phase 11.6 adds local/read-only architecture graph and service map APIs for registry project groups.
+- Phase 11.7 benchmarks Phase 11 architecture capabilities locally and documents current limits.
 - B3 still preserves `1 project = 1 repo-local .b3/b3.db`; architecture graph UI is deferred.
 
 ---
@@ -106,6 +108,7 @@ Cross-project architecture foundation:
 - Cross-project package/contract/infra matching is static and conservative. It does not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote schema fetches, or schema compatibility validation.
 - Group impact/context packs are static and bounded. They do not execute HTTP requests, connect to brokers, run package managers, run Docker/Kubernetes/Terraform, or merge DBs.
 - Architecture graph/service map APIs are static, local, read-only, and built on demand from existing match candidates. They do not persist a global graph, merge DBs, execute runtime discovery, or include a graph UI.
+- Cross-project benchmark results are fixture/local-repo measurements only, not a public corpus claim. Branch assumptions are reported as warnings; after switching branches, reindex before comparing results until branch-aware hardening and full Git Intelligence arrive later.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
@@ -143,6 +146,7 @@ Cross-project architecture foundation:
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Group impact/context pack | Usable now, local/static/read-only |
 | Architecture graph/service map API | Usable now, local/static/read-only |
+| Cross-project architecture benchmark | Usable now, local fixture/optional repo baseline |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.

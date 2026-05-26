@@ -60,12 +60,12 @@ Completed:
 - Phase 11.4 Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 Group-Level Impact + Context Pack
 - Phase 11.6 Architecture Graph / Service Map API
-
-Current/Next:
 - Phase 11.7 Cross-Project Benchmark + Docs
 
-Upcoming:
+Current/Next:
 - Phase 12 Symbolic Editing MVP
+
+Upcoming:
 - Phase 13 Rename / Refactor MVP
 - Phase 14 Additional Backend Language Support
 - Phase 15 Systems / Mobile Language Support
@@ -945,14 +945,14 @@ Completed:
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
+- Phase 11.7 - Cross-Project Benchmark + Docs
 
 Current/Next:
 
-- Phase 11.7 - Cross-Project Benchmark + Docs
+- Phase 12 - Symbolic Editing MVP
 
 Upcoming:
 
-- Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile Language Support
@@ -1337,14 +1337,37 @@ Rules:
 
 ## Phase 11.7 - Cross-Project Benchmark + Docs
 
-Status: Current / Next.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- add local fixture-based benchmark coverage and documentation for Phase 11 matching/federation behavior
-- use `benchmarks/b3.benchmark.toml` as the default input for broader real-local benchmarks
-- treat configured local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` as optional candidates; missing paths must warn, not fail normal build/test runs
-- preserve one repo-local `.b3/b3.db` per project and do not merge benchmark project databases into a global DB
+- added `b3-bench::architecture` for Phase 11 cross-project benchmark coverage
+- added a deterministic local architecture fixture group for frontend, API, worker, and shared package projects
+- benchmarked group federation, route/API matching, messaging matching, dependency matching, group impact, cross-repo context pack, architecture graph, and service map behavior
+- added `cross_project_benchmark` to `target/benchmarks/baseline.json` without removing `semantic_quality` or `efficiency_metrics`
+- parsed `benchmarks/b3.benchmark.toml` with local/offline guardrails and optional project handling
+- treated `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` as optional local candidates; missing or unindexed paths warn and skip
+- added branch-safety reporting as benchmark/docs warnings only; full Git Intelligence remains Phase 21
+- documented current benchmark methodology, limitations, target comparisons, and offline/free behavior
+
+Current measured fixture/local run:
+
+- route matches: 1
+- message matches: 1
+- dependency matches: 1
+- impact successes: 2
+- graph nodes: 10
+- graph edges: 3
+- services: 4
+- architecture target comparison in the local fixture run: token reduction `25.42x` against `10.0x`, tool-call reduction `2.57x` against `2.1x`, deterministic task quality `1.000` against `0.8`
+- warnings reported for optional local benchmark DBs that were not present: `D:\Project\Project_B\.b3\b3.db` and `D:\Project\Tuvi_B\.b3\b3.db`
+
+Rules:
+
+- no architecture graph UI
+- no symbolic editing or rename/refactor
+- no full Git Intelligence
+- no package manager execution, Docker/Kubernetes/Terraform/cloud CLI execution, runtime HTTP calls, broker connections, cloud APIs, graph database, hosted vector database, cloud embeddings, telemetry, external API, paid dependency, model download, or internet requirement
 
 ---
 
@@ -1462,13 +1485,14 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Group impact/context pack | Usable now, local/static/read-only |
 | Architecture graph/service map API | Usable now, local/static/read-only |
+| Cross-project architecture benchmark | Usable now, local fixture/optional repo baseline |
 | Full memory/context platform | Later phase |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5; local architecture graph/service map APIs begin in Phase 11.6. Architecture graph UI and cross-project benchmark/docs expansion remain later work.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5; local architecture graph/service map APIs begin in Phase 11.6; local cross-project architecture benchmark/docs begin in Phase 11.7. Architecture graph UI remains deferred.
 
 ---
 

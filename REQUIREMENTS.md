@@ -989,6 +989,20 @@ schemas, validate schema compatibility, call external APIs, add telemetry, add
 MCP architecture tools, or implement graph UI. Cross-project benchmark/docs
 expansion remains Phase 11.7.
 
+Phase 11.7 adds local cross-project benchmark coverage and documentation for
+Phase 11 architecture intelligence. It may benchmark group federation,
+route/API matching, messaging matching, package/contract/infra matching, group
+impact, cross-repo context packs, architecture graph API, and service map API
+through local fixture data and optional local repository candidates. It must
+preserve one repo-local `.b3/b3.db` per project, must not persist or require a
+global graph, and must not merge project DBs globally, execute HTTP requests,
+connect to brokers, run package managers, run Docker/Kubernetes/Terraform/cloud
+CLIs, call external APIs, add telemetry, add MCP tools, implement graph UI,
+implement symbolic editing, implement rename/refactor, or implement full Git
+Intelligence. `D:\Project\Project_B` and `D:\Project\Tuvi_B` are optional
+benchmark candidates; missing paths or DBs must warn and skip, not fail normal
+builds/tests/benchmarks.
+
 `benchmarks/b3.benchmark.toml` is the default local benchmark configuration
 path for broader Phase 11.7 real-local benchmarks. It may reference optional
 local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and
@@ -1006,14 +1020,14 @@ Completed:
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5: Group-Level Impact + Context Pack
 - Phase 11.6: Architecture Graph / Service Map API
+- Phase 11.7: Cross-Project Benchmark + Docs
 
 Current / Next:
 
-- Phase 11.7: Cross-Project Benchmark + Docs
+- Phase 12: Symbolic Editing MVP
 
 Upcoming:
 
-- Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile Language Support
