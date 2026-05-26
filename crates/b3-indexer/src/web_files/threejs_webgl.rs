@@ -22,10 +22,15 @@ pub(crate) fn collect_threejs_webgl(input: &ParseInput) -> Vec<ExtractedSymbol> 
             "Camera",
             "Renderer",
             "Mesh",
+            "Light",
+            "AmbientLight",
+            "DirectionalLight",
             "Geometry",
             "Material",
+            "ShaderMaterial",
             "TextureLoader",
             "GLTFLoader",
+            "WebGLRenderer",
             "requestAnimationFrame",
         ] {
             if line.contains(keyword) {
@@ -53,6 +58,19 @@ pub(crate) fn collect_threejs_webgl(input: &ParseInput) -> Vec<ExtractedSymbol> 
                 format!("webgl.asset={asset};webgl.file={}", normalized_file(input)),
             ));
         }
+        if let Some(canvas_id) = canvas_id(line) {
+            symbols.push(symbol(
+                input,
+                "threejs_webgl",
+                canvas_id.clone(),
+                NodeKind::ConfigKey,
+                line_number,
+                format!(
+                    "webgl.canvas_id={canvas_id};webgl.file={}",
+                    normalized_file(input)
+                ),
+            ));
+        }
     }
     symbols
 }
@@ -68,7 +86,8 @@ fn asset_literals(line: &str) -> Vec<String> {
             };
             let value = &rest[..end];
             if [
-                ".glb", ".gltf", ".obj", ".fbx", ".png", ".jpg", ".jpeg", ".webp",
+                ".glb", ".gltf", ".obj", ".fbx", ".png", ".jpg", ".jpeg", ".webp", ".glsl",
+                ".vert", ".frag",
             ]
             .iter()
             .any(|suffix| value.ends_with(suffix))
@@ -79,4 +98,15 @@ fn asset_literals(line: &str) -> Vec<String> {
         }
     }
     values
+}
+
+fn canvas_id(line: &str) -> Option<String> {
+    for marker in ["getElementById(", "querySelector("] {
+        if let Some(index) = line.find(marker) {
+            let rest = &line[index + marker.len()..];
+            let value = super::literal_after(rest, "")?;
+            return Some(value.trim_start_matches('#').to_string());
+        }
+    }
+    None
 }

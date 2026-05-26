@@ -1,0 +1,7 @@
+[project]
+name = "phase16-fixture"
+dependencies = ["requests"]
+
+[tool.demo]
+topic = "orders.created"
+client_secret = "redacted"

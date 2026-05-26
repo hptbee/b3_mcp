@@ -43,15 +43,18 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                 ));
                 for attr in attribute_names(tag) {
                     let attr_path = format!("{path}@{attr}");
+                    let value = attribute_value(tag, &attr).unwrap_or_default();
                     symbols.push(config_symbol(
                         &input,
                         "xml",
                         attr_path.clone(),
                         line_number,
-                        format!(
-                            "config.language=xml;config.attribute_path={attr_path};config.value_redacted={};config.file={}",
+                        config_metadata(
+                            "xml",
+                            &attr_path,
+                            &value,
                             is_sensitive_key(&attr_path),
-                            normalized_file(&input)
+                            &normalized_file(&input),
                         ),
                     ));
                 }
@@ -63,6 +66,7 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
         }
     }
     collect_pom_dependencies(&input, &mut symbols);
+    collect_xml_config_entries(&input, &mut symbols);
     Ok(ParsedFile {
         file_id: input.file_id,
         language: Some("xml".to_string()),
@@ -76,6 +80,17 @@ fn attribute_names(tag: &str) -> Vec<String> {
         .skip(1)
         .filter_map(|part| part.split_once('=').map(|(name, _)| name.to_string()))
         .collect()
+}
+
+fn attribute_value(tag: &str, attr: &str) -> Option<String> {
+    for quote in ['"', '\''] {
+        let needle = format!("{attr}={quote}");
+        let start = tag.find(&needle)? + needle.len();
+        let rest = &tag[start..];
+        let end = rest.find(quote)?;
+        return Some(rest[..end].to_string());
+    }
+    None
 }
 
 fn collect_pom_dependencies(input: &ParseInput, symbols: &mut Vec<ExtractedSymbol>) {
@@ -121,4 +136,62 @@ fn text_between(line: &str, tag: &str) -> Option<String> {
     let rest = &line[start..];
     let end = rest.find(&end_tag)?;
     Some(rest[..end].trim().to_string())
+}
+
+fn collect_xml_config_entries(input: &ParseInput, symbols: &mut Vec<ExtractedSymbol>) {
+    for (index, line) in input.source.lines().enumerate() {
+        let line_number = index + 1;
+        let trimmed = line.trim();
+        if trimmed.contains("<add ") {
+            let key = attribute_value(trimmed, "key")
+                .or_else(|| attribute_value(trimmed, "name"))
+                .unwrap_or_else(|| "add".to_string());
+            let value = attribute_value(trimmed, "value")
+                .or_else(|| attribute_value(trimmed, "connectionString"))
+                .unwrap_or_default();
+            symbols.push(config_symbol(
+                input,
+                "xml",
+                key.clone(),
+                line_number,
+                config_metadata(
+                    "xml",
+                    &key,
+                    &value,
+                    is_sensitive_key(&key),
+                    &normalized_file(input),
+                ),
+            ));
+        }
+        if trimmed.contains("<bean ") {
+            if let Some(id) =
+                attribute_value(trimmed, "id").or_else(|| attribute_value(trimmed, "name"))
+            {
+                symbols.push(config_symbol(
+                    input,
+                    "xml",
+                    id.clone(),
+                    line_number,
+                    format!(
+                        "config.language=xml;config.spring_bean={id};config.file={}",
+                        normalized_file(input)
+                    ),
+                ));
+            }
+        }
+        if trimmed.contains("<manifest ") {
+            if let Some(package) = attribute_value(trimmed, "package") {
+                symbols.push(package_symbol(
+                    input,
+                    "xml",
+                    package.clone(),
+                    line_number,
+                    format!(
+                        "package.kind=android_manifest;package.name={package};package.file={}",
+                        normalized_file(input)
+                    ),
+                ));
+            }
+        }
+    }
 }

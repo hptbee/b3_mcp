@@ -628,6 +628,7 @@ Added requirements:
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile / Config / Web File Support A
+- Phase 16: Config / Data / Web File Support B / Hardening
 
 ### Phase 10.1 Local Hash Embeddings
 
@@ -667,6 +668,25 @@ connections.
 All Phase 15 outputs reuse existing symbol and metadata shapes so storage stays
 schema-compatible and architecture/query integration can consume route,
 messaging, package, and infrastructure hints where they already fit.
+
+### Phase 16 Config / Data / Web Hardening
+
+Phase 16 adds a shared redaction classifier for config keys and values. It
+classifies secret-like keys such as passwords, tokens, API keys, client secrets,
+connection strings, credentials, bearer/JWT/cert/private-key names, and similar
+variants. Parsers record key paths and value classes while omitting raw
+secret-like values. Safe example/default env files may expose non-secret literal
+hints; real env files are key-only/redacted and B3 never reads the OS
+environment.
+
+The hardening pass keeps all resolution static. Env placeholders such as
+`${ORDER_TOPIC}` become unresolved config-reference hints, appsettings and
+launchSettings emit safe config evidence, HTML inline API literals are local
+route hints, CSS/SCSS imports/media/assets become search/context evidence, SQL
+files emit table/view/procedure/function and table-reference metadata, and
+ksqlDB emits topic/format/JOIN dependency hints. No SQL is executed, no browser
+or WebGL runtime is started, and no Kafka/ksqlDB/broker/database/cloud endpoint
+is contacted.
 
 ### Phase 10.2 SQLite Vector Search
 

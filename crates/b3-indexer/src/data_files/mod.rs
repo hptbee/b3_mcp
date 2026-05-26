@@ -1,10 +1,13 @@
 use super::*;
 
 mod ksqldb;
+mod sql;
 
 pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
     if is_ksqldb_file(&input.path, &input.source) {
         ksqldb::parse(input)
+    } else if language_from_path(&input.path).as_deref() == Some("sql") {
+        sql::parse(input)
     } else {
         NoopTreeSitterParser.parse(input)
     }

@@ -272,6 +272,16 @@ databases, language servers, external APIs, telemetry, or internet access.
 Secret-like config values should be redacted or skipped; names and keys are
 acceptable evidence.
 
+## Phase 16 Hardening Boundaries
+
+Config/data/web hardening may improve redaction, env-example parsing,
+config-reference hints, HTML/template links, CSS/SCSS asset/media metadata,
+XAML resource/binding quality, ksqlDB dependencies, and SQL table-reference
+metadata. It must remain deterministic static analysis: no OS environment reads,
+SQL execution, database/broker/Kafka/ksqlDB connections, browser/WebGL runtime,
+package manager, compiler, formatter, Docker/Kubernetes/Terraform execution,
+external API, cloud service, telemetry, or internet access.
+
 ### Optional Local Benchmark Projects
 
 Enabled `local_repo` projects in `benchmarks/b3.benchmark.toml` can participate

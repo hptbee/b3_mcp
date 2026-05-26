@@ -1,0 +1,2 @@
+CREATE STREAM enriched WITH (KAFKA_TOPIC='orders.enriched', KEY_FORMAT='JSON', VALUE_FORMAT='JSON') AS
+SELECT * FROM orders JOIN customers ON orders.customer_id = customers.id EMIT CHANGES;

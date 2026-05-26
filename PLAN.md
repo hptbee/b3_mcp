@@ -65,12 +65,12 @@ Completed:
 - Phase 13 Rename / Refactor MVP
 - Phase 14 Additional Backend Language Support
 - Phase 15 Systems / Mobile / Config / Web File Support A
-
-Current/Next:
 - Phase 16 Config / Data / Web File Support B / Hardening
 
-Upcoming:
+Current/Next:
 - Phase 17 Language and Technology Quality Audit
+
+Upcoming:
 - Phase 18 Refactor Checkpoint D
 - Phase 19 Performance Optimization Pass B
 - Phase 20 Web UI Developer Console Refresh
@@ -213,15 +213,31 @@ Rules:
 
 ## Phase 16 Config / Data / Web File Support B / Hardening
 
-Status: Planned.
+Status: Completed.
 
-Targets:
+Scope completed:
 
-- SQL
-- deeper YAML/JSON/TOML/XML hardening beyond Phase 15 Basic support
-- deeper HTML/CSS/SCSS asset/template linkage beyond Phase 15 Basic support
-- remaining SQL/static data-file support not covered by ksqlDB Basic
-- additional XAML hardening if needed after fixture/real-project review
+- added shared secret redaction/value classification for config files, with expanded secret-like key coverage
+- added safe env-like file support for `.env.example`, `.env.sample`, `.env.defaults`, `.env.template`, `example.env`, and `sample.env`; real `.env.*` files are parsed key-only/redacted
+- added static config reference hints for env placeholders such as `${ORDER_TOPIC}` without reading OS environment
+- hardened YAML metadata with value classes, env reference hints, Kubernetes Secret evidence, and ConfigMap reference hints while keeping values secret-safe
+- hardened JSON metadata with value classes, safe hints, appsettings messaging config evidence, launchSettings URL hints, and dependency/package extraction
+- hardened TOML metadata with value classes, dependency/project section extraction, and secret redaction
+- hardened XML metadata with safe attribute classification, app/web config `<add>` entries, Spring bean names/refs where simple, Android manifest package hints, and Maven dependencies
+- hardened HTML/template extraction for `.html`, `.htm`, `.cshtml`, `.erb`, `.ejs`, and `.hbs` through existing HTML language mapping, including form actions, local href/API literals, data attrs, and secret-like attr redaction
+- hardened CSS/SCSS extraction with `@use`, `@forward`, media queries, selectors, custom properties, imports, url assets, variables, mixins, and keyframes
+- continued XAML hardening from Phase 15 for merged dictionaries, resources, bindings, commands, names, namespaces, styles/templates, code-behind, and ViewModel hints
+- added Basic static SQL parsing for `.sql` files: CREATE TABLE/VIEW/PROCEDURE/FUNCTION, SELECT/FROM/JOIN, INSERT/UPDATE/DELETE table references, and migration path hints
+- hardened ksqlDB parsing with stricter SQL-vs-ksqlDB detection, KEY_FORMAT/VALUE_FORMAT, JOIN dependencies, topic direction metadata, and messaging hints
+- hardened Three.js/WebGL hints with lights, ShaderMaterial, WebGLRenderer, shader asset refs, and canvas ids
+- added compact local fixtures under `benchmarks/fixtures/config_data_web_hardening`
+- updated `/api/languages` and `/api/capabilities` with Phase 16 Basic hardened/static support for config/data/web, SQL, env, ksqlDB, and Three.js/WebGL hints
+
+Rules:
+
+- static/local/offline analysis only
+- no package managers, compilers, formatters, Docker/Kubernetes/Terraform execution, Kafka/ksqlDB/RabbitMQ/broker/database connections, browsers, WebGL, runtime code execution, OS environment reads, external APIs, cloud services, telemetry, internet, or mandatory language server
+- Phase 17 quality audit, architecture graph UI, full Git Intelligence, broad refactor work, and advanced messaging/runtime intelligence remain deferred
 
 ---
 
@@ -1072,14 +1088,14 @@ Completed:
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile / Config / Web File Support A
+- Phase 16 - Config / Data / Web File Support B / Hardening
 
 Current/Next:
 
-- Phase 16 - Config / Data / Web File Support B / Hardening
+- Phase 17 - Language and Technology Quality Audit
 
 Upcoming:
 
-- Phase 17 - Language and Technology Quality Audit
 - Phase 18 - Refactor Checkpoint D
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh

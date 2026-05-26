@@ -1,0 +1,7 @@
+@use 'tokens';
+@forward 'mixins';
+@media (min-width: 720px) {
+  .card {
+    background: url("hero.webp");
+  }
+}

@@ -6,16 +6,14 @@ pub(crate) fn is_ksqldb_file(path: &Path, source: &str) -> bool {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
+    let upper = source.to_ascii_uppercase();
     name.ends_with(".ksql")
         || name.ends_with(".ksql.sql")
-        || source.to_ascii_uppercase().contains("CREATE STREAM")
-        || source.to_ascii_uppercase().contains("CREATE TABLE")
-        || source
-            .to_ascii_uppercase()
-            .contains("CREATE SOURCE CONNECTOR")
-        || source
-            .to_ascii_uppercase()
-            .contains("CREATE SINK CONNECTOR")
+        || upper.contains("CREATE STREAM")
+        || upper.contains("CREATE SOURCE CONNECTOR")
+        || upper.contains("CREATE SINK CONNECTOR")
+        || upper.contains("KAFKA_TOPIC")
+        || upper.contains("EMIT CHANGES")
 }
 
 pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
@@ -34,6 +32,8 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                 ),
             ));
             if let Some(topic) = topic_name(statement) {
+                let key_format = property_value(statement, "KEY_FORMAT");
+                let value_format = property_value(statement, "VALUE_FORMAT");
                 symbols.push(messaging_symbol(
                     &input,
                     line,
@@ -64,6 +64,17 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                         source_kind: "KsqlDbTopicLiteral".to_string(),
                     },
                 ));
+                if let Some(format) = key_format.or(value_format) {
+                    symbols.push(config_symbol(
+                        &input,
+                        &format,
+                        line,
+                        format!(
+                            "ksqldb.format={format};ksqldb.owner={name};ksqldb.file={}",
+                            normalized_file(&input)
+                        ),
+                    ));
+                }
             }
         }
         if upper.contains("INSERT INTO") {
@@ -88,6 +99,19 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                     format!(
                         "ksqldb.depends_on={source};ksqldb.emit_changes={};ksqldb.file={}",
                         upper.contains("EMIT CHANGES"),
+                        normalized_file(&input)
+                    ),
+                ));
+            }
+        }
+        if upper.contains(" JOIN ") {
+            for source in words_after_all(&upper, statement, " JOIN ") {
+                symbols.push(config_symbol(
+                    &input,
+                    &source,
+                    line,
+                    format!(
+                        "ksqldb.depends_on={source};ksqldb.relationship=join;ksqldb.file={}",
                         normalized_file(&input)
                     ),
                 ));
@@ -205,6 +229,30 @@ fn topic_name(statement: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn property_value(statement: &str, key: &str) -> Option<String> {
+    let index = statement.to_ascii_uppercase().find(key)?;
+    literal_in(&statement[index + key.len()..])
+}
+
+fn words_after_all(upper: &str, original: &str, marker: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut offset = 0usize;
+    while let Some(index) = upper[offset..].find(marker) {
+        let start = offset + index + marker.len();
+        if let Some(name) = word_after(
+            &upper[start - marker.len()..],
+            &original[start - marker.len()..],
+            marker,
+        ) {
+            names.push(name);
+        }
+        offset = start;
+    }
+    names.sort();
+    names.dedup();
+    names
 }
 
 fn literal_in(value: &str) -> Option<String> {

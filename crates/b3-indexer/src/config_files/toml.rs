@@ -36,13 +36,15 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                 "toml",
                 key_path.clone(),
                 line_number,
-                format!(
-                    "config.language=toml;config.key_path={key_path};config.value_present={};config.value_redacted={redacted};config.file={}",
-                    !clean_scalar(raw_value).is_empty() && !redacted,
-                    normalized_file(&input)
+                config_metadata(
+                    "toml",
+                    &key_path,
+                    &clean_scalar(raw_value),
+                    redacted,
+                    &normalized_file(&input),
                 ),
             ));
-            if table.contains("dependencies") {
+            if table.contains("dependencies") || table == "project" {
                 symbols.push(package_symbol(
                     &input,
                     "toml",

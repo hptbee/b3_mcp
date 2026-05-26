@@ -320,6 +320,8 @@ Phase 14 backend language support is static/local/offline only. It exposes symbo
 
 Phase 15 systems/mobile/config/web support is static/local/offline only. It exposes conservative symbols, imports/includes, safe config key paths, package/dependency names, template/style/asset references, route/client hints, XAML metadata hardening, Three.js/WebGL hints, and ksqlDB messaging/data-flow hints through existing symbol and metadata shapes. It does not run compilers, package managers, formatters, runtimes, browsers, WebGL, Docker/Kubernetes/Terraform, Kafka, ksqlDB, brokers, databases, language servers, external APIs, cloud services, telemetry, or internet access.
 
+Phase 16 config/data/web hardening is static/local/offline only. It adds shared secret redaction, safe env-example parsing, key-only/redacted handling for real env files, static env/config reference hints, hardened YAML/JSON/TOML/XML metadata, HTML/template route and asset hints, CSS/SCSS media/import/asset hints, SQL table-reference metadata, stricter ksqlDB dependency metadata, and stronger Three.js/WebGL asset hints. It does not read OS environment, run SQL, connect to databases, Kafka, ksqlDB, RabbitMQ, brokers, browsers, WebGL, cloud services, or external APIs.
+
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route
 metadata from `Route` symbols. Optional filters include `project_id`,

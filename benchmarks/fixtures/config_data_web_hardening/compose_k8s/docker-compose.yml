@@ -1,0 +1,10 @@
+services:
+  api:
+    image: local/api:dev
+    depends_on:
+      - worker
+    environment:
+      ORDER_TOPIC: ${ORDER_TOPIC}
+      API_TOKEN: redacted
+  worker:
+    image: local/worker:dev

@@ -1794,11 +1794,9 @@ impl TreeSitterParser for DefaultLanguagePack {
                 | "swift" | "swift_project" | "objective_c" | "objective_cpp" | "dart"
                 | "dart_project",
             ) => systems_languages::parse(input),
-            Some("yaml" | "json" | "toml" | "xml") => config_files::parse(input),
+            Some("yaml" | "json" | "toml" | "xml" | "env") => config_files::parse(input),
             Some("html" | "css" | "scss") => web_files::parse(input),
-            Some("ksql" | "sql") if data_files::is_ksqldb_file(&input.path, &input.source) => {
-                data_files::parse(input)
-            }
+            Some("ksql" | "sql") => data_files::parse(input),
             _ => NoopTreeSitterParser.parse(input),
         }
     }
@@ -2178,6 +2176,9 @@ fn language_from_path(path: &Path) -> Option<String> {
         .and_then(|value| value.to_str())
         .map(str::to_ascii_lowercase);
     if let Some(file_name) = file_name.as_deref() {
+        if file_name.starts_with(".env.") {
+            return Some("env".to_string());
+        }
         match file_name {
             "go.mod" => return Some("gomod".to_string()),
             "go.sum" => return Some("gosum".to_string()),
@@ -2197,6 +2198,8 @@ fn language_from_path(path: &Path) -> Option<String> {
             "compile_commands.json" => return Some("compile_commands".to_string()),
             "package.swift" => return Some("swift_project".to_string()),
             "pubspec.yaml" | "analysis_options.yaml" => return Some("dart_project".to_string()),
+            ".env" | ".env.example" | ".env.sample" | ".env.defaults" | ".env.template"
+            | "example.env" | "sample.env" => return Some("env".to_string()),
             _ => {}
         }
     }

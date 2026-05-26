@@ -14,8 +14,16 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
     }
     for (index, line) in input.source.lines().enumerate() {
         let line_number = index + 1;
-        for attr in ["id", "class", "data-testid", "data-controller"] {
+        for attr in [
+            "id",
+            "class",
+            "data-testid",
+            "data-controller",
+            "data-action",
+            "data-component",
+        ] {
             for value in attr_values(line, attr) {
+                let redacted = is_sensitive_attr(attr);
                 symbols.push(symbol(
                     &input,
                     "html",
@@ -23,7 +31,13 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                     NodeKind::ConfigKey,
                     line_number,
                     format!(
-                        "html.attribute={attr};html.value={value};html.file={}",
+                        "html.attribute={attr};html.value_class={};html.value={};html.file={}",
+                        if redacted { "secret_like" } else { "literal" },
+                        if redacted {
+                            "redacted".to_string()
+                        } else {
+                            value
+                        },
                         normalized_file(&input)
                     ),
                 ));
@@ -55,6 +69,20 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                 ));
             }
         }
+        for endpoint in inline_api_literals(line) {
+            symbols.push(symbol(
+                &input,
+                "html",
+                endpoint.clone(),
+                NodeKind::Route,
+                line_number,
+                format!(
+                    "route.framework=html;route.kind=InlineApiLiteral;route.method=GET;route.path={};route.file={};route.source=HtmlInlineScriptLiteral;route.line_start={line_number};route.line_end={line_number};route.confidence=6500",
+                    normalize_route_path("", &endpoint),
+                    normalized_file(&input)
+                ),
+            ));
+        }
     }
     Ok(ParsedFile {
         file_id: input.file_id,
@@ -62,6 +90,36 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
         symbols,
         relationships: Vec::new(),
     })
+}
+
+fn inline_api_literals(line: &str) -> Vec<String> {
+    if !(line.contains("fetch(") || line.contains("XMLHttpRequest") || line.contains("axios.")) {
+        return Vec::new();
+    }
+    let mut values = Vec::new();
+    for quote in ['"', '\''] {
+        let mut rest = line;
+        while let Some(start) = rest.find(quote) {
+            rest = &rest[start + 1..];
+            let Some(end) = rest.find(quote) else {
+                break;
+            };
+            let value = &rest[..end];
+            if value.starts_with('/') && !value.starts_with("//") {
+                values.push(value.to_string());
+            }
+            rest = &rest[end + 1..];
+        }
+    }
+    values
+}
+
+fn is_sensitive_attr(attr: &str) -> bool {
+    let lower = attr.to_ascii_lowercase();
+    lower.contains("token")
+        || lower.contains("secret")
+        || lower.contains("password")
+        || lower.contains("auth")
 }
 
 fn title(source: &str) -> Option<String> {

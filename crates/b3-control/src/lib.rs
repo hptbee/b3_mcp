@@ -1773,6 +1773,50 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "telemetry_enabled": false,
                 "mandatory_lsp_required": false
             },
+            "config_data_web_hardening_phase16": {
+                "available": true,
+                "phase": "16",
+                "support": "basic_static_hardened",
+                "technologies": {
+                    "yaml": "basic_hardened",
+                    "json": "basic_hardened",
+                    "toml": "basic_hardened",
+                    "xml": "basic_hardened",
+                    "env": "basic_static_safe",
+                    "html": "basic_hardened",
+                    "css": "basic_hardened",
+                    "scss": "basic_hardened",
+                    "xaml": "basic_hardened",
+                    "ksqldb": "basic_static",
+                    "sql": "basic_static",
+                    "threejs_webgl": "basic_static_hints"
+                },
+                "features": {
+                    "secret_redaction": true,
+                    "safe_env_example_parsing": true,
+                    "real_env_value_redaction": true,
+                    "config_reference_hints": true,
+                    "html_template_route_hints": true,
+                    "css_asset_and_media_hints": true,
+                    "sql_table_reference_hints": true,
+                    "ksqldb_topic_dependency_hints": true,
+                    "threejs_shader_asset_hints": true
+                },
+                "local_only": true,
+                "package_manager_execution_required": false,
+                "compiler_execution_required": false,
+                "formatter_execution_required": false,
+                "runtime_execution_required": false,
+                "browser_execution_required": false,
+                "webgl_execution_required": false,
+                "broker_connection_required": false,
+                "database_connection_required": false,
+                "ksqldb_connection_required": false,
+                "cloud_api_required": false,
+                "external_api_required": false,
+                "telemetry_enabled": false,
+                "mandatory_lsp_required": false
+            },
             "lsp": {
                 "available": true,
                 "enabled": lsp.enabled,
@@ -2353,6 +2397,24 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "backend": "static-ksql",
                 "capabilities": ["DetectFile", "Parse", "ExtractMessagingHints", "ExtractDataFlowHints"],
                 "notes": "Basic local static ksqlDB extraction indexes streams, tables, connectors, Kafka topic names, and SELECT/INSERT dependencies without Kafka, ksqlDB, Docker, Confluent Cloud, or query execution."
+            },
+            {
+                "language_id": "sql",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-sql",
+                "capabilities": ["DetectFile", "Parse", "ExtractDataAccessHints"],
+                "notes": "Basic local static SQL extraction indexes table/view/procedure/function definitions plus SELECT/FROM/JOIN/INSERT/UPDATE/DELETE table references without database connections, SQL execution, migrations, or schema validation."
+            },
+            {
+                "language_id": "env",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic_safe",
+                "backend": "static-env",
+                "capabilities": ["DetectFile", "Parse", "ExtractConfigKeys", "RedactSecrets"],
+                "notes": "Env-like files are parsed locally for key names and safe example/default values only; real env files are key-only/redacted and B3 never reads the OS environment."
             }
         ]
     }))

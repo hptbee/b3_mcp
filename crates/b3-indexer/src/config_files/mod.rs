@@ -1,6 +1,8 @@
 use super::*;
 
+mod env;
 mod json;
+mod redaction;
 mod toml;
 mod xml;
 mod yaml;
@@ -11,6 +13,7 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
         Some("json") => json::parse(input),
         Some("toml") => toml::parse(input),
         Some("xml") => xml::parse(input),
+        Some("env") => env::parse(input),
         _ => NoopTreeSitterParser.parse(input),
     }
 }
@@ -99,18 +102,67 @@ pub(crate) fn package_symbol(
 }
 
 pub(crate) fn is_sensitive_key(key: &str) -> bool {
-    let key = key.to_ascii_lowercase();
-    [
-        "secret",
-        "token",
-        "password",
-        "apikey",
-        "api_key",
-        "connectionstring",
-        "connection_string",
-    ]
-    .iter()
-    .any(|needle| key.contains(needle))
+    redaction::is_sensitive_key(key)
+}
+
+pub(crate) fn value_class(key: &str, value: &str, force_redacted: bool) -> &'static str {
+    redaction::value_class(key, value, force_redacted)
+}
+
+pub(crate) fn safe_value_hint(key: &str, value: &str, force_redacted: bool) -> Option<String> {
+    redaction::safe_value_hint(key, value, force_redacted)
+}
+
+pub(crate) fn config_metadata(
+    language: &str,
+    key_name: &str,
+    value: &str,
+    force_redacted: bool,
+    file: &str,
+) -> String {
+    let class = value_class(key_name, value, force_redacted);
+    let mut parts = vec![
+        format!("config.language={language}"),
+        format!("config.key_path={key_name}"),
+        format!(
+            "config.value_present={}",
+            !value.trim().is_empty() && class != "secret_like"
+        ),
+        format!("config.value_class={class}"),
+        format!("config.value_redacted={}", class == "secret_like"),
+        format!("config.file={file}"),
+    ];
+    if let Some(hint) = safe_value_hint(key_name, value, force_redacted) {
+        parts.push(format!(
+            "config.safe_value_hint={}",
+            hint.replace(';', "%3B")
+        ));
+    }
+    parts.join(";")
+}
+
+pub(crate) fn env_reference_symbols(
+    input: &ParseInput,
+    language: &str,
+    owner: &str,
+    value: &str,
+    line: usize,
+) -> Vec<ExtractedSymbol> {
+    redaction::env_refs(value)
+        .into_iter()
+        .map(|name| {
+            config_symbol(
+                input,
+                language,
+                format!("{owner}->{name}"),
+                line,
+                format!(
+                    "config.language={language};config.reference={name};config.reference_owner={owner};config.reference_kind=env;config.resolution=unresolved;config.confidence=5000;config.file={}",
+                    normalized_file(input)
+                ),
+            )
+        })
+        .collect()
 }
 
 pub(crate) fn clean_scalar(value: &str) -> String {

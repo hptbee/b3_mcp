@@ -319,4 +319,7 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Phase 15 systems/mobile/config/web metadata is available through existing
   backend APIs and query surfaces, but no dedicated architecture graph UI or
   developer-console redesign is added in Phase 15.
+- Phase 16 hardened config/data/web metadata is available through existing
+  backend APIs and query surfaces. A dedicated UI refresh remains deferred to
+  Phase 20.
 - SSE currently reflects the minimal control-server event stream.

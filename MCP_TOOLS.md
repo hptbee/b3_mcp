@@ -23,6 +23,14 @@ messaging, infrastructure, and graph responses. It does not add MCP tools,
 change profile counts, run compilers/package managers/browsers/WebGL, connect
 to Kafka/ksqlDB/brokers/databases, or call external APIs.
 
+Phase 16 config/data/web hardening continues to use existing MCP query surfaces.
+It may improve search/context/route/messaging/data-access evidence for
+redacted config keys, env examples, HTML/CSS assets, SQL table references,
+ksqlDB dependencies, and Three.js/WebGL assets. It does not add MCP tools,
+change profile counts, read OS environment, execute SQL, start browsers/WebGL,
+or connect to databases, brokers, Kafka, ksqlDB, cloud services, or external
+APIs.
+
 Phase 10.0 adds local embedding/vector architecture only. It does not add a
 semantic search MCP tool, does not change MCP profiles or tool counts, and does
 not move vector storage, embedding generation, or ranking into the MCP runtime.

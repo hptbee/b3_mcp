@@ -178,11 +178,12 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
         backend_static_metadata("css", "CSS", "static-css"),
         backend_static_metadata("scss", "SCSS", "static-scss"),
         backend_static_metadata("ksql", "ksqlDB", "static-ksql"),
+        backend_static_metadata("sql", "SQL", "static-sql"),
+        backend_static_metadata("env", "Env", "static-env"),
         planned_detect_only_backend("typescript", "TypeScript", "planned-lsp-typescript"),
         planned_detect_only_backend("tsx", "TSX", "planned-lsp-typescript-react"),
         planned_detect_only_backend("javascript", "JavaScript", "planned-lsp-javascript"),
         planned_detect_only_backend("jsx", "JSX", "planned-lsp-javascript-react"),
-        planned_detect_only_backend("sql", "SQL", "planned-static-sql"),
         planned_detect_only_backend("dockerfile", "Dockerfile", "planned-static-dockerfile"),
         planned_detect_only_backend("docker-compose", "Docker Compose", "planned-static-compose"),
         planned_detect_only_backend("xaml", "XAML", "planned-static-xaml"),
@@ -356,6 +357,15 @@ pub fn select_language_backend(
 }
 
 fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
+    if file_name.starts_with(".env.") {
+        return Some(static_basic_detection(
+            "env",
+            "Env",
+            "filename",
+            "static-env",
+            "Env-like files are parsed locally for key names; non-example env values are redacted.",
+        ));
+    }
     match file_name {
         "dockerfile" => Some(detect_only(
             "dockerfile",
@@ -446,6 +456,14 @@ fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
             "static-cpp",
             "Detected C/C++ build metadata; build tools, compilers, and package managers are not executed.",
         )),
+        ".env" | ".env.example" | ".env.sample" | ".env.defaults" | ".env.template"
+        | "example.env" | "sample.env" => Some(static_basic_detection(
+            "env",
+            "Env",
+            "filename",
+            "static-env",
+            "Env-like files are parsed locally for key names and safe example/default values only; real secret env values are redacted.",
+        )),
         _ => None,
     }
 }
@@ -535,7 +553,15 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 "YAML files are parsed statically for key paths and safe config metadata; sensitive values are not exposed.",
             ));
         }
-        "sql" => ("sql", "SQL", "planned-static-sql"),
+        "sql" => {
+            return Some(static_basic_detection(
+                "sql",
+                "SQL",
+                "extension",
+                "static-sql",
+                "SQL files are parsed statically for basic table/view/procedure definitions and table references without database connections.",
+            ));
+        }
         "ksql" => {
             return Some(static_basic_detection(
                 "ksql",
@@ -726,6 +752,7 @@ fn known_language_samples() -> Vec<LanguageDetectionResult> {
         "package.json",
         "config.yaml",
         "query.sql",
+        ".env.example",
         "Dockerfile",
         "docker-compose.yml",
         "stream.ksql",

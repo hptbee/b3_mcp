@@ -429,6 +429,146 @@ fn phase15_threejs_webgl_hints_are_static_js_metadata() {
 }
 
 #[test]
+fn phase16_hardens_config_data_web_secret_resolution_and_sql_metadata() {
+    let env = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("env-example"),
+            path: PathBuf::from(".env.example"),
+            source: "ORDER_TOPIC=orders.created\nPASSWORD=super-secret\nAPI_URL=/api/orders\n"
+                .to_string(),
+        })
+        .expect("parse env");
+    assert_eq!(env.language.as_deref(), Some("env"));
+    assert!(env.symbols.iter().any(|s| {
+        s.name == "ORDER_TOPIC"
+            && s.visibility
+                .as_deref()
+                .unwrap_or_default()
+                .contains("config.safe_value_hint=orders.created")
+    }));
+    assert!(!format!("{:?}", env.symbols).contains("super-secret"));
+    assert!(env.symbols.iter().any(|s| {
+        s.name == "PASSWORD"
+            && s.visibility
+                .as_deref()
+                .unwrap_or_default()
+                .contains("config.value_class=secret_like")
+    }));
+
+    let prod_env = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("env-prod"),
+            path: PathBuf::from(".env.production"),
+            source: "ORDER_TOPIC=orders.production\n".to_string(),
+        })
+        .expect("parse production env");
+    assert!(!format!("{:?}", prod_env.symbols).contains("orders.production"));
+    assert!(prod_env.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("config.env_file_safe=false")
+    }));
+
+    let yaml = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("yaml-secret"),
+            path: PathBuf::from("secret.yaml"),
+            source: "apiVersion: v1\nkind: Secret\ndata:\n  password: dont-store-me\nenv:\n  ORDER_TOPIC: ${ORDER_TOPIC}\n".to_string(),
+        })
+        .expect("parse yaml secret");
+    assert!(!format!("{:?}", yaml.symbols).contains("dont-store-me"));
+    assert!(yaml.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("config.reference=ORDER_TOPIC")
+    }));
+
+    let json = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("appsettings"),
+            path: PathBuf::from("appsettings.json"),
+            source: r#"{"ConnectionStrings":{"Default":"Server=db;User Id=sa;Password=nope"},"RabbitMq":{"RoutingKey":"orders.created"}}"#.to_string(),
+        })
+        .expect("parse appsettings");
+    assert!(!format!("{:?}", json.symbols).contains("Password=nope"));
+    assert!(json.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("config.reference_kind=messaging_config")
+    }));
+
+    let html = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("template"),
+            path: PathBuf::from("Orders.cshtml"),
+            source: r#"<form action="/orders" method="post"></form><script>fetch('/api/orders')</script><div data-component="OrderPanel"></div>"#.to_string(),
+        })
+        .expect("parse template");
+    assert_eq!(html.language.as_deref(), Some("html"));
+    assert!(html
+        .symbols
+        .iter()
+        .any(|s| s.kind == NodeKind::Route && s.name == "/api/orders"));
+
+    let css = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("styles"),
+            path: PathBuf::from("styles.module.scss"),
+            source: "@use 'tokens';\n@forward 'mixins';\n@media (min-width: 720px) { .card { background: url(\"hero.webp\"); } }\n".to_string(),
+        })
+        .expect("parse scss");
+    assert!(css.symbols.iter().any(|s| s.name == "tokens"));
+    assert!(css.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("css.media_query=")
+    }));
+
+    let sql = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("sql"),
+            path: PathBuf::from("migrations/001_orders.sql"),
+            source: "CREATE TABLE orders(id int);\nCREATE VIEW order_summary AS SELECT o.id FROM orders o JOIN customers c ON c.id=o.customer_id;\nINSERT INTO audit_log SELECT id FROM orders;\n".to_string(),
+        })
+        .expect("parse sql");
+    assert_eq!(sql.language.as_deref(), Some("sql"));
+    assert!(sql.symbols.iter().any(|s| s.name == "orders"
+        && s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("data_access.operation=create")));
+    assert!(sql.symbols.iter().any(|s| s.name == "customers"
+        && s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("data_access.operation=join")));
+
+    let ksql = DefaultLanguagePack
+        .parse(ParseInput {
+            file_id: FileId::new("ksql-hardening"),
+            path: PathBuf::from("joined.ksql"),
+            source: "CREATE STREAM enriched WITH (KAFKA_TOPIC='orders.enriched', KEY_FORMAT='JSON', VALUE_FORMAT='JSON') AS SELECT * FROM orders JOIN customers ON orders.customer_id = customers.id EMIT CHANGES;".to_string(),
+        })
+        .expect("parse ksql");
+    assert!(ksql.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("ksqldb.relationship=join")
+    }));
+    assert!(ksql.symbols.iter().any(|s| {
+        s.visibility
+            .as_deref()
+            .unwrap_or_default()
+            .contains("ksqldb.format=JSON")
+    }));
+}
+
+#[test]
 fn web_language_detection_maps_js_ts_jsx_tsx_and_csharp() {
     assert_eq!(
         language_from_path(Path::new("app.js")).as_deref(),

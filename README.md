@@ -41,12 +41,12 @@ Completed:
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile / Config / Web File Support A
-
-Current / Next:
 - Phase 16 - Config / Data / Web File Support B / Hardening
 
-Upcoming (major):
+Current / Next:
 - Phase 17 - Language and Technology Quality Audit
+
+Upcoming (major):
 - Phase 18 - Refactor Checkpoint D
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
@@ -77,6 +77,7 @@ Language and framework intelligence (basic/static/local):
 - Swift, Objective-C, and Dart / Flutter mobile basics
 - YAML, JSON, TOML, XML, HTML, CSS, and SCSS static file basics
 - Three.js / WebGL static hints and ksqlDB static hints
+- SQL static file basics and safe env-example config extraction
 
 Application intelligence (static hints):
 - ORM / data-access (EF Core, Dapper, Prisma, TypeORM, Sequelize)
@@ -84,7 +85,7 @@ Application intelligence (static hints):
 - Messaging/event-driven (AMQP/RabbitMQ, Kafka, Google Pub/Sub)
 - Cloud / infrastructure hints (Docker, Compose, Kubernetes, Terraform)
 - C# WPF / XAML (basic static/local)
-- Config/data/web file hints are static/local only; secret-like config values are redacted or skipped, browsers/WebGL are never executed, and Kafka/ksqlDB are never contacted.
+- Config/data/web file hints are static/local only; secret-like config values are redacted or skipped, real env files are key-only/redacted, browsers/WebGL are never executed, and Kafka/ksqlDB/databases/brokers are never contacted.
 
 Vector foundation:
 - `local_hash` embeddings and SQLite vector persistence/search (local/offline raw vector search).
@@ -176,6 +177,7 @@ Symbolic editing foundation:
 | HTML / CSS / SCSS | Usable now, basic/static |
 | Three.js / WebGL hints | Usable now, static hints only |
 | ksqlDB hints | Usable now, basic/static |
+| SQL and env example hints | Usable now, basic/static |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.
 

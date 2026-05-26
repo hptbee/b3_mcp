@@ -1060,6 +1060,17 @@ databases, language servers, external APIs, cloud services, telemetry, or
 internet access. Secret-like config values must be redacted or skipped; names
 and keys are acceptable.
 
+Phase 16 adds Config / Data / Web File Support B / Hardening. It may deepen the
+Phase 15 config/data/web extraction with shared secret redaction rules, safe
+env-example parsing, key-only/redacted handling for real env files, static env
+reference hints, hardened YAML/JSON/TOML/XML metadata, HTML/template local route
+and asset hints, CSS/SCSS asset/media/module hints, XAML resource/binding
+quality improvements, ksqlDB topic/dependency hints, and basic SQL table/view/
+procedure/function/table-reference metadata. It must not read OS environment,
+run SQL, connect to databases, Kafka, ksqlDB, RabbitMQ, brokers, browsers,
+WebGL, package managers, compilers, formatters, Docker/Kubernetes/Terraform,
+external APIs, cloud services, telemetry, or internet access.
+
 ### Roadmap
 
 Completed:
@@ -1072,14 +1083,14 @@ Completed:
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile / Config / Web File Support A
+- Phase 16: Config / Data / Web File Support B / Hardening
 
 Current / Next:
 
-- Phase 16: Config / Data / Web File Support B / Hardening
+- Phase 17: Language and Technology Quality Audit
 
 Upcoming:
 
-- Phase 17: Language and Technology Quality Audit
 - Phase 18: Refactor Checkpoint D
 - Phase 19: Performance Optimization Pass B
 - Phase 20: Web UI Developer Console Refresh

@@ -94,7 +94,20 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                 ),
             ));
         }
-        for marker in ["@import ", "url("] {
+        if let Some(condition) = media_condition(trimmed) {
+            symbols.push(symbol(
+                &input,
+                &language,
+                condition.clone(),
+                NodeKind::ConfigKey,
+                line_number,
+                format!(
+                    "css.media_query={condition};css.file={}",
+                    normalized_file(&input)
+                ),
+            ));
+        }
+        for marker in ["@import ", "@use ", "@forward ", "url("] {
             if let Some(path) = literal_after(trimmed, marker) {
                 symbols.push(symbol(
                     &input,
@@ -108,6 +121,12 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
                     ),
                 ));
             }
+        }
+
+        fn media_condition(line: &str) -> Option<String> {
+            line.strip_prefix("@media ")
+                .map(|value| value.trim().trim_end_matches('{').trim().to_string())
+                .filter(|value| !value.is_empty())
         }
     }
     Ok(ParsedFile {

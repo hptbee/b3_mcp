@@ -223,6 +223,21 @@ browser/runtime analysis, SQL validation, schema compatibility, architecture
 graph UI, Phase 17 quality audit, full Git Intelligence, or broad refactor
 behavior.
 
+Phase 16 Config / Data / Web File Support B / Hardening is completed as basic
+local static hardening only. It may improve secret redaction, safe env-example
+parsing, key-only/redacted real env file handling, static config reference
+hints, YAML/JSON/TOML/XML metadata, HTML/template route/asset hints, CSS/SCSS
+media/import/asset hints, XAML resource/binding quality, ksqlDB topic and
+dependency hints, SQL table-reference metadata, and Three.js/WebGL asset hints.
+
+It must not read OS environment variables, run SQL, connect to databases,
+Kafka, ksqlDB, RabbitMQ, brokers, browsers, WebGL runtimes,
+Docker/Kubernetes/Terraform, package managers, compilers, formatters, language
+servers, external APIs, cloud services, telemetry, or internet access. It does
+not implement Phase 17 quality audit, architecture graph UI, full Git
+Intelligence, broad refactor behavior, runtime validation, schema compatibility
+validation, or advanced messaging intelligence.
+
 ## Node.js REST Boundaries
 
 Phase 9.2.1 Node.js REST intelligence is completed as basic local static analysis only. It may detect package.json dependencies and high-confidence Express, NestJS, and Fastify route declarations, but it must not execute `node`, `npm`, `tsc`, `eslint`, Nest CLI, app code, package-manager scripts, package registries, or cloud parsers.
