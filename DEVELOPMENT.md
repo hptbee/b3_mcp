@@ -163,6 +163,14 @@ It does not merge databases, execute HTTP requests, resolve DNS/runtime env
 vars, fetch OpenAPI documents, add MCP tools, or infer messaging/package/infra
 relationships.
 
+Phase 11.3 adds local cross-repo messaging matching in
+`b3-query::architecture`. It reads existing federated messaging metadata,
+matches producer and consumer topics/queues/patterns/routing keys through
+deterministic local keys, and returns candidates through
+`GET /api/architecture/groups/{group_id}/message-matches`. It does not connect
+to brokers, publish or consume messages, call cloud Pub/Sub APIs, merge
+databases, add MCP tools, or infer package/contract/infra relationships.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

@@ -37,7 +37,7 @@ use b3_indexer::{
     WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
-use b3_query::architecture::{GroupFederation, RouteMatchOptions};
+use b3_query::architecture::{GroupFederation, MessageMatchOptions, RouteMatchOptions};
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
@@ -318,6 +318,10 @@ pub fn app(state: ControlState) -> Router {
         .route(
             "/api/architecture/groups/:group_id/route-matches",
             get(architecture_group_route_matches),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/message-matches",
+            get(architecture_group_message_matches),
         )
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
@@ -1587,6 +1591,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "architecture_groups": true,
             "architecture_group_summary": true,
             "architecture_group_route_matches": true,
+            "architecture_group_message_matches": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1609,7 +1614,8 @@ async fn architecture_groups(
         "local_only": true,
         "federation_ready": true,
         "matching_ready": true,
-        "route_matching_ready": true
+        "route_matching_ready": true,
+        "messaging_matching_ready": true
     })))
 }
 
@@ -1628,6 +1634,7 @@ async fn architecture_group_status(
         "federation_ready": true,
         "matching_ready": true,
         "route_matching_ready": true,
+        "messaging_matching_ready": true,
         "local_only": true
     })))
 }
@@ -1645,7 +1652,33 @@ async fn architecture_group_summary(
         "federation_ready": true,
         "matching_ready": true,
         "route_matching_ready": true,
+        "messaging_matching_ready": true,
         "local_only": true
+    })))
+}
+
+async fn architecture_group_message_matches(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+    Query(query): Query<MessageMatchesQuery>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let report = federation
+        .message_matches(&group_id, query.into_options())
+        .map_err(federation_error)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "group_id": report.group_id,
+        "group_name": report.group_name,
+        "matching_kind": report.matching_kind,
+        "match_count": report.match_count,
+        "matches": report.matches,
+        "warnings": report.warnings,
+        "local_only": report.local_only,
+        "federation_ready": report.federation_ready,
+        "messaging_matching_ready": report.messaging_matching_ready,
+        "branch": report.branch
     })))
 }
 
@@ -2984,6 +3017,33 @@ struct RouteMatchesQuery {
     branch: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct MessageMatchesQuery {
+    broker: Option<String>,
+    channel_kind: Option<String>,
+    name: Option<String>,
+    source_project_id: Option<String>,
+    target_project_id: Option<String>,
+    min_confidence: Option<u16>,
+    limit: Option<usize>,
+    branch: Option<String>,
+}
+
+impl MessageMatchesQuery {
+    fn into_options(self) -> MessageMatchOptions {
+        MessageMatchOptions {
+            broker: self.broker,
+            channel_kind: self.channel_kind,
+            name: self.name,
+            source_project_id: self.source_project_id,
+            target_project_id: self.target_project_id,
+            min_confidence: self.min_confidence,
+            limit: self.limit.unwrap_or(DEFAULT_LIMIT),
+            branch: self.branch,
+        }
+    }
+}
+
 impl RouteMatchesQuery {
     fn into_options(self) -> RouteMatchOptions {
         RouteMatchOptions {
@@ -4136,6 +4196,68 @@ mod tests {
             .expect("route match file");
     }
 
+    fn seed_message_match_database(
+        database_path: &std::path::Path,
+        project: &str,
+        records: &[(&str, &str, &str, Option<&str>, Option<&str>, Option<&str>)],
+    ) {
+        let storage = SqliteStorage::open(database_path).expect("open project database");
+        let project_id = ProjectId::new(project);
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        let symbols = records
+            .iter()
+            .enumerate()
+            .map(|(index, (technology, direction, kind, topic, queue, pattern))| {
+                let mut metadata = format!(
+                    "messaging.technology={technology};messaging.kind={kind};messaging.direction={direction};messaging.file=src/{project}.ts;messaging.source=TestMessaging;messaging.line_start={};messaging.line_end={};messaging.confidence=9000",
+                    index + 1,
+                    index + 1
+                );
+                if let Some(topic) = topic {
+                    metadata.push_str(&format!(";messaging.topic={topic}"));
+                }
+                if let Some(queue) = queue {
+                    metadata.push_str(&format!(";messaging.queue={queue}"));
+                }
+                if let Some(pattern) = pattern {
+                    metadata.push_str(&format!(";messaging.pattern={pattern}"));
+                }
+                let mut symbol = SymbolRecord::new(
+                    SymbolId::new(format!("{project}-message-{index}")),
+                    FileId::new(format!("{project}-message-file")),
+                    format!("{technology} {kind} {index}"),
+                    NodeKind::Endpoint,
+                );
+                symbol.start_line = index + 1;
+                symbol.end_line = index + 1;
+                symbol.visibility = Some(metadata);
+                symbol
+            })
+            .collect::<Vec<_>>();
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new(format!("{project}-message-file")),
+                        project_id: project_id.clone(),
+                        path: format!("src/{project}.ts"),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 1,
+                    content: "messaging metadata".to_string(),
+                    symbols,
+                    edges: Vec::new(),
+                },
+            )
+            .expect("message match file");
+    }
+
     fn route_app() -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         let project_id = ProjectId::new("default");
@@ -4684,7 +4806,7 @@ mod tests {
         );
         assert_eq!(body["architecture"]["group_federation_ready"], true);
         assert_eq!(body["architecture"]["route_matching_ready"], true);
-        assert_eq!(body["architecture"]["messaging_matching_ready"], false);
+        assert_eq!(body["architecture"]["messaging_matching_ready"], true);
         assert_eq!(
             body["architecture"]["package_contract_infra_matching_ready"],
             false
@@ -4704,6 +4826,10 @@ mod tests {
         assert_eq!(body["control_api"]["architecture_group_summary"], true);
         assert_eq!(
             body["control_api"]["architecture_group_route_matches"],
+            true
+        );
+        assert_eq!(
+            body["control_api"]["architecture_group_message_matches"],
             true
         );
         assert_eq!(body["vector_search"]["local_only"], true);
@@ -4728,7 +4854,7 @@ mod tests {
         assert_eq!(body["architecture_contracts_available"], true);
         assert_eq!(body["group_federation_ready"], true);
         assert_eq!(body["route_matching_ready"], true);
-        assert_eq!(body["messaging_matching_ready"], false);
+        assert_eq!(body["messaging_matching_ready"], true);
         assert_eq!(body["package_contract_infra_matching_ready"], false);
         assert_eq!(body["group_impact_ready"], false);
         assert_eq!(body["service_map_ready"], false);
@@ -4776,6 +4902,7 @@ mod tests {
         assert_eq!(groups["federation_ready"], true);
         assert_eq!(groups["matching_ready"], true);
         assert_eq!(groups["route_matching_ready"], true);
+        assert_eq!(groups["messaging_matching_ready"], true);
 
         let status_response = app
             .clone()
@@ -4796,6 +4923,7 @@ mod tests {
         assert_eq!(status["group"]["projects"][1]["status"], "MissingDb");
         assert_eq!(status["matching_ready"], true);
         assert_eq!(status["route_matching_ready"], true);
+        assert_eq!(status["messaging_matching_ready"], true);
 
         let summary_response = app
             .clone()
@@ -4879,6 +5007,96 @@ mod tests {
         assert_eq!(
             body["matches"][0]["candidate"]["relationship_kind"],
             "CallsHttpRoute"
+        );
+    }
+
+    #[tokio::test]
+    async fn architecture_group_message_matches_endpoint_filters_and_stays_local() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let producer_db = dir.path().join("producer").join(".b3").join("b3.db");
+        let consumer_db = dir.path().join("consumer").join(".b3").join("b3.db");
+        seed_message_match_database(
+            &producer_db,
+            "producer",
+            &[
+                (
+                    "kafka",
+                    "outbound",
+                    "Producer",
+                    Some("orders.created"),
+                    None,
+                    None,
+                ),
+                (
+                    "rabbitmq",
+                    "outbound",
+                    "Producer",
+                    None,
+                    Some("payments.created"),
+                    None,
+                ),
+            ],
+        );
+        seed_message_match_database(
+            &consumer_db,
+            "consumer",
+            &[
+                (
+                    "kafka",
+                    "inbound",
+                    "Consumer",
+                    Some("orders.created"),
+                    None,
+                    None,
+                ),
+                (
+                    "rabbitmq",
+                    "inbound",
+                    "Consumer",
+                    None,
+                    Some("payments.created"),
+                    None,
+                ),
+            ],
+        );
+        write_group_registry(
+            &registry_path,
+            &[
+                ("producer", "Producer", &producer_db),
+                ("consumer", "Consumer", &consumer_db),
+            ],
+            &["producer", "consumer"],
+        );
+
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("control storage"),
+            registry_path,
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/message-matches?broker=kafka&name=orders.created&limit=5")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["matching_kind"], "messaging");
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["federation_ready"], true);
+        assert_eq!(body["messaging_matching_ready"], true);
+        assert_eq!(body["match_count"], 1);
+        assert_eq!(body["matches"][0]["broker"], "kafka");
+        assert_eq!(body["matches"][0]["channel_name"], "orders.created");
+        assert_eq!(
+            body["matches"][0]["candidate"]["relationship_kind"],
+            "PublishesMessage"
         );
     }
 

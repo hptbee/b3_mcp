@@ -243,6 +243,13 @@ Current truth:
   `route_matching_ready = true`. It does not merge DBs, execute HTTP requests,
   fetch remote OpenAPI documents, call external APIs, or add service-map/group
   impact APIs.
+- Phase 11.3 adds read-only
+  `GET /api/architecture/groups/{group_id}/message-matches`. The endpoint reads
+  existing local messaging metadata from registry project DBs, returns static
+  producer/consumer match candidates with confidence/evidence/warnings, and
+  reports `messaging_matching_ready = true`. It does not connect to RabbitMQ,
+  Kafka, Pub/Sub, or any broker; it does not publish/consume messages, call
+  cloud APIs, merge DBs, or add service-map/group impact APIs.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

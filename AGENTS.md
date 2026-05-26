@@ -458,3 +458,16 @@ APIs, symbolic editing, rename/refactor, runtime HTTP calls, remote OpenAPI
 fetching, DNS/service discovery, global database merges, cloud graph databases,
 hosted vector databases, external APIs, telemetry, paid dependencies, model
 downloads, or internet requirements.
+
+Phase 11.3 is completed as cross-repo messaging matching only. It may match
+existing local producer/consumer messaging metadata inside a registry project
+group, produce `PublishesMessage` match candidates, architecture nodes/edges,
+confidence, evidence, warnings, and expose a read-only local Control API
+endpoint.
+
+It must not implement package/contract/infra matching, group-level
+impact/context pack, architecture graph UI, service map APIs, symbolic editing,
+rename/refactor, broker connections, runtime publish/consume operations, cloud
+Pub/Sub API calls, global database merges, cloud graph databases, hosted vector
+databases, external APIs, telemetry, paid dependencies, model downloads, or
+internet requirements.

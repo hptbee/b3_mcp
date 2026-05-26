@@ -925,6 +925,7 @@ Avoid:
 - Phase 11.1: Group Query Federation
 - Phase 11.1.1: Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2: Cross-Repo Route / API Matching
+- Phase 11.3: Cross-Repo Messaging Matching
 
 Phase 11.1.1 is benchmark/measurement only. It must remain local,
 deterministic, offline-first, and free-by-default. It measures chars/4 token
@@ -944,9 +945,17 @@ requests, fetch OpenAPI remotely, call external APIs, use cloud graph
 databases, require hosted vector databases, infer messaging/package/infra
 relationships, add telemetry, or add MCP architecture tools.
 
+Phase 11.3 adds static/read-only cross-repo messaging matching inside local
+registry project groups. It may match deterministic producer/consumer messaging
+keys for topics, queues, patterns, routing keys, and broker hints, and produce
+architecture match candidates, nodes, edges, confidence, evidence, and warnings.
+It must preserve one repo-local `.b3/b3.db` per project and must not merge
+project DBs globally, connect to brokers, publish or consume messages, call
+cloud Pub/Sub APIs, infer package/contract/infra relationships, add telemetry,
+or add MCP architecture tools.
+
 ### Planned Phases
 
-- Phase 11.3: Cross-Repo Messaging Matching
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5: Group-Level Impact + Context Pack
 - Phase 11.6: Architecture Graph / Service Map API

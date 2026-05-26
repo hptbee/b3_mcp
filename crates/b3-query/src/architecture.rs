@@ -8,6 +8,10 @@
 pub mod http_clients;
 #[path = "architecture/match_keys.rs"]
 pub mod match_keys;
+#[path = "architecture/messaging_keys.rs"]
+pub mod messaging_keys;
+#[path = "architecture/messaging_matching.rs"]
+pub mod messaging_matching;
 #[path = "architecture/route_matching.rs"]
 pub mod route_matching;
 
@@ -24,6 +28,7 @@ use b3_storage::{
 };
 use serde::{Deserialize, Serialize};
 
+pub use messaging_matching::{GroupMessageMatchReport, MessageMatch, MessageMatchOptions};
 pub use route_matching::{GroupRouteMatchReport, RouteMatch, RouteMatchOptions};
 
 const DEFAULT_BRANCH: &str = "main";

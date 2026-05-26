@@ -799,6 +799,44 @@ compact evidence, provenance, deterministic IDs, deterministic sorting, and
 dedupe. Messaging, package/contract/infra relationships, group impact/context
 pack, and service-map APIs remain deferred.
 
+### Phase 11.3 Cross-Repo Messaging Matching
+
+Phase 11.3 matches local producer and consumer messaging metadata inside a
+registry-defined project group. It preserves the Phase 11 storage model: each
+project remains in its own repo-local `.b3/b3.db`, opened read-only during
+federation. No global database merge, cloud graph database, hosted vector
+database, telemetry, external API, broker connection, runtime publish/consume,
+or cloud Pub/Sub call is used.
+
+Messaging keys are deterministic and conservative. Broker names are normalized
+to known local buckets such as `kafka`, `rabbitmq`, `pubsub`, `nestjs`, or
+`unknown`. Channel kinds are normalized to `topic`, `queue`, `pattern`,
+`routing_key`, or related local kinds. Channel names are trimmed, surrounding
+quotes/slashes are removed, repeated whitespace is collapsed, and comparison
+uses a lower-case normalized key without fuzzy semantic matching.
+
+Producer and consumer records come from existing messaging metadata. Producers
+are identified by outbound/producer/publisher/client-style metadata, while
+consumers are identified by inbound/consumer/subscriber/handler/pattern-style
+metadata. The matcher considers topic, queue, pattern, routing key, and
+exchange+routing-key keys where present, but it does not simulate broker
+routing or infer wildcard bindings without explicit metadata.
+
+Matching rules are ordered by evidence strength:
+
+- same broker, channel kind, and normalized name: high confidence
+- same broker with compatible topic/queue/pattern name: high confidence
+- one side with unknown broker plus exact normalized name: medium confidence
+- NestJS pattern matching topic/queue/event name: medium confidence
+- same normalized name with conflicting broker kinds: low confidence with a
+  broker-mismatch warning
+
+Output is an `ArchitectureMatchCandidate` plus corresponding
+`ArchitectureNode` and `ArchitectureEdge` records for `PublishesMessage`, with
+compact evidence, provenance, deterministic IDs, deterministic sorting, and
+dedupe. Package/contract/infra relationships, group impact/context pack, and
+service-map APIs remain deferred.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

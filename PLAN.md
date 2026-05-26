@@ -56,12 +56,12 @@ Completed:
 - Phase 11.1 Group Query Federation
 - Phase 11.1.1 Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2 Cross-Repo Route / API Matching
-
-Current/Next:
 - Phase 11.3 Cross-Repo Messaging Matching
 
-Upcoming:
+Current/Next:
 - Phase 11.4 Cross-Repo Package / Contract / Infra Matching
+
+Upcoming:
 - Phase 11.5 Group-Level Impact + Context Pack
 - Phase 11.6 Architecture Graph / Service Map API
 - Phase 11.7 Cross-Project Benchmark + Docs
@@ -941,14 +941,14 @@ Completed:
 - Phase 11.1 - Group Query Federation
 - Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2 - Cross-Repo Route / API Matching
+- Phase 11.3 - Cross-Repo Messaging Matching
 
 Current/Next:
 
-- Phase 11.3 - Cross-Repo Messaging Matching
+- Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 
 Upcoming:
 
-- Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
@@ -1242,12 +1242,26 @@ Rules:
 
 ## Phase 11.3 - Cross-Repo Messaging Matching
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- match local producer/consumer metadata for topics, queues, exchanges, and routing keys
-- do not connect to brokers or cloud messaging APIs
+- added modular messaging matching in `b3-query::architecture`
+- added deterministic messaging keys for broker, channel kind, and normalized topic/queue/pattern/routing-key names
+- collected producers and consumers from existing federated messaging metadata
+- matched same broker plus exact channel kind/name, compatible topic/queue/pattern names, unknown broker exact names, NestJS pattern names, and same-name conflicting broker cases
+- produced `ArchitectureMatchCandidate`, `ArchitectureNode`, `ArchitectureEdge`, confidence, evidence, warnings, and deterministic sorting/dedupe
+- added read-only Control endpoint `GET /api/architecture/groups/{group_id}/message-matches`
+- updated architecture status/capabilities so messaging matching is ready while package/contract/infra, group impact, and service maps remain false
+- preserved one repo-local `.b3/b3.db` per project and avoided global database merging
+
+Rules:
+
+- no package/contract/infra matching
+- no group-level impact or context pack
+- no architecture graph UI or service map API
+- no broker connection, runtime publish/consume, or cloud Pub/Sub API calls
+- no cloud graph database, hosted vector database, external API, telemetry, paid dependency, model download, or internet requirement
 
 ## Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 
@@ -1394,14 +1408,15 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |
 | Cross-project route/API matching | Usable now, local/static/read-only |
+| Cross-project messaging matching | Usable now, local/static/read-only |
 | Full memory/context platform | Later phase |
-| Cross-project messaging/package/infra matching | Phase 11.3+ |
+| Cross-project package/contract/infra matching | Phase 11.4+ |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2. Messaging, package/contract/infra matching, group impact, and service maps remain later Phase 11 work.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3. Package/contract/infra matching, group impact, and service maps remain later Phase 11 work.
 
 ---
 

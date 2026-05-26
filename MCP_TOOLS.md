@@ -60,6 +60,11 @@ only. It does not add MCP architecture tools, change MCP profiles, or change
 tool counts. The MCP runtime remains a thin query adapter; route matching lives
 in `b3-query::architecture`.
 
+Phase 11.3 adds cross-repo messaging matching through the local Control API
+only. It does not add MCP architecture tools, change MCP profiles, or change
+tool counts. Messaging matching lives in `b3-query::architecture` and never
+connects to brokers or cloud messaging APIs.
+
 ## Local Stdio Server
 
 Run the local stdio server with:
