@@ -431,7 +431,18 @@ Completed scope:
 - preserved metadata formats, escaping/unescaping semantics, redaction/value classification behavior, comment stripping behavior, literal extraction behavior, confidence values, language support levels, APIs, schema, migrations, MCP tools/profiles, and benchmark targets
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
 
-Next: Phase 18.6 Optional Core / Query Architecture Split Review.
+### Phase 18.6 Optional Core / Query Architecture Split Review
+
+Status: Completed as review-only / no-op.
+
+Review result:
+
+- reviewed `crates/b3-core/src/language.rs`, `crates/b3-core/src/architecture.rs`, `crates/b3-query/src/lib.rs`, and the large `crates/b3-query/src/architecture/*` modules
+- deferred source refactor because the likely split points are public DTO/contract surfaces or behavior-sensitive matching, graph, service-map, and group-impact builders
+- did not change core contracts, query architecture behavior, confidence/evidence semantics, response shapes, database schema, metadata formats, MCP tools/profiles, benchmark targets, or feature behavior
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, or runtime service connections
+
+Next: Phase 18.7 Final Refactor Checkpoint Verification.
 
 ---
 
@@ -1176,14 +1187,14 @@ Completed:
 - Phase 18.3 - Storage Module Split
 - Phase 18.4 - Indexer Pipeline / Dispatch Split
 - Phase 18.5 - Shared Helper Consolidation
+- Phase 18.6 - Optional Core / Query Architecture Split Review
 
 Current/Next:
 
-- Phase 18.6 - Optional Core / Query Architecture Split Review
+- Phase 18.7 - Final Refactor Checkpoint Verification
 
 Upcoming:
 
-- Phase 18.7 - Final Refactor Checkpoint Verification
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
 - Phase 21 - Git Intelligence
