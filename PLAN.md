@@ -68,12 +68,12 @@ Completed:
 - Phase 16 Config / Data / Web File Support B / Hardening
 - Phase 17 Language and Technology Quality Audit
 - Phase 18.2 Control Server Route Module Split
-
-Current/Next:
 - Phase 18.3 Storage Module Split
 
-Upcoming:
+Current/Next:
 - Phase 18.4 Indexer Pipeline / Dispatch Split
+
+Upcoming:
 - Phase 18.5 Shared Helper Consolidation
 - Phase 18.6 Optional Core / Query Architecture Split Review
 - Phase 18.7 Final Refactor Checkpoint Verification
@@ -395,7 +395,19 @@ Completed scope:
 - did not change database schema, migrations, metadata formats, MCP tools/profiles, benchmark targets, frontend files, or feature behavior
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
 
-Next: Phase 18.3 Storage Module Split.
+### Phase 18.3 Storage Module Split
+
+Status: Completed.
+
+Completed scope:
+
+- split migration SQL and migration application helpers from `crates/b3-storage/src/lib.rs` into `crates/b3-storage/src/migrations.rs`
+- split storage metadata row conversion and metadata decode helpers into `crates/b3-storage/src/metadata.rs`
+- preserved database schema, migration numbers, SQL behavior, metadata formats, vector storage format, public storage APIs, and repository behavior
+- did not change API behavior, MCP tools/profiles, benchmark targets, frontend files, or feature behavior
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
+
+Next: Phase 18.4 Indexer Pipeline / Dispatch Split.
 
 ---
 
@@ -1137,14 +1149,14 @@ Completed:
 - Phase 17 - Language and Technology Quality Audit
 - Phase 18.1 - Test Organization Split
 - Phase 18.2 - Control Server Route Module Split
+- Phase 18.3 - Storage Module Split
 
 Current/Next:
 
-- Phase 18.3 - Storage Module Split
+- Phase 18.4 - Indexer Pipeline / Dispatch Split
 
 Upcoming:
 
-- Phase 18.4 - Indexer Pipeline / Dispatch Split
 - Phase 18.5 - Shared Helper Consolidation
 - Phase 18.6 - Optional Core / Query Architecture Split Review
 - Phase 18.7 - Final Refactor Checkpoint Verification
