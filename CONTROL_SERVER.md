@@ -143,6 +143,7 @@ Diagnostics and config:
 - `GET /api/savings/summary`
 - `GET /api/diagnostics`
 - `GET /api/capabilities`
+- `GET /api/architecture/status`
 - `GET /api/vector/status`
 - `GET /api/vector/providers`
 - `GET /api/vector/stats`
@@ -221,6 +222,12 @@ Current truth:
   hybrid path. Phase 10.5 benchmarks this path with local fixture-based quality
   metrics only.
 - Cross-project semantic search and deeper framework intelligence remain deferred.
+- Phase 11.0 architecture contracts are available locally. `GET
+  /api/architecture/status` reports contracts/status only: group federation,
+  route matching, messaging matching, package/contract/infra matching, group
+  impact, and service maps are not ready yet. No global database merge, cloud
+  graph database, hosted vector database, telemetry, or remote lookup is
+  required.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

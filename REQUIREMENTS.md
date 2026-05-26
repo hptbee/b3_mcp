@@ -921,10 +921,17 @@ Avoid:
 - Phase 10.3: Hybrid Search Ranking
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
+- Phase 11.0: Cross-Project Architecture Model + Contracts
 
 ### Planned Phases
 
-- Phase 11: Cross-Project Architecture Intelligence
+- Phase 11.1: Group Query Federation
+- Phase 11.2: Cross-Repo Route / API Matching
+- Phase 11.3: Cross-Repo Messaging Matching
+- Phase 11.4: Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5: Group-Level Impact + Context Pack
+- Phase 11.6: Architecture Graph / Service Map API
+- Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support

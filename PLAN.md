@@ -886,7 +886,7 @@ Status: Completed.
 
 ---
 
-## Current Phase 10 Roadmap
+## Current Roadmap
 
 Completed:
 
@@ -896,13 +896,20 @@ Completed:
 - Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
+- Phase 11.0 - Cross-Project Architecture Model + Contracts
 
 Current/Next:
 
-- Phase 11 - Cross-Project Architecture Intelligence
+- Phase 11.1 - Group Query Federation
 
 Upcoming:
 
+- Phase 11.2 - Cross-Repo Route / API Matching
+- Phase 11.3 - Cross-Repo Messaging Matching
+- Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5 - Group-Level Impact + Context Pack
+- Phase 11.6 - Architecture Graph / Service Map API
+- Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
@@ -1081,34 +1088,92 @@ Rules:
 
 ---
 
-## Phase 11 Cross-Project Architecture Intelligence
+## Phase 11.0 - Cross-Project Architecture Model + Contracts
+
+Status: Completed.
+
+Scope completed:
+
+- added `b3-core` architecture DTOs for project/group identity, service identity, architecture nodes, architecture edges, future match candidates, confidence, evidence, warnings, and provenance
+- added deterministic ID helpers for services, nodes, edges, and match candidates
+- added deterministic normalization helpers for HTTP methods/routes, messaging keys, package names, infrastructure resource keys, and service names
+- added `ArchitectureCapabilityStatus` and read-only `GET /api/architecture/status`
+- updated `GET /api/capabilities` to report architecture contracts available while all future matching/federation/service-map flags remain false
+- preserved the local model: 1 project = 1 repo-local `.b3/b3.db`
+
+Rules:
+
+- no group query federation
+- no cross-repo route/API matching
+- no cross-repo messaging matching
+- no package/contract/infra matching
+- no group-level impact or context pack
+- no architecture graph UI or service map API
+- no global DB merge
+- no cloud graph database, hosted vector database, external API, telemetry, or internet requirement
+- no MCP architecture tool or MCP tool count change
+
+## Phase 11.1 - Group Query Federation
 
 Status: Planned.
 
 Scope:
 
-- community detection
-- module boundary detection
-- dependency cluster map
-- circular dependency reports
-- architecture layer detection
-- service map
-- multi-service flow analysis
-- project group overview
-- cross-project dependency flow
-- frontend -> backend route matching
-- producer -> topic/queue/routing-key -> consumer matching
-- app service -> infrastructure flow where safe
-- group-level impact analysis
-- group-level context packs
+- federate read-only queries across registry-defined local project groups
+- preserve one repo-local `.b3/b3.db` per project
+- return per-project warnings for missing or unavailable databases
+- avoid global database merges and remote lookups
 
-Algorithms:
+## Phase 11.2 - Cross-Repo Route / API Matching
 
-- connected components
-- strongly connected components
-- PageRank / centrality
-- label propagation or Louvain if feasible
-- dependency clustering
+Status: Planned.
+
+Scope:
+
+- match local route/API metadata across project DBs through deterministic contract keys
+- keep evidence, confidence, and provenance explicit
+
+## Phase 11.3 - Cross-Repo Messaging Matching
+
+Status: Planned.
+
+Scope:
+
+- match local producer/consumer metadata for topics, queues, exchanges, and routing keys
+- do not connect to brokers or cloud messaging APIs
+
+## Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
+
+Status: Planned.
+
+Scope:
+
+- match local package, contract, deployment, and infrastructure metadata where explicit keys exist
+- do not run package managers, Terraform, Docker, Kubernetes, or cloud CLIs
+
+## Phase 11.5 - Group-Level Impact + Context Pack
+
+Status: Planned.
+
+Scope:
+
+- add group-level impact and context-pack queries over federated local project results
+
+## Phase 11.6 - Architecture Graph / Service Map API
+
+Status: Planned.
+
+Scope:
+
+- expose read-only service map and architecture graph APIs after matching is implemented
+
+## Phase 11.7 - Cross-Project Benchmark + Docs
+
+Status: Planned.
+
+Scope:
+
+- add local fixture-based benchmark coverage and documentation for Phase 11 matching/federation behavior
 
 ---
 
@@ -1219,14 +1284,15 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Control registry APIs | Deferred |
 | Refactor assistant | Phase 12 / 13 |
 | Local embeddings / vector search | Phase 10.0-10.5 |
+| Cross-project architecture contracts | Usable now, model/status only |
 | Full memory/context platform | Later phase |
-| Cross-project architecture intelligence | Phase 11 |
+| Cross-project matching / federation | Phase 11.1+ |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture intelligence begins in Phase 11.
+Cross-project architecture contracts begin in Phase 11.0; federation and matching begin in Phase 11.1+.
 
 ---
 
@@ -1466,9 +1532,9 @@ Covered by Phase 8.2, Phase 9.0+, Phase 9.2+, and Phase 9.2.1+.
 
 ### GitNexus
 
-B3 learns multi-repo registry, setup/install UX, bridge UI/product UX, repo groups, and multi-service analysis.
+B3 learns multi-repo registry, setup/install UX, bridge UI/product UX, repo groups, architecture contracts, and later multi-service analysis.
 
-Covered by Phase 8.7, Phase 8.8, and Phase 11.
+Covered by Phase 8.7, Phase 8.8, and Phase 11.0+.
 
 ### Serena
 

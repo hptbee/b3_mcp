@@ -40,6 +40,11 @@ Phase 10.5 adds local fixture-based benchmark coverage for `semantic_search`.
 It verifies Phase 10.4 profile counts and compares lexical-only, vector-only,
 and hybrid search modes without adding or changing MCP tools.
 
+Phase 11.0 adds architecture contracts and local capability/status reporting
+only. It does not add architecture MCP tools, change MCP profiles, or change
+tool counts. Cross-project federation and matching remain later Phase 11
+subphases.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

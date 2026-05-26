@@ -130,6 +130,13 @@ small checked-in fixture set, reports hit@1/3/5/10, MRR, latency, fallback
 counts, and a chars/4 token estimate. These are fixture baselines only; they do
 not claim neural semantic quality or production-level relevance.
 
+Phase 11.0 adds cross-project architecture contracts and status only. The
+contracts live in `b3-core`; `GET /api/architecture/status` reports that
+architecture contracts are available while group federation, cross-repo route
+matching, messaging matching, package/contract/infra matching, group impact,
+and service maps are still pending. The local storage model remains one
+repo-local `.b3/b3.db` per project.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

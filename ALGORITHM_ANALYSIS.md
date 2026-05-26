@@ -609,11 +609,21 @@ Added requirements:
 - Phase 9.2.11: Scoped Indexing + Intelligence Targets
 - Phase 9.2.12: .NET Desktop / WPF Intelligence
 
-### Planned Phases
+### Completed Through
 
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
-- Phase 11: Cross-Project Architecture Intelligence
+- Phase 11.0: Cross-Project Architecture Model + Contracts
+
+### Planned Phases
+
+- Phase 11.1: Group Query Federation
+- Phase 11.2: Cross-Repo Route / API Matching
+- Phase 11.3: Cross-Repo Messaging Matching
+- Phase 11.4: Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5: Group-Level Impact + Context Pack
+- Phase 11.6: Architecture Graph / Service Map API
+- Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
@@ -694,6 +704,23 @@ prints a compact comparison table. Token/context savings are estimated with a
 simple chars/4 approximation. The results are deterministic fixture baselines,
 not production quality guarantees, and they do not imply neural embedding
 quality.
+
+### Phase 11.0 Cross-Project Architecture Contracts
+
+Phase 11.0 adds model contracts rather than matching algorithms. Projects,
+groups, services, architecture nodes, architecture edges, future match
+candidates, confidence, evidence, warnings, and source provenance are
+serializable DTOs in `b3-core`. Deterministic IDs are derived from stable local
+keys, and every future relationship is expected to carry explicit confidence
+and provenance.
+
+Normalization helpers are deliberately small and deterministic: HTTP methods
+are uppercased, route paths are slash-normalized and lowercased, messaging
+topics/queues/routing keys become stable local keys, package names are
+case-normalized, and service/resource names are normalized without fuzzy
+matching. No project database federation, cross-repo matching, global database
+merge, cloud graph database, hosted vector database, or remote lookup is part
+of this phase.
 
 ## Additional Planned Algorithms
 

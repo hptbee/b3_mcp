@@ -25,10 +25,10 @@ use axum::{
     Router,
 };
 use b3_core::{
-    default_language_backend_registry, AppConfig, BranchId, BranchMetadata, ContractError,
-    ContractResult, EventBus, IndexScope, IndexScopeKind, IndexSummary, Indexer,
-    ParserIsolationMode, ProjectId, QueryRequest, QueryResult, QueryScope as CoreQueryScope,
-    ScopePreview, SourceKind, SymbolRepository, PRODUCT_NAME,
+    default_language_backend_registry, AppConfig, ArchitectureCapabilityStatus, BranchId,
+    BranchMetadata, ContractError, ContractResult, EventBus, IndexScope, IndexScopeKind,
+    IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest, QueryResult,
+    QueryScope as CoreQueryScope, ScopePreview, SourceKind, SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     lsp::LspBackend,
@@ -283,6 +283,7 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/savings/summary", get(savings_summary))
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
+        .route("/api/architecture/status", get(architecture_status))
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
         .route("/api/vector/stats", get(vector_stats))
@@ -1353,6 +1354,7 @@ async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
 async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
     let language_registry = default_language_backend_registry();
     let lsp = LspBackend::from(&state.app_config.lsp);
+    let architecture = ArchitectureCapabilityStatus::default();
     Json(json!({
         "product": PRODUCT_NAME,
         "offline_first": true,
@@ -1383,6 +1385,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "hybrid_ranking_phase": "10.3",
             "control_mcp_integration_phase": "10.4"
         },
+        "architecture": architecture,
         "mcp_runtime": RuntimeSummary::default(),
         "language_backend": {
             "tree_sitter": {
@@ -1544,10 +1547,15 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "vector_providers": true,
             "vector_stats": true,
             "hybrid_search": true,
+            "architecture_status": true,
             "events": "sse"
         },
         "language_backends": language_registry
     }))
+}
+
+async fn architecture_status() -> Json<ArchitectureCapabilityStatus> {
+    Json(ArchitectureCapabilityStatus::default())
 }
 
 async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>, ControlError> {
@@ -4394,9 +4402,59 @@ mod tests {
         assert_eq!(body["vector_search"]["semantic_search_ready"], true);
         assert_eq!(body["vector_search"]["hybrid_ranking_available"], true);
         assert_eq!(body["control_api"]["hybrid_search"], true);
+        assert_eq!(
+            body["architecture"]["architecture_contracts_available"],
+            true
+        );
+        assert_eq!(body["architecture"]["group_federation_ready"], false);
+        assert_eq!(body["architecture"]["route_matching_ready"], false);
+        assert_eq!(body["architecture"]["messaging_matching_ready"], false);
+        assert_eq!(
+            body["architecture"]["package_contract_infra_matching_ready"],
+            false
+        );
+        assert_eq!(body["architecture"]["group_impact_ready"], false);
+        assert_eq!(body["architecture"]["service_map_ready"], false);
+        assert_eq!(body["architecture"]["local_only"], true);
+        assert_eq!(body["architecture"]["global_db_merge_required"], false);
+        assert_eq!(body["architecture"]["cloud_graph_database_required"], false);
+        assert_eq!(
+            body["architecture"]["hosted_vector_database_required"],
+            false
+        );
+        assert_eq!(body["architecture"]["telemetry_enabled"], false);
+        assert_eq!(body["control_api"]["architecture_status"], true);
         assert_eq!(body["vector_search"]["local_only"], true);
         assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
+    }
+
+    #[tokio::test]
+    async fn architecture_status_reports_contracts_only() {
+        let response = empty_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["architecture_contracts_available"], true);
+        assert_eq!(body["group_federation_ready"], false);
+        assert_eq!(body["route_matching_ready"], false);
+        assert_eq!(body["messaging_matching_ready"], false);
+        assert_eq!(body["package_contract_infra_matching_ready"], false);
+        assert_eq!(body["group_impact_ready"], false);
+        assert_eq!(body["service_map_ready"], false);
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["global_db_merge_required"], false);
+        assert_eq!(body["cloud_graph_database_required"], false);
+        assert_eq!(body["hosted_vector_database_required"], false);
+        assert_eq!(body["telemetry_enabled"], false);
     }
 
     #[tokio::test]

@@ -408,3 +408,16 @@ It must not implement cross-project architecture intelligence, symbolic editing,
 rename/refactor, neural embedding providers, hosted vector database
 integrations, OpenAI/cloud embedding providers, model downloads, telemetry,
 API-key requirements, benchmark upload, session memory, or UI redesign.
+
+Phase 11.0 is completed as cross-project architecture model/contracts only. It
+may define local project/group identity, service identity, architecture
+node/edge contracts, future match candidate contracts, confidence, evidence,
+source/provenance metadata, deterministic normalization helpers, and read-only
+architecture capability/status reporting.
+
+It must not implement group query federation, cross-repo route/API matching,
+cross-repo messaging matching, package/contract/infra matching, group-level
+impact analysis, architecture graph UI, service map APIs, global database
+merges, cloud graph databases, hosted vector databases, external APIs,
+telemetry, symbolic editing, rename/refactor, session memory, or cross-project
+architecture intelligence beyond contracts.

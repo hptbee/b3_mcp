@@ -5,6 +5,7 @@
 //! so MCP, storage, indexing, query, embedding, control, and UI crates can share
 //! contracts without inheriting each other's concrete dependencies.
 
+mod architecture;
 mod config;
 mod contracts;
 mod embedding;
@@ -16,6 +17,7 @@ mod query;
 mod scope;
 mod vector;
 
+pub use architecture::*;
 pub use config::*;
 pub use contracts::*;
 pub use embedding::*;
