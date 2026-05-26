@@ -749,16 +749,23 @@ fn related_node_ids(
 ) -> BTreeSet<String> {
     let mut selected = BTreeSet::new();
     selected.insert(seed_node_id.to_string());
+    let mut frontier = BTreeSet::new();
+    frontier.insert(seed_node_id.to_string());
+
     for _ in 0..depth {
-        let current = selected.clone();
+        let mut next_frontier = BTreeSet::new();
         for edge in edges.values() {
-            if current.contains(&edge.from_node_id) {
-                selected.insert(edge.to_node_id.clone());
+            if frontier.contains(&edge.from_node_id) && selected.insert(edge.to_node_id.clone()) {
+                next_frontier.insert(edge.to_node_id.clone());
             }
-            if current.contains(&edge.to_node_id) {
-                selected.insert(edge.from_node_id.clone());
+            if frontier.contains(&edge.to_node_id) && selected.insert(edge.from_node_id.clone()) {
+                next_frontier.insert(edge.from_node_id.clone());
             }
         }
+        if next_frontier.is_empty() {
+            break;
+        }
+        frontier = next_frontier;
     }
     selected
 }

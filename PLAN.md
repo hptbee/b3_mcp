@@ -76,13 +76,16 @@ Completed:
 - Phase 18.7 Preliminary Refactor Checkpoint Verification
 - Phase 18.8 b3-indexer Deep Restructure
 - Phase 18.9 Final Phase 18 Verification
-
-Current/Next:
 - Phase 19 Performance Optimization Pass B
 
-Upcoming:
+Current/Next:
 - Phase 20 Web UI Developer Console Refresh
+
+Upcoming:
 - Phase 21 Git Intelligence
+- Phase 22 Duplicate / Similarity Detection
+- Phase 23 Real Plugin System
+- Phase 24 Packaging + Installers
 ```
 
 ## Previously Deferred -> Scheduled Phases (12–20)
@@ -489,7 +492,18 @@ Next: Phase 19 Performance Optimization Pass B.
 
 ## Phase 19 Performance Optimization Pass B
 
-Status: Current / Next.
+Status: Completed.
+
+Completed scope:
+
+- captured a benchmark-first baseline with formatting, workspace compilation, workspace tests, and `b3-bench baseline` before changing code
+- optimized indexer metadata lookup helpers by building prefixed metadata keys once per lookup instead of once per scanned metadata segment
+- optimized architecture graph seed-depth filtering by replacing repeated selected-set cloning with a deterministic frontier traversal
+- scanned storage metadata/row conversion hot paths and left them unchanged for this pass because deeper metadata decode caching would be a larger behavior-risk change
+- preserved deterministic outputs, extraction behavior, metadata formats, endpoint behavior, schema/migration state, MCP tool/profile counts, benchmark targets, and offline/free behavior
+- verified the benchmark baseline still passes after the optimization pass
+
+Next: Phase 20 Web UI Developer Console Refresh.
 
 Rules:
 
@@ -1232,15 +1246,18 @@ Completed:
 - Phase 18.7 - Preliminary Refactor Checkpoint Verification
 - Phase 18.8 - b3-indexer Deep Restructure
 - Phase 18.9 - Final Phase 18 Verification
+- Phase 19 - Performance Optimization Pass B
 
 Current/Next:
 
-- Phase 19 - Performance Optimization Pass B
+- Phase 20 - Web UI Developer Console Refresh
 
 Upcoming:
 
-- Phase 20 - Web UI Developer Console Refresh
 - Phase 21 - Git Intelligence
+- Phase 22 - Duplicate / Similarity Detection
+- Phase 23 - Real Plugin System
+- Phase 24 - Packaging + Installers
 
 ## Phase 10.0 - Local Embeddings + Vector Search Architecture
 

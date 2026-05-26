@@ -126,10 +126,10 @@ pub(crate) fn unescape_metadata_semicolon(value: &str) -> String {
 }
 
 pub(crate) fn prefixed_metadata_value(metadata: &str, prefix: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("{prefix}.{key}="))
-            .map(unescape_metadata)
-    })
+    let full_key = format!("{prefix}.{key}=");
+    metadata
+        .split(';')
+        .find_map(|part| part.strip_prefix(&full_key).map(unescape_metadata))
 }
 
 pub(crate) fn prefixed_metadata_value_semicolon(
@@ -137,8 +137,9 @@ pub(crate) fn prefixed_metadata_value_semicolon(
     prefix: &str,
     key: &str,
 ) -> Option<String> {
+    let full_key = format!("{prefix}.{key}=");
     metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("{prefix}.{key}="))
+        part.strip_prefix(&full_key)
             .map(unescape_metadata_semicolon)
     })
 }
