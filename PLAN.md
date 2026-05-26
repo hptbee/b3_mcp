@@ -67,16 +67,19 @@ Completed:
 - Phase 15 Systems / Mobile / Config / Web File Support A
 - Phase 16 Config / Data / Web File Support B / Hardening
 - Phase 17 Language and Technology Quality Audit
+- Phase 18.1 Test Organization Split
 - Phase 18.2 Control Server Route Module Split
 - Phase 18.3 Storage Module Split
-
-Current/Next:
 - Phase 18.4 Indexer Pipeline / Dispatch Split
-
-Upcoming:
 - Phase 18.5 Shared Helper Consolidation
 - Phase 18.6 Optional Core / Query Architecture Split Review
-- Phase 18.7 Final Refactor Checkpoint Verification
+- Phase 18.7 Preliminary Refactor Checkpoint Verification
+- Phase 18.8 b3-indexer Deep Restructure
+
+Current/Next:
+- Phase 18.9 Final Phase 18 Verification
+
+Upcoming:
 - Phase 19 Performance Optimization Pass B
 - Phase 20 Web UI Developer Console Refresh
 - Phase 21 Git Intelligence
@@ -354,7 +357,7 @@ This is static/local/offline intelligence only. It must preserve B3's offline-fi
 
 ## Phase 18 Refactor Checkpoint D
 
-Status: Started.
+Status: In progress.
 
 This checkpoint is named **D** because:
 
@@ -442,7 +445,31 @@ Review result:
 - did not change core contracts, query architecture behavior, confidence/evidence semantics, response shapes, database schema, metadata formats, MCP tools/profiles, benchmark targets, or feature behavior
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, or runtime service connections
 
-Next: Phase 18.7 Final Refactor Checkpoint Verification.
+### Phase 18.7 Preliminary Refactor Checkpoint Verification
+
+Status: Completed, superseded by Phase 18.9 final verification.
+
+Completed scope:
+
+- ran final Phase 18 verification across formatting, workspace compilation, workspace tests, and the benchmark baseline
+- confirmed Phase 18 was behavior-preserving: no schema migration, endpoint behavior change, metadata format change, MCP tool/profile change, language support-level change, benchmark target change, or feature expansion
+- confirmed API capability/language tests, storage migration/metadata tests, MCP profile/tool-count tests, indexer parser/scoped/language tests, and cross-project benchmark sections still pass
+- kept core/query architecture split deferred for a later contract-aware review if needed
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, mandatory LSP, or frontend checks required
+
+### Phase 18.8 b3-indexer Deep Restructure
+
+Status: Completed.
+
+Completed scope:
+
+- scanned `crates/b3-indexer/src/**` for largest modules, oversized tests, mixed responsibilities, duplicate helpers, and safe split candidates
+- split the oversized `crates/b3-indexer/src/tests/web.rs` module into focused web test modules for core web language behavior, Angular, Node REST, Next.js, React, and web language pack/indexer behavior
+- deferred production splits in `go.rs`, `csharp.rs`, `data_access/mod.rs`, `web/angular.rs`, and other extraction-heavy modules because they are more behavior-sensitive than the test-only split
+- preserved extraction behavior, language/path detection, dispatch order, parser isolation, scoped indexing, metadata formats, confidence values, API behavior, schema, MCP tools/profiles, benchmark targets, and feature scope
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, mandatory LSP, or frontend checks required
+
+Next: Phase 18.9 Final Phase 18 Verification.
 
 ---
 
@@ -1188,10 +1215,12 @@ Completed:
 - Phase 18.4 - Indexer Pipeline / Dispatch Split
 - Phase 18.5 - Shared Helper Consolidation
 - Phase 18.6 - Optional Core / Query Architecture Split Review
+- Phase 18.7 - Preliminary Refactor Checkpoint Verification
+- Phase 18.8 - b3-indexer Deep Restructure
 
 Current/Next:
 
-- Phase 18.7 - Final Refactor Checkpoint Verification
+- Phase 18.9 - Final Phase 18 Verification
 
 Upcoming:
 
