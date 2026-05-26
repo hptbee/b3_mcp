@@ -66,12 +66,17 @@ Completed:
 - Phase 14 Additional Backend Language Support
 - Phase 15 Systems / Mobile / Config / Web File Support A
 - Phase 16 Config / Data / Web File Support B / Hardening
-
-Current/Next:
 - Phase 17 Language and Technology Quality Audit
 
+Current/Next:
+- Phase 18.2 Control Server Route Module Split
+
 Upcoming:
-- Phase 18 Refactor Checkpoint D
+- Phase 18.3 Storage Module Split
+- Phase 18.4 Indexer Pipeline / Dispatch Split
+- Phase 18.5 Shared Helper Consolidation
+- Phase 18.6 Optional Core / Query Architecture Split Review
+- Phase 18.7 Final Refactor Checkpoint Verification
 - Phase 19 Performance Optimization Pass B
 - Phase 20 Web UI Developer Console Refresh
 - Phase 21 Git Intelligence
@@ -243,22 +248,36 @@ Rules:
 
 ## Phase 17 Language and Technology Quality Audit
 
-Status: Planned.
+Status: Completed.
 
-Measure:
+Completed audit scope:
 
-- symbol extraction quality
-- relationship extraction quality
-- route extraction quality
-- component extraction quality
-- data-access extraction quality
-- realtime extraction quality
-- messaging extraction quality
-- infrastructure extraction quality
-- false positives
-- false negatives
-- parser crash/error rate
-- LSP timeout/failure rate
+- audited support levels for core languages, web/backend frameworks, systems/mobile languages, config/data/web files, SQL/ksqlDB/env, Three.js/WebGL hints, integration surfaces, symbolic editing, and rename/refactor
+- aligned core language registry truthfulness with implemented JS/TS/JSX/TSX, Dockerfile/Compose, and XAML static/basic support instead of stale planned/detect-only metadata
+- added a distinct `DetectOnly` support level for future detection-only entries so Basic is not overloaded
+- added `/api/capabilities` Phase 17 quality-audit metadata covering support matrix, capability reporting, fixture coverage, metadata consistency, secret redaction, false-positive guardrails, benchmark audit, and explicit non-claims
+- hardened SQL and ksqlDB comment handling so commented-out SQL/ksqlDB statements do not create table/topic/stream metadata
+- added regression tests for support matrix truthfulness, capability/status non-claims, SQL/ksqlDB comment false positives, HTML remote route handling, and secret-safe static metadata
+- confirmed Phase 15/16 fixture trees exist for systems/mobile/config/web and config/data/web hardening
+- kept storage/schema unchanged and continued using existing symbol, metadata, route, data-access, messaging, infrastructure, WPF, graph, and query surfaces
+
+Support matrix audit summary:
+
+| Area | Phase 17 level |
+|---|---|
+| Rust | Good |
+| JavaScript / TypeScript / JSX / TSX | Basic static/local |
+| C# / ASP.NET Core, Go, Python, Java, Kotlin, PHP, Ruby | Basic static/local |
+| Node REST, React, Next.js, Angular, WPF/XAML | Basic static/local |
+| ORM/data-access, realtime, messaging, infrastructure | Basic static/local |
+| C / C++ / Swift / Objective-C / Dart / Flutter | Basic static/local |
+| YAML / JSON / TOML / XML / HTML / CSS / SCSS / SQL / ksqlDB / env | Basic static/local |
+| Three.js / WebGL | Basic static hints only |
+| Cross-project route/message/dependency matching, group impact, graph/service-map API | Basic local/read-only |
+| Symbolic editing and rename/refactor | Conservative local Control API MVP |
+| Architecture graph UI, full Git Intelligence, broad refactor engine | Unsupported/deferred |
+
+Phase 17 does not add compiler-grade parsing, runtime validation, package-manager execution, cloud/external APIs, telemetry, browser/WebGL execution, Kafka/ksqlDB/RabbitMQ/database/broker connections, mandatory LSP, architecture graph UI, full Git Intelligence, or broad refactor behavior.
 
 ### Future Hardening: RabbitMQ Advanced Messaging Intelligence
 
@@ -335,7 +354,7 @@ This is static/local/offline intelligence only. It must preserve B3's offline-fi
 
 ## Phase 18 Refactor Checkpoint D
 
-Status: Planned.
+Status: Started.
 
 This checkpoint is named **D** because:
 
@@ -351,6 +370,20 @@ This checkpoint is named **D** because:
 - keep parser/indexing logic in indexer
 - keep storage persistence in storage
 - preserve existing APIs unless a migration is explicitly documented
+
+### Phase 18.1 Test Organization Split
+
+Status: Completed.
+
+Completed scope:
+
+- split the large `crates/b3-indexer/src/tests.rs` body into domain-focused child test modules under `crates/b3-indexer/src/tests/`
+- kept shared in-memory test store, event bus, and failing parser helpers in the test module root
+- did not change production logic, API behavior, database schema, metadata formats, MCP tools/profiles, language support levels, or benchmark targets
+- left control and storage embedded tests untouched for later checkpoints because the indexer split was the primary safe target
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend changes
+
+Next: Phase 18.2 Control Server Route Module Split.
 
 ---
 
@@ -1089,14 +1122,20 @@ Completed:
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile / Config / Web File Support A
 - Phase 16 - Config / Data / Web File Support B / Hardening
+- Phase 17 - Language and Technology Quality Audit
+- Phase 18.1 - Test Organization Split
 
 Current/Next:
 
-- Phase 17 - Language and Technology Quality Audit
+- Phase 18.2 - Control Server Route Module Split
 
 Upcoming:
 
-- Phase 18 - Refactor Checkpoint D
+- Phase 18.3 - Storage Module Split
+- Phase 18.4 - Indexer Pipeline / Dispatch Split
+- Phase 18.5 - Shared Helper Consolidation
+- Phase 18.6 - Optional Core / Query Architecture Split Review
+- Phase 18.7 - Final Refactor Checkpoint Verification
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
 - Phase 21 - Git Intelligence
@@ -1616,7 +1655,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Python / Java / Kotlin / PHP / Ruby backend basics | Usable now, basic/static |
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Usable now, basic/static |
-| Three.js / WebGL | Deferred |
+| Three.js / WebGL | Usable now, static hints only |
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
 | Symbolic editing preview/apply | Usable now, local Control API MVP |
