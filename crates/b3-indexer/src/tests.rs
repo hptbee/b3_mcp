@@ -3160,6 +3160,48 @@ fn indexing_continues_after_one_parser_failure() {
 }
 
 #[test]
+fn indexing_skips_files_that_are_not_valid_utf8() {
+    let root = std::env::temp_dir().join(format!(
+        "b3-indexer-invalid-utf8-test-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("root");
+    fs::write(root.join("valid.rs"), "fn valid() {}\n").expect("write valid");
+    fs::write(root.join("invalid.rs"), [0xff, 0xfe, 0xfd]).expect("write invalid");
+
+    let event_bus = MemoryBus::default();
+    let indexer = LocalIndexer::new(
+        NoopTreeSitterParser,
+        MemoryStore::default(),
+        event_bus,
+        IndexerConfig::default(),
+    );
+
+    let summary = indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index");
+
+    assert_eq!(summary.files_seen, 2);
+    assert_eq!(summary.files_parsed, 1);
+    assert!(indexer
+        .event_bus
+        .events
+        .lock()
+        .expect("events")
+        .iter()
+        .any(|event| matches!(
+            event,
+            DomainEvent::FileSkipped(skipped)
+                if skipped.path == "invalid.rs" && skipped.reason == "file is not valid UTF-8"
+        )));
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
 fn ignore_rules_skip_generated_and_local_data() {
     let ignore = IgnoreRules::default();
     assert!(ignore.should_skip(Path::new("target/debug/app")).is_some());

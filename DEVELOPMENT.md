@@ -233,6 +233,44 @@ normal `cargo build`, `cargo check`, and `cargo test --workspace` runs must not
 require those paths to exist. The current `b3-bench baseline` command uses this
 config for optional project discovery and still remains local/offline.
 
+### Optional Local Benchmark Projects
+
+`Project_B` and `Tuvi_B` can participate in the Phase 11.7 cross-project
+benchmark when they exist locally. Prepare them from the B3 repository root with:
+
+```powershell
+.\scripts\setup-local-benchmark.ps1
+```
+
+If local PowerShell execution policy blocks `.ps1` files, run the same helper
+with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-local-benchmark.ps1
+```
+
+The helper reads `benchmarks/b3.benchmark.toml`, verifies
+`D:\Project\Project_B` and `D:\Project\Tuvi_B`, creates each repo-local `.b3`
+directory when needed, and indexes each available project into its configured
+database:
+
+```text
+D:\Project\Project_B\.b3\b3.db
+D:\Project\Tuvi_B\.b3\b3.db
+```
+
+Missing optional paths print warnings and are skipped. They must not fail normal
+builds, tests, or CI. To index available optional projects and immediately run
+the local baseline:
+
+```powershell
+.\scripts\setup-local-benchmark.ps1 -RunBenchmark
+```
+
+The setup script stays local-only. It does not call external APIs, run package
+managers, start Docker/Kubernetes/Terraform, connect to brokers, use telemetry,
+or merge project databases.
+
 ## Agent Install Helper
 
 The `b3` helper lives in `crates/b3-cli` and only reads/writes local agent

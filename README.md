@@ -78,7 +78,7 @@ Vector foundation:
 - Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
 - Fixture-based benchmark/quality evaluation is available through `cargo run -p b3-bench -- baseline`.
 - The default local benchmark config path is `benchmarks/b3.benchmark.toml`; its real-local repository paths are optional candidates and missing paths are warnings, not build/test failures.
-- Phase 11.7 adds a local cross-project architecture benchmark section to `cargo run -p b3-bench -- baseline`; optional local repos such as `Project_B` and `Tuvi_B` warn when missing or unindexed.
+- Phase 11.7 adds a local cross-project architecture benchmark section to `cargo run -p b3-bench -- baseline`; optional local repos such as `Project_B` and `Tuvi_B` warn when missing or unindexed. Use `.\scripts\setup-local-benchmark.ps1` to index those optional local repos when they exist.
 - Phase 11.1.1 adds a local context-efficiency benchmark comparing deterministic file-by-file exploration, `search_code`, `semantic_search`, context-pack-style selection, and a group-summary model.
 - Production-grade neural embedding providers are planned in later optional-provider phases.
 
@@ -168,6 +168,15 @@ Initialize and index a repository (example):
 ```powershell
 cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
 cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
+```
+
+Set up optional local benchmark projects when available:
+
+```powershell
+.\scripts\setup-local-benchmark.ps1
+.\scripts\setup-local-benchmark.ps1 -RunBenchmark
+# If local execution policy blocks scripts:
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-local-benchmark.ps1
 ```
 
 Run the control server:

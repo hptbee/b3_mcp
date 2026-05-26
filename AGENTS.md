@@ -534,6 +534,12 @@ optional benchmark candidates. Missing optional benchmark projects must be
 warnings, not failures, and `cargo test --workspace` must pass on machines
 without `Project_B` or `Tuvi_B`.
 
+Use `scripts/setup-local-benchmark.ps1` only as an explicit local helper for
+available optional benchmark candidates. It may create repo-local `.b3`
+directories and index `D:\Project\Project_B` and `D:\Project\Tuvi_B` into their
+configured `.b3\b3.db` files, but those projects remain optional and must never
+be required for normal build, test, or CI success.
+
 Benchmark config handling must remain offline-first and free-by-default: no
 internet access, external APIs, telemetry, hosted vector databases, cloud
 embeddings, brokers, database servers, paid dependencies, or global database

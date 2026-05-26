@@ -55,7 +55,7 @@ mod tests;
 use std::{
     collections::{HashSet, VecDeque},
     fs,
-    io::Write,
+    io::{ErrorKind, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::mpsc,
@@ -1501,7 +1501,19 @@ where
             }
         }
 
-        let source = fs::read_to_string(&file.path).map_err(to_contract_error)?;
+        let source = match fs::read_to_string(&file.path) {
+            Ok(source) => source,
+            Err(error) if error.kind() == ErrorKind::InvalidData => {
+                self.publish(DomainEvent::FileSkipped(FileSkipped {
+                    project_id: project_id.clone(),
+                    file_id: Some(file.id),
+                    path: file.relative_path,
+                    reason: "file is not valid UTF-8".to_string(),
+                }))?;
+                return Ok(None);
+            }
+            Err(error) => return Err(to_contract_error(error)),
+        };
         let input = ParseInput {
             file_id: file.id.clone(),
             path: file.path,
