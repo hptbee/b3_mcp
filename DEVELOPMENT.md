@@ -132,10 +132,15 @@ not claim neural semantic quality or production-level relevance.
 
 Phase 11.0 adds cross-project architecture contracts and status only. The
 contracts live in `b3-core`; `GET /api/architecture/status` reports that
-architecture contracts are available while group federation, cross-repo route
-matching, messaging matching, package/contract/infra matching, group impact,
-and service maps are still pending. The local storage model remains one
-repo-local `.b3/b3.db` per project.
+architecture contracts are available.
+
+Phase 11.1 adds local group query federation in `b3-query::architecture`.
+Federation reads registry-defined project groups, opens existing project DBs
+read-only, returns partial project status/warnings, and aggregates metadata
+summaries without merging databases. Cross-repo route/API matching, messaging
+matching, package/contract/infra matching, group impact, and service maps are
+still pending. The local storage model remains one repo-local `.b3/b3.db` per
+project.
 
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that

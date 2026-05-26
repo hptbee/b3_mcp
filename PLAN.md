@@ -897,14 +897,14 @@ Completed:
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11.0 - Cross-Project Architecture Model + Contracts
+- Phase 11.1 - Group Query Federation
 
 Current/Next:
 
-- Phase 11.1 - Group Query Federation
+- Phase 11.2 - Cross-Repo Route / API Matching
 
 Upcoming:
 
-- Phase 11.2 - Cross-Repo Route / API Matching
 - Phase 11.3 - Cross-Repo Messaging Matching
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
@@ -1098,7 +1098,7 @@ Scope completed:
 - added deterministic ID helpers for services, nodes, edges, and match candidates
 - added deterministic normalization helpers for HTTP methods/routes, messaging keys, package names, infrastructure resource keys, and service names
 - added `ArchitectureCapabilityStatus` and read-only `GET /api/architecture/status`
-- updated `GET /api/capabilities` to report architecture contracts available while all future matching/federation/service-map flags remain false
+- updated `GET /api/capabilities` to report architecture contracts available while future matching/federation/service-map flags were still false at Phase 11.0
 - preserved the local model: 1 project = 1 repo-local `.b3/b3.db`
 
 Rules:
@@ -1115,14 +1115,29 @@ Rules:
 
 ## Phase 11.1 - Group Query Federation
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- federate read-only queries across registry-defined local project groups
-- preserve one repo-local `.b3/b3.db` per project
-- return per-project warnings for missing or unavailable databases
-- avoid global database merges and remote lookups
+- added `b3-query::architecture` group federation over local registry JSON
+- added registry group resolution, deterministic project ordering, project DB status, partial-result warnings, and read-only project handles
+- added read-only SQLite opening for existing project DBs without creating or migrating missing DBs
+- added group context and summary DTOs with route/component/data-access/realtime/messaging/infrastructure/WPF/vector counts
+- added federated metadata helpers for routes, components, data access, realtime, messaging, infrastructure, and WPF, with project identity attached to each result
+- added read-only control endpoints: `GET /api/architecture/groups`, `GET /api/architecture/groups/{group_id}/status`, and `GET /api/architecture/groups/{group_id}/summary`
+- updated architecture status/capabilities to report group federation ready while matching, group impact, and service map remain false
+- preserved one repo-local `.b3/b3.db` per project and avoided global database merging
+
+Rules:
+
+- no cross-repo route/API matching
+- no cross-repo messaging matching
+- no package/contract/infra matching
+- no group-level impact or context pack
+- no architecture graph UI or service map API
+- no global DB merge
+- no cloud graph database, hosted vector database, telemetry, external API, or internet requirement
+- no MCP architecture tool or MCP tool count change
 
 ## Phase 11.2 - Cross-Repo Route / API Matching
 
@@ -1285,14 +1300,15 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Refactor assistant | Phase 12 / 13 |
 | Local embeddings / vector search | Phase 10.0-10.5 |
 | Cross-project architecture contracts | Usable now, model/status only |
+| Cross-project group federation | Usable now, read-only summaries |
 | Full memory/context platform | Later phase |
-| Cross-project matching / federation | Phase 11.1+ |
+| Cross-project matching | Phase 11.2+ |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; federation and matching begin in Phase 11.1+.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; matching begins in Phase 11.2+.
 
 ---
 

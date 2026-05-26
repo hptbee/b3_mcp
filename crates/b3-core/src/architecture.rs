@@ -465,7 +465,7 @@ impl Default for ArchitectureCapabilityStatus {
     fn default() -> Self {
         Self {
             architecture_contracts_available: true,
-            group_federation_ready: false,
+            group_federation_ready: true,
             route_matching_ready: false,
             messaging_matching_ready: false,
             package_contract_infra_matching_ready: false,
@@ -798,7 +798,7 @@ mod tests {
         let status = ArchitectureCapabilityStatus::default();
 
         assert!(status.architecture_contracts_available);
-        assert!(!status.group_federation_ready);
+        assert!(status.group_federation_ready);
         assert!(!status.route_matching_ready);
         assert!(!status.messaging_matching_ready);
         assert!(!status.package_contract_infra_matching_ready);

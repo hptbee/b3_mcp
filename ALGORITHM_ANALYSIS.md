@@ -722,6 +722,21 @@ matching. No project database federation, cross-repo matching, global database
 merge, cloud graph database, hosted vector database, or remote lookup is part
 of this phase.
 
+### Phase 11.1 Group Query Federation
+
+Phase 11.1 federates read-only queries across registry-defined local project
+groups. The registry supplies group membership and per-project database paths;
+each existing project database is opened independently in read-only mode and
+queried through existing storage readers. Missing registry projects, missing
+DBs, unreadable DBs, and unindexed DBs become structured warnings so one bad
+project does not fail the entire group.
+
+The output is summary-oriented: group context, per-project status, metadata
+counts, semantic/vector readiness, and federated metadata rows with project
+identity attached. The federation layer deliberately does not create
+cross-project edges, infer route/message/package relationships, merge
+databases, or build a service map.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

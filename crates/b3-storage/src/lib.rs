@@ -18,7 +18,7 @@ use b3_core::{
     SymbolRepository, TokenSavingsRecord, TokenSavingsRepository, VectorDocument, VectorSearchHit,
     VectorSearchRequest, VectorStore, VectorStoreStats,
 };
-use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Row, Transaction};
 
 pub use b3_core::{
     FileRepository as FileRepositoryContract, GraphRepository as GraphRepositoryContract,
@@ -740,6 +740,19 @@ impl SqliteStorage {
         storage.configure_connection()?;
         storage.migrate()?;
         Ok(storage)
+    }
+
+    pub fn open_read_only(path: impl AsRef<Path>) -> ContractResult<Self> {
+        let connection =
+            Connection::open_with_flags(path.as_ref(), OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .map_err(to_contract_error)?;
+        connection
+            .pragma_update(None, "query_only", "ON")
+            .map_err(to_contract_error)?;
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .map_err(to_contract_error)?;
+        Ok(Self { connection })
     }
 
     pub fn open_in_memory() -> ContractResult<Self> {

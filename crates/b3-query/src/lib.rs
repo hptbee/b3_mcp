@@ -4,6 +4,7 @@
 //! token savings estimates, and context packing through core traits. It does
 //! not own storage clients, embedding workers, MCP request handling, or UI.
 
+pub mod architecture;
 pub mod hybrid;
 
 use std::{

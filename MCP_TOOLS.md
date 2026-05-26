@@ -45,6 +45,9 @@ only. It does not add architecture MCP tools, change MCP profiles, or change
 tool counts. Cross-project federation and matching remain later Phase 11
 subphases.
 
+Phase 11.1 adds local Control API group federation only. It still does not add
+architecture MCP tools, change MCP profiles, or change tool counts.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

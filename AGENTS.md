@@ -421,3 +421,14 @@ impact analysis, architecture graph UI, service map APIs, global database
 merges, cloud graph databases, hosted vector databases, external APIs,
 telemetry, symbolic editing, rename/refactor, session memory, or cross-project
 architecture intelligence beyond contracts.
+
+Phase 11.1 is completed as local group query federation only. It may resolve
+registry-defined project groups, open existing project DBs read-only, return
+per-project statuses and warnings, aggregate metadata summaries, and expose
+read-only local control endpoints for group list/status/summary.
+
+It must not implement cross-repo route/API matching, cross-repo messaging
+matching, package/contract/infra matching, group-level impact analysis,
+architecture graph UI, service map APIs, global database merges, cloud graph
+databases, hosted vector databases, external APIs, telemetry, symbolic editing,
+rename/refactor, session memory, or cross-project relationship inference.

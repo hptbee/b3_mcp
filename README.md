@@ -29,12 +29,12 @@ Completed:
 - Phase 10.4 - MCP / Control API Integration
 - Phase 10.5 - Benchmark + Quality Evaluation
 - Phase 11.0 - Cross-Project Architecture Model + Contracts
-
-Current / Next:
 - Phase 11.1 - Group Query Federation
 
-Upcoming (major):
+Current / Next:
 - Phase 11.2 - Cross-Repo Route / API Matching
+
+Upcoming (major):
 - Phase 11.3 - Cross-Repo Messaging Matching
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 12 — Symbolic Editing MVP
@@ -77,7 +77,8 @@ Vector foundation:
 
 Cross-project architecture foundation:
 - Phase 11.0 adds serializable local architecture contracts for projects, groups, services, nodes, edges, match candidates, confidence, provenance, and normalization.
-- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; group federation and matching are later Phase 11 subphases.
+- Phase 11.1 resolves local registry groups and federates read-only summaries across repo-local `.b3/b3.db` files.
+- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; matching is deferred to later Phase 11 subphases.
 
 ---
 
@@ -87,7 +88,7 @@ Cross-project architecture foundation:
 - `local_hash` embeddings are lexical/hash-based, not neural semantic-quality vectors.
 - MCP/control semantic search is local/offline and uses lexical/hash-based `local_hash`, not neural semantic vectors.
 - Quality metrics are fixture baselines, not production guarantees.
-- Cross-project matching, federation, and service maps are not usable yet; Phase 11.0 only adds contracts/status.
+- Cross-project relationship matching and service maps are not usable yet; Phase 11.1 only adds group federation/status/summary.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
@@ -118,7 +119,8 @@ Cross-project architecture foundation:
 | MCP semantic search tool | Usable now, local/offline |
 | Search quality benchmark | Usable now, local fixture baseline |
 | Cross-project architecture contracts | Usable now, model/status only |
-| Cross-project matching / federation | Phase 11.1+ |
+| Cross-project group federation | Usable now, read-only summaries |
+| Cross-project matching | Phase 11.2+ |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.

@@ -10,11 +10,12 @@ path = "src/lib.rs"
 [dependencies]
 b3-core = { path = "../b3-core" }
 b3-embeddings = { path = "../b3-embeddings" }
+b3-storage = { path = "../b3-storage" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [dev-dependencies]
 b3-indexer = { path = "../b3-indexer" }
-b3-storage = { path = "../b3-storage" }
-serde_json = "1"
 tempfile = "3"
 
 [lints]

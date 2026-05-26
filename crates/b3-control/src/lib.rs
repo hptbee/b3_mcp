@@ -37,6 +37,7 @@ use b3_indexer::{
     WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
+use b3_query::architecture::GroupFederation;
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
@@ -197,6 +198,7 @@ impl ServeOptions {
 pub struct ControlState {
     project_path: Arc<PathBuf>,
     database_path: Arc<PathBuf>,
+    registry_path: Arc<PathBuf>,
     storage: Arc<Mutex<SqliteStorage>>,
     app_config: Arc<AppConfig>,
     events: EventHub,
@@ -211,6 +213,7 @@ impl ControlState {
         Ok(Self {
             project_path: Arc::new(options.project_path.clone()),
             database_path: Arc::new(options.database_path.clone()),
+            registry_path: Arc::new(b3_query::architecture::default_registry_path()),
             storage: Arc::new(Mutex::new(storage)),
             app_config: Arc::new(AppConfig::default()),
             events: EventHub::new(256),
@@ -226,6 +229,25 @@ impl ControlState {
         Self {
             project_path: Arc::new(project_path),
             database_path: Arc::new(database_path),
+            registry_path: Arc::new(b3_query::architecture::default_registry_path()),
+            storage: Arc::new(Mutex::new(storage)),
+            app_config: Arc::new(AppConfig::default()),
+            events: EventHub::new(256),
+            index_status: Arc::new(Mutex::new(IndexStatusResponse::default())),
+        }
+    }
+
+    #[cfg(test)]
+    fn from_storage_with_registry_path(
+        project_path: PathBuf,
+        database_path: PathBuf,
+        storage: SqliteStorage,
+        registry_path: PathBuf,
+    ) -> Self {
+        Self {
+            project_path: Arc::new(project_path),
+            database_path: Arc::new(database_path),
+            registry_path: Arc::new(registry_path),
             storage: Arc::new(Mutex::new(storage)),
             app_config: Arc::new(AppConfig::default()),
             events: EventHub::new(256),
@@ -284,6 +306,15 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/diagnostics", get(diagnostics))
         .route("/api/capabilities", get(capabilities))
         .route("/api/architecture/status", get(architecture_status))
+        .route("/api/architecture/groups", get(architecture_groups))
+        .route(
+            "/api/architecture/groups/:group_id/status",
+            get(architecture_group_status),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/summary",
+            get(architecture_group_summary),
+        )
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
         .route("/api/vector/stats", get(vector_stats))
@@ -1332,6 +1363,7 @@ async fn diagnostics(State(state): State<ControlState>) -> Json<Value> {
         "status": "ok",
         "project_path": path_string(&state.project_path),
         "database_path": path_string(&state.database_path),
+        "registry_path": path_string(&state.registry_path),
         "offline_mode": true,
         "telemetry_enabled": false,
         "source_upload_enabled": false,
@@ -1548,6 +1580,8 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "vector_stats": true,
             "hybrid_search": true,
             "architecture_status": true,
+            "architecture_groups": true,
+            "architecture_group_summary": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1556,6 +1590,64 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
 
 async fn architecture_status() -> Json<ArchitectureCapabilityStatus> {
     Json(ArchitectureCapabilityStatus::default())
+}
+
+async fn architecture_groups(
+    State(state): State<ControlState>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "groups": federation.groups(),
+        "registry_path": path_string(&state.registry_path),
+        "local_only": true,
+        "federation_ready": true,
+        "matching_ready": false
+    })))
+}
+
+async fn architecture_group_status(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let context = federation
+        .resolve_context(&group_id)
+        .map_err(federation_error)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "group": context,
+        "federation_ready": true,
+        "matching_ready": false,
+        "local_only": true
+    })))
+}
+
+async fn architecture_group_summary(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let summary = federation.summary(&group_id).map_err(federation_error)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "summary": summary,
+        "federation_ready": true,
+        "matching_ready": false,
+        "local_only": true
+    })))
+}
+
+fn federation_error(error: ContractError) -> ControlError {
+    let message = error.to_string();
+    if message.contains("group not found") {
+        ControlError::not_found(message)
+    } else {
+        ControlError::bad_request(message)
+    }
 }
 
 async fn vector_status(State(state): State<ControlState>) -> Result<Json<Value>, ControlError> {
@@ -3860,6 +3952,79 @@ mod tests {
         ))
     }
 
+    fn write_group_registry(
+        path: &std::path::Path,
+        projects: &[(&str, &str, &std::path::Path)],
+        group_projects: &[&str],
+    ) {
+        let projects_json = projects
+            .iter()
+            .map(|(id, name, db)| {
+                format!(
+                    r#"{{"id":"{id}","name":"{name}","path":"{}","database":"{}","tags":[]}}"#,
+                    db.parent()
+                        .expect("db parent")
+                        .display()
+                        .to_string()
+                        .replace('\\', "\\\\"),
+                    db.display().to_string().replace('\\', "\\\\")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let project_ids = group_projects
+            .iter()
+            .map(|id| format!(r#""{id}""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        let registry = format!(
+            r#"{{"version":1,"projects":[{projects_json}],"groups":[{{"id":"suite","name":"Suite","description":"","project_ids":[{project_ids}],"tags":[]}}]}}"#
+        );
+        fs::write(path, registry).expect("registry");
+    }
+
+    fn seed_route_database(database_path: &std::path::Path, project: &str, route_path: &str) {
+        let storage = SqliteStorage::open(database_path).expect("open project database");
+        let project_id = ProjectId::new(project);
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new(format!("{project}-route-file")),
+                        project_id: project_id.clone(),
+                        path: format!("src/{project}.ts"),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 32,
+                    content: format!("app.get('{route_path}', handler);"),
+                    symbols: vec![SymbolRecord {
+                        id: SymbolId::new(format!("{project}-route")),
+                        file_id: FileId::new(format!("{project}-route-file")),
+                        name: format!("GET {route_path}"),
+                        kind: NodeKind::Route,
+                        start_byte: 0,
+                        end_byte: 32,
+                        start_line: 1,
+                        start_column: 0,
+                        end_line: 1,
+                        end_column: 32,
+                        visibility: Some(format!(
+                            "route.framework=express;route.method=GET;route.path={route_path};route.file=src/{project}.ts;route.handler=handler;route.source=ExpressCall;route.line_start=1;route.line_end=1;route.confidence=9500"
+                        )),
+                    }],
+                    edges: Vec::new(),
+                },
+            )
+            .expect("route file");
+    }
+
     fn route_app() -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         let project_id = ProjectId::new("default");
@@ -4406,7 +4571,7 @@ mod tests {
             body["architecture"]["architecture_contracts_available"],
             true
         );
-        assert_eq!(body["architecture"]["group_federation_ready"], false);
+        assert_eq!(body["architecture"]["group_federation_ready"], true);
         assert_eq!(body["architecture"]["route_matching_ready"], false);
         assert_eq!(body["architecture"]["messaging_matching_ready"], false);
         assert_eq!(
@@ -4424,13 +4589,15 @@ mod tests {
         );
         assert_eq!(body["architecture"]["telemetry_enabled"], false);
         assert_eq!(body["control_api"]["architecture_status"], true);
+        assert_eq!(body["control_api"]["architecture_groups"], true);
+        assert_eq!(body["control_api"]["architecture_group_summary"], true);
         assert_eq!(body["vector_search"]["local_only"], true);
         assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
     }
 
     #[tokio::test]
-    async fn architecture_status_reports_contracts_only() {
+    async fn architecture_status_reports_federation_ready_without_matching() {
         let response = empty_app()
             .oneshot(
                 Request::builder()
@@ -4444,7 +4611,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = response_json(response).await;
         assert_eq!(body["architecture_contracts_available"], true);
-        assert_eq!(body["group_federation_ready"], false);
+        assert_eq!(body["group_federation_ready"], true);
         assert_eq!(body["route_matching_ready"], false);
         assert_eq!(body["messaging_matching_ready"], false);
         assert_eq!(body["package_contract_infra_matching_ready"], false);
@@ -4455,6 +4622,92 @@ mod tests {
         assert_eq!(body["cloud_graph_database_required"], false);
         assert_eq!(body["hosted_vector_database_required"], false);
         assert_eq!(body["telemetry_enabled"], false);
+    }
+
+    #[tokio::test]
+    async fn architecture_group_endpoints_resolve_registry_and_warn_on_missing_db() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let api_db = dir.path().join("api").join(".b3").join("b3.db");
+        let missing_db = dir.path().join("missing").join(".b3").join("b3.db");
+        seed_route_database(&api_db, "api", "/orders");
+        write_group_registry(
+            &registry_path,
+            &[("api", "API", &api_db), ("missing", "Missing", &missing_db)],
+            &["api", "missing"],
+        );
+
+        let storage = SqliteStorage::open_in_memory().expect("control storage");
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            storage,
+            registry_path,
+        ));
+
+        let groups_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("groups");
+        assert_eq!(groups_response.status(), StatusCode::OK);
+        let groups = response_json(groups_response).await;
+        assert_eq!(groups["groups"][0]["id"], "suite");
+        assert_eq!(groups["federation_ready"], true);
+        assert_eq!(groups["matching_ready"], false);
+
+        let status_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("status");
+        assert_eq!(status_response.status(), StatusCode::OK);
+        let status = response_json(status_response).await;
+        assert_eq!(status["group"]["opened_project_count"], 1);
+        assert_eq!(status["group"]["skipped_project_count"], 1);
+        assert_eq!(status["group"]["projects"][0]["project_id"], "api");
+        assert_eq!(status["group"]["projects"][0]["status"], "Ready");
+        assert_eq!(status["group"]["projects"][1]["status"], "MissingDb");
+        assert_eq!(status["matching_ready"], false);
+
+        let summary_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/summary")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("summary");
+        assert_eq!(summary_response.status(), StatusCode::OK);
+        let summary = response_json(summary_response).await;
+        assert_eq!(summary["summary"]["ready_project_count"], 1);
+        assert_eq!(summary["summary"]["skipped_project_count"], 1);
+        assert_eq!(summary["summary"]["counts"]["routes"], 1);
+        assert_eq!(summary["summary"]["federation_ready"], true);
+        assert_eq!(summary["summary"]["matching_ready"], false);
+
+        let missing_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/nope/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("missing");
+        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

@@ -922,10 +922,10 @@ Avoid:
 - Phase 10.4: MCP / Control API Integration
 - Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11.0: Cross-Project Architecture Model + Contracts
+- Phase 11.1: Group Query Federation
 
 ### Planned Phases
 
-- Phase 11.1: Group Query Federation
 - Phase 11.2: Cross-Repo Route / API Matching
 - Phase 11.3: Cross-Repo Messaging Matching
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
