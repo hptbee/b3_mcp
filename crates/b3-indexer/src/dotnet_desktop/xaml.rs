@@ -37,6 +37,10 @@ pub(crate) fn extract_xaml_symbols(input: &ParseInput) -> Vec<ExtractedSymbol> {
     let command_bindings = command_bindings(&input.source);
     let resource_keys = resource_keys(&input.source);
     let resource_sources = resource_sources(&input.source);
+    let style_target_types = style_target_types(&input.source);
+    let template_keys = template_keys(&input.source);
+    let x_names = attr_values(&input.source, "x:Name");
+    let xmlns = xmlns_namespaces(&input.source);
     let view_model = data_context
         .clone()
         .or_else(|| view_model_hint(x_class.as_deref(), &name));
@@ -71,6 +75,10 @@ pub(crate) fn extract_xaml_symbols(input: &ParseInput) -> Vec<ExtractedSymbol> {
             ("command_bindings", command_bindings.join(",")),
             ("resource_keys", resource_keys.join(",")),
             ("resource_sources", resource_sources.join(",")),
+            ("style_target_types", style_target_types.join(",")),
+            ("template_keys", template_keys.join(",")),
+            ("x_names", x_names.join(",")),
+            ("xmlns", xmlns.join(",")),
             ("data_context", data_context.unwrap_or_default()),
             ("file", file_path(input)),
             ("line_start", line.to_string()),
@@ -185,6 +193,70 @@ fn resource_sources(source: &str) -> Vec<String> {
         .into_iter()
         .filter(|value| value.ends_with(".xaml") || value.contains(".xaml#"))
         .collect()
+}
+
+fn style_target_types(source: &str) -> Vec<String> {
+    attr_values(source, "TargetType")
+        .into_iter()
+        .map(|value| {
+            value
+                .trim()
+                .trim_start_matches("{x:Type")
+                .trim_end_matches('}')
+                .trim()
+                .to_string()
+        })
+        .collect()
+}
+
+fn template_keys(source: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    for tag in ["ControlTemplate", "DataTemplate"] {
+        let mut rest = source;
+        let needle = format!("<{tag}");
+        while let Some(index) = rest.find(&needle) {
+            rest = &rest[index + needle.len()..];
+            if let Some(key) = attr_values(rest, "x:Key").first().cloned() {
+                keys.push(key);
+            }
+            let target_type = attr_values(rest, "DataType")
+                .into_iter()
+                .next()
+                .or_else(|| attr_values(rest, "TargetType").into_iter().next());
+            if let Some(target_type) = target_type {
+                keys.push(target_type);
+            }
+            let Some(end) = rest.find('>') else {
+                break;
+            };
+            rest = &rest[end + 1..];
+        }
+    }
+    keys.sort();
+    keys.dedup();
+    keys
+}
+
+fn xmlns_namespaces(source: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    for quote in ['"', '\''] {
+        let mut rest = source;
+        while let Some(index) = rest.find("xmlns") {
+            rest = &rest[index..];
+            let Some(eq) = rest.find('=') else {
+                break;
+            };
+            let name = rest[..eq].trim().to_string();
+            let after = rest[eq + 1..].trim_start();
+            if after.starts_with(quote) {
+                values.push(name);
+            }
+            rest = &after[1.min(after.len())..];
+        }
+    }
+    values.sort();
+    values.dedup();
+    values
 }
 
 fn markup_extensions(source: &str, prefix: &str) -> Vec<String> {

@@ -123,7 +123,8 @@ control server.
 The control server now exposes language backend metadata at `/api/languages`,
 but the Web UI does not render a dedicated language support table yet. This is
 deferred to a later UI pass. Current capability truth is Rust implemented,
-JavaScript/TypeScript/JSX/TSX basic indexing, Node REST basic static route
+JavaScript/TypeScript/JSX/TSX basic indexing, Python/Java/Kotlin/PHP/Ruby
+backend basic static indexing, Node REST basic static route
 metadata, React/TSX basic static component metadata, Next.js basic static route
 and boundary metadata, Angular basic static decorator/route/component metadata,
 C# basic static Web API metadata, Go basic static symbols/imports/route hints,
@@ -315,4 +316,7 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - The broader Web UI Developer Console Refresh remains deferred until after
   core intelligence and semantic search work.
 - Config mutation/save is deferred.
+- Phase 15 systems/mobile/config/web metadata is available through existing
+  backend APIs and query surfaces, but no dedicated architecture graph UI or
+  developer-console redesign is added in Phase 15.
 - SSE currently reflects the minimal control-server event stream.

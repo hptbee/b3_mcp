@@ -15,6 +15,14 @@ exposed through existing query tools plus the local control server
 `GET /api/wpf` endpoint. It does not add MCP tools, change MCP profile counts,
 or move WPF/XAML extraction into the MCP runtime.
 
+Phase 15 systems/mobile/config/web support is indexed as local static symbol
+and metadata evidence. Existing MCP query tools may surface C/C++, Swift,
+Objective-C, Dart/Flutter, YAML, JSON, TOML, XML, HTML, CSS/SCSS, XAML,
+Three.js/WebGL, and ksqlDB hints through search, context packs, routes,
+messaging, infrastructure, and graph responses. It does not add MCP tools,
+change profile counts, run compilers/package managers/browsers/WebGL, connect
+to Kafka/ksqlDB/brokers/databases, or call external APIs.
+
 Phase 10.0 adds local embedding/vector architecture only. It does not add a
 semantic search MCP tool, does not change MCP profiles or tool counts, and does
 not move vector storage, embedding generation, or ranking into the MCP runtime.
@@ -161,7 +169,7 @@ suggestion to use `full` or `debug` when appropriate.
 | `debug` | all current tools | 12 |
 | `readonly` | all current read-only tools; future mutation tools must be hidden | 12 |
 | `editing` | same as `optimized` for now; MCP symbolic editing tools remain deferred after the Phase 12 Control API MVP | 8 |
-| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, Go, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, data access metadata, realtime/socket metadata, messaging metadata, and infrastructure metadata | 8 |
+| `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, Go, C#, Python, Java, Kotlin, PHP, Ruby, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, data access metadata, realtime/socket metadata, messaging metadata, and infrastructure metadata | 8 |
 | `enterprise` | `find_symbol`, `search_code`, `semantic_search`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 10 |
 
 Phase 12 exposes symbolic editing through the local Control API only. Phase 13

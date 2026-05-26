@@ -1001,19 +1001,18 @@ connect to brokers, run package managers, run Docker/Kubernetes/Terraform/cloud
 CLIs, call external APIs, add telemetry, add MCP tools, implement graph UI,
 implement symbolic editing, implement rename/refactor, or implement full Git
 Intelligence. After switching branches, users should reindex before comparing
-results until branch-aware indexing is implemented. `D:\Project\Project_B` and `D:\Project\Tuvi_B` are optional
-benchmark candidates; missing paths or DBs must warn and skip, not fail normal
-builds/tests/benchmarks.
+results until branch-aware indexing is implemented. Configured optional local
+benchmark repositories are optional; missing paths or DBs must warn and skip,
+not fail normal builds/tests/benchmarks.
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark configuration
-path for broader Phase 11.7 real-local benchmarks. It may reference optional
-local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and
-`D:\Project\Tuvi_B`, but missing optional projects must produce warnings, not
-failures. Normal cargo build/test runs must not require these paths to exist,
-must not access the internet or external APIs, must not use telemetry, hosted
-vector databases, cloud embeddings, brokers, database servers, or paid
-dependencies, and must preserve one repo-local `.b3/b3.db` per project without
-merging benchmark databases into a global DB.
+path for broader Phase 11.7 real-local benchmarks and the source of truth for
+local benchmark project names/paths. Missing optional projects must produce
+warnings, not failures. Normal cargo build/test runs must not require these
+paths to exist, must not access the internet or external APIs, must not use
+telemetry, hosted vector databases, cloud embeddings, brokers, database servers,
+or paid dependencies, and must preserve one repo-local `.b3/b3.db` per project
+without merging benchmark databases into a global DB.
 
 Phase 12 adds the Symbolic Editing MVP. It may define editing contracts,
 resolve explicit file ranges and indexed symbols, produce dry-run edit previews,
@@ -1039,6 +1038,28 @@ formatter validation, package manager execution, LSP-required edits, MCP
 rename/refactor tools by default, UI editing, Git Intelligence, cloud services,
 external APIs, telemetry, paid dependencies, or internet requirements.
 
+Phase 14 adds Additional Backend Language Support. It may statically and locally
+detect and index Python, Java, Kotlin, PHP, and Ruby backend/application code,
+including basic project metadata, symbols/imports, conservative route/API hints,
+data-access hints, and messaging hints where literal evidence is visible. It
+must not run package managers, compilers, formatters, runtimes, language
+servers, Docker/Kubernetes/Terraform, external APIs, cloud services, telemetry,
+or internet access. Support is Basic/static only; compiler-grade semantics and
+deep framework analysis remain deferred.
+
+Phase 15 adds Systems / Mobile / Config / Web File Support A. It may statically
+and locally detect and index C, C++, Swift, Objective-C, Dart/Flutter, YAML,
+JSON, TOML, XML, HTML, CSS/SCSS, XAML hardening, Three.js/WebGL hints, and
+ksqlDB hints. It may extract conservative symbols, imports/includes, config key
+paths, safe package/dependency names, template/style/asset references,
+route/client hints, infrastructure-compatible YAML metadata where existing
+parsers apply, and ksqlDB Kafka topic/dependency hints where literal evidence is
+visible. It must not run compilers, preprocessors, package managers, formatters,
+runtimes, browsers, WebGL, Docker/Kubernetes/Terraform, Kafka, ksqlDB, brokers,
+databases, language servers, external APIs, cloud services, telemetry, or
+internet access. Secret-like config values must be redacted or skipped; names
+and keys are acceptable.
+
 ### Roadmap
 
 Completed:
@@ -1049,15 +1070,15 @@ Completed:
 - Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
+- Phase 14: Additional Backend Language Support
+- Phase 15: Systems / Mobile / Config / Web File Support A
 
 Current / Next:
 
-- Phase 14: Additional Backend Language Support
+- Phase 16: Config / Data / Web File Support B / Hardening
 
 Upcoming:
 
-- Phase 15: Systems / Mobile Language Support
-- Phase 16: Config / Data / Web File Support
 - Phase 17: Language and Technology Quality Audit
 - Phase 18: Refactor Checkpoint D
 - Phase 19: Performance Optimization Pass B

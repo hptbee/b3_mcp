@@ -1,0 +1,7 @@
+$gap: 8px;
+.card, #main {
+  --accent: red;
+  background: url('hero.png');
+}
+@mixin panel() {}
+@keyframes fade {}

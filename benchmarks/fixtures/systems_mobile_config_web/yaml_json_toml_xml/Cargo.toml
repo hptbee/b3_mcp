@@ -1,0 +1,5 @@
+[package]
+name = "phase15-fixture"
+
+[dependencies]
+serde = "1"

@@ -1,0 +1,7 @@
+<Window x:Class="Demo.Views.MainWindow" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Window.Resources>
+    <ResourceDictionary Source="Theme.xaml" />
+    <Style x:Key="PrimaryButton" TargetType="Button" />
+  </Window.Resources>
+  <Button x:Name="SaveButton" Command="{Binding SaveCommand}" />
+</Window>

@@ -1,0 +1,10 @@
+<project>
+  <groupId>local.fixture</groupId>
+  <artifactId>phase15</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>org.example</groupId>
+      <artifactId>demo</artifactId>
+    </dependency>
+  </dependencies>
+</project>

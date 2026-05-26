@@ -1,0 +1,7 @@
+{
+  "name": "phase15-fixture",
+  "dependencies": {
+    "three": "1.0.0"
+  },
+  "password": "redacted"
+}

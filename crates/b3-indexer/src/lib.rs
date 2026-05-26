@@ -6,8 +6,11 @@
 //! It does not implement retrieval ranking, embedding generation, UI features,
 //! or MCP request handling.
 
+mod backend_languages;
+mod config_files;
 mod csharp;
 mod data_access;
+mod data_files;
 mod dotnet_desktop;
 pub mod embedding;
 mod go;
@@ -16,8 +19,14 @@ pub mod lsp;
 mod messaging;
 mod realtime;
 pub mod scope;
+mod systems_languages;
 mod web;
+mod web_files;
 
+#[cfg(test)]
+pub(crate) use backend_languages::{
+    backend_metadata_value, route_metadata_value as backend_route_metadata_value,
+};
 pub use csharp::detect_csproj_technologies as detect_dotnet_project_technologies;
 #[cfg(test)]
 pub(crate) use csharp::{aspnet_metadata_value, detect_csproj_technologies};
@@ -1776,6 +1785,20 @@ impl TreeSitterParser for DefaultLanguagePack {
                 Ok(parsed)
             }
             Some("go" | "gomod") => go::parse(input),
+            Some(
+                "python" | "python_project" | "java" | "java_project" | "kotlin" | "kotlin_project"
+                | "php" | "php_project" | "ruby" | "ruby_project",
+            ) => backend_languages::parse(input),
+            Some(
+                "c" | "c_header" | "cpp" | "cpp_header" | "cmake" | "makefile" | "compile_commands"
+                | "swift" | "swift_project" | "objective_c" | "objective_cpp" | "dart"
+                | "dart_project",
+            ) => systems_languages::parse(input),
+            Some("yaml" | "json" | "toml" | "xml") => config_files::parse(input),
+            Some("html" | "css" | "scss") => web_files::parse(input),
+            Some("ksql" | "sql") if data_files::is_ksqldb_file(&input.path, &input.source) => {
+                data_files::parse(input)
+            }
             _ => NoopTreeSitterParser.parse(input),
         }
     }
@@ -2159,6 +2182,21 @@ fn language_from_path(path: &Path) -> Option<String> {
             "go.mod" => return Some("gomod".to_string()),
             "go.sum" => return Some("gosum".to_string()),
             "go.work" => return Some("gowork".to_string()),
+            "pyproject.toml" | "requirements.txt" | "setup.cfg" | "pipfile" | "poetry.lock"
+            | "uv.lock" => return Some("python_project".to_string()),
+            "pom.xml" | "build.gradle" | "settings.gradle" => {
+                return Some("java_project".to_string())
+            }
+            "build.gradle.kts" | "settings.gradle.kts" => {
+                return Some("kotlin_project".to_string())
+            }
+            "composer.json" | "composer.lock" => return Some("php_project".to_string()),
+            "gemfile" | "gemfile.lock" => return Some("ruby_project".to_string()),
+            "cmakelists.txt" => return Some("cmake".to_string()),
+            "makefile" => return Some("makefile".to_string()),
+            "compile_commands.json" => return Some("compile_commands".to_string()),
+            "package.swift" => return Some("swift_project".to_string()),
+            "pubspec.yaml" | "analysis_options.yaml" => return Some("dart_project".to_string()),
             _ => {}
         }
     }
@@ -2176,6 +2214,36 @@ fn language_from_path(path: &Path) -> Option<String> {
             "cs" => "csharp",
             "csproj" => "csproj",
             "xaml" => "xaml",
+            "py" => "python",
+            "java" => "java",
+            "kt" | "kts" => "kotlin",
+            "php" => "php",
+            "rb" => "ruby",
+            "c" => "c",
+            "h" => "c_header",
+            "cpp" | "cc" | "cxx" => "cpp",
+            "hpp" | "hh" => "cpp_header",
+            "m" => "objective_c",
+            "mm" => "objective_cpp",
+            "swift" => "swift",
+            "dart" => "dart",
+            "yaml" | "yml" => "yaml",
+            "json" => "json",
+            "toml" => "toml",
+            "xml" => "xml",
+            "html" | "htm" | "cshtml" | "erb" | "ejs" | "hbs" => "html",
+            "css" => "css",
+            "scss" | "sass" => "scss",
+            "ksql" => "ksql",
+            "sql"
+                if path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .is_some_and(|name| name.to_ascii_lowercase().ends_with(".ksql.sql")) =>
+            {
+                "ksql"
+            }
+            "sql" => "sql",
             other => other,
         }
         .to_string(),

@@ -314,7 +314,11 @@ Current truth:
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 
-`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, C# as Basic static ASP.NET Core / Web API support, and Go as Basic static support.
+`GET /api/languages` reports Rust as Good tree-sitter support, JavaScript/TypeScript/JSX/TSX as Basic local tree-sitter support, C# as Basic static ASP.NET Core / Web API support, Go as Basic static support, Python/Java/Kotlin/PHP/Ruby as Basic static backend language support, and Phase 15 C/C++/Swift/Objective-C/Dart plus YAML/JSON/TOML/XML/HTML/CSS/SCSS/Three.js/WebGL/ksqlDB as Basic static support or Basic static hints.
+
+Phase 14 backend language support is static/local/offline only. It exposes symbols/imports and conservative route/data-access/messaging hints through the existing APIs, and it does not run package managers, compilers, runtimes, language servers, external APIs, cloud services, telemetry, or internet access.
+
+Phase 15 systems/mobile/config/web support is static/local/offline only. It exposes conservative symbols, imports/includes, safe config key paths, package/dependency names, template/style/asset references, route/client hints, XAML metadata hardening, Three.js/WebGL hints, and ksqlDB messaging/data-flow hints through existing symbol and metadata shapes. It does not run compilers, package managers, formatters, runtimes, browsers, WebGL, Docker/Kubernetes/Terraform, Kafka, ksqlDB, brokers, databases, language servers, external APIs, cloud services, telemetry, or internet access.
 
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route

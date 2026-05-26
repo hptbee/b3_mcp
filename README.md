@@ -39,13 +39,13 @@ Completed:
 - Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
+- Phase 14 - Additional Backend Language Support
+- Phase 15 - Systems / Mobile / Config / Web File Support A
 
 Current / Next:
-- Phase 14 - Additional Backend Language Support
+- Phase 16 - Config / Data / Web File Support B / Hardening
 
 Upcoming (major):
-- Phase 15 - Systems / Mobile Language Support
-- Phase 16 - Config / Data / Web File Support
 - Phase 17 - Language and Technology Quality Audit
 - Phase 18 - Refactor Checkpoint D
 - Phase 19 - Performance Optimization Pass B
@@ -72,6 +72,11 @@ Language and framework intelligence (basic/static/local):
 - React / Next.js / Angular (static extraction)
 - ASP.NET Core / C# Web API
 - Go (basic static support)
+- Python, Java, Kotlin, PHP, and Ruby backend basics
+- C / C++ systems basics
+- Swift, Objective-C, and Dart / Flutter mobile basics
+- YAML, JSON, TOML, XML, HTML, CSS, and SCSS static file basics
+- Three.js / WebGL static hints and ksqlDB static hints
 
 Application intelligence (static hints):
 - ORM / data-access (EF Core, Dapper, Prisma, TypeORM, Sequelize)
@@ -79,6 +84,7 @@ Application intelligence (static hints):
 - Messaging/event-driven (AMQP/RabbitMQ, Kafka, Google Pub/Sub)
 - Cloud / infrastructure hints (Docker, Compose, Kubernetes, Terraform)
 - C# WPF / XAML (basic static/local)
+- Config/data/web file hints are static/local only; secret-like config values are redacted or skipped, browsers/WebGL are never executed, and Kafka/ksqlDB are never contacted.
 
 Vector foundation:
 - `local_hash` embeddings and SQLite vector persistence/search (local/offline raw vector search).
@@ -86,7 +92,7 @@ Vector foundation:
 - Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
 - Fixture-based benchmark/quality evaluation is available through `cargo run -p b3-bench -- baseline`.
 - The default local benchmark config path is `benchmarks/b3.benchmark.toml`; its real-local repository paths are optional candidates and missing paths are warnings, not build/test failures.
-- Phase 11.7 adds a local cross-project architecture benchmark section to `cargo run -p b3-bench -- baseline`; optional local repos such as `Project_B` and `Tuvi_B` warn when missing or unindexed. Use `.\scripts\setup-local-benchmark.ps1` to index those optional local repos when they exist.
+- Phase 11.7 adds a local cross-project architecture benchmark section to `cargo run -p b3-bench -- baseline`; optional local repos from `benchmarks/b3.benchmark.toml` warn when missing or unindexed. Use `.\scripts\setup-local-benchmark.ps1` to prepare those optional local repos when they exist.
 - Phase 11.1.1 adds a local context-efficiency benchmark comparing deterministic file-by-file exploration, `search_code`, `semantic_search`, context-pack-style selection, and a group-summary model.
 - Production-grade neural embedding providers are planned in later optional-provider phases.
 
@@ -164,6 +170,12 @@ Symbolic editing foundation:
 | Cross-project architecture benchmark | Usable now, local fixture/optional repo baseline |
 | Symbolic editing preview/apply | Usable now, local Control API MVP |
 | Refactor assistant / rename & refactor | Usable now, local bounded Control API MVP |
+| C / C++ | Usable now, basic/static |
+| Swift / Objective-C / Dart / Flutter | Usable now, basic/static |
+| YAML / JSON / TOML / XML | Usable now, basic/static |
+| HTML / CSS / SCSS | Usable now, basic/static |
+| Three.js / WebGL hints | Usable now, static hints only |
+| ksqlDB hints | Usable now, basic/static |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.
 

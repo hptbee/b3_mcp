@@ -188,6 +188,41 @@ Phase 9.2 web language support is basic indexing only. JavaScript, TypeScript, J
 
 Do not add Node.js REST route intelligence, React hook/component graph intelligence, Angular route/template/module intelligence, C# semantic intelligence, JS/TS symbolic editing, rename/refactor, embeddings, semantic search, or cross-project architecture intelligence in Phase 9.2.
 
+## Additional Backend Language Boundaries
+
+Phase 14 Additional Backend Language Support is completed as basic local static
+analysis only. It may inspect Python, Java, Kotlin, PHP, and Ruby source and
+project metadata files, extract conservative symbols/imports, route/API hints,
+data-access hints, and messaging hints where literal evidence is visible, and
+emit existing B3 symbol/route/data-access/messaging metadata.
+
+It must not run pip, poetry, uv, Maven, Gradle, composer, bundle, compilers,
+formatters, runtimes, language servers, Docker/Kubernetes/Terraform, external
+APIs, cloud services, telemetry, package registries, or internet access. It
+does not implement compiler-grade semantics, deep framework intelligence,
+systems/mobile language support, config/data/web file support, quality audit,
+architecture graph UI, full Git Intelligence, or broad refactor behavior.
+
+## Systems / Mobile / Config / Web File Boundaries
+
+Phase 15 Systems / Mobile / Config / Web File Support A is completed as basic
+local static analysis only. It may inspect C, C++, Swift, Objective-C,
+Dart/Flutter, YAML, JSON, TOML, XML, HTML, CSS/SCSS, XAML, JavaScript/TypeScript
+Three.js/WebGL usage, and ksqlDB files for conservative symbols,
+imports/includes, config key paths, safe package/dependency names,
+template/style/asset references, route/client hints, XAML metadata hints, and
+ksqlDB Kafka topic/dependency hints where literal evidence is visible.
+
+It must not run clang, gcc, CMake, make, xcodebuild, swift, dart, flutter, npm,
+package managers, compilers, preprocessors, formatters, runtimes, browsers,
+WebGL, Docker/Kubernetes/Terraform, Kafka, ksqlDB, brokers, databases, language
+servers, external APIs, cloud services, telemetry, or internet access.
+Secret-like config values must be redacted or skipped; names and keys are
+acceptable. It does not implement compiler-grade systems/mobile semantics,
+browser/runtime analysis, SQL validation, schema compatibility, architecture
+graph UI, Phase 17 quality audit, full Git Intelligence, or broad refactor
+behavior.
+
 ## Node.js REST Boundaries
 
 Phase 9.2.1 Node.js REST intelligence is completed as basic local static analysis only. It may detect package.json dependencies and high-confidence Express, NestJS, and Fastify route declarations, but it must not execute `node`, `npm`, `tsc`, `eslint`, Nest CLI, app code, package-manager scripts, package registries, or cloud parsers.
@@ -525,8 +560,9 @@ full Git Intelligence, package manager execution, Docker/Kubernetes/Terraform/
 cloud CLI execution, runtime HTTP calls, broker connections, global database
 merges, persisted global architecture graphs, cloud graph databases, hosted
 vector databases, cloud embeddings, external APIs, telemetry, paid
-dependencies, model downloads, or internet requirements. `Project_B` and
-`Tuvi_B` benchmark paths must remain optional.
+dependencies, model downloads, or internet requirements. Optional local
+benchmark repositories configured in `benchmarks/b3.benchmark.toml` must remain
+optional.
 
 Phase 12 is completed as Symbolic Editing MVP only. It may define local edit
 contracts, resolve explicit file ranges and indexed symbols, preview bounded
@@ -556,18 +592,18 @@ recommended, not hidden or automatic.
 
 ## Local Benchmark Config Boundaries
 
-`benchmarks/b3.benchmark.toml` is the default local benchmark config path for
-future broader real-local benchmarks. Paths in that file, including
-`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B`, are
-optional benchmark candidates. Missing optional benchmark projects must be
-warnings, not failures, and `cargo test --workspace` must pass on machines
-without `Project_B` or `Tuvi_B`.
+`benchmarks/b3.benchmark.toml` is the default local benchmark config path and
+the source of truth for local benchmark project names/paths. General docs must
+not hardcode private/local benchmark project names. Missing configured local
+benchmark repositories or DBs must warn, not fail, and `cargo test --workspace`
+must pass on machines without those optional local repositories.
 
 Use `scripts/setup-local-benchmark.ps1` only as an explicit local helper for
-available optional benchmark candidates. It may create repo-local `.b3`
-directories and index `D:\Project\Project_B` and `D:\Project\Tuvi_B` into their
-configured `.b3\b3.db` files, but those projects remain optional and must never
-be required for normal build, test, or CI success.
+available optional benchmark candidates. It reads enabled `local_repo` projects
+from `benchmarks/b3.benchmark.toml`, may create repo-local `.b3` directories,
+and may index available projects with missing databases into their configured
+`.b3\b3.db` files. Those projects remain optional and must never be required for
+normal build, test, or CI success.
 
 Benchmark config handling must remain offline-first and free-by-default: no
 internet access, external APIs, telemetry, hosted vector databases, cloud

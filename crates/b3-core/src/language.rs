@@ -160,30 +160,32 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
         rust_tree_sitter_backend_metadata(),
         csharp_static_backend_metadata(),
         go_static_backend_metadata(),
+        backend_static_metadata("python", "Python", "static-python"),
+        backend_static_metadata("java", "Java", "static-java"),
+        backend_static_metadata("kotlin", "Kotlin", "static-kotlin"),
+        backend_static_metadata("php", "PHP", "static-php"),
+        backend_static_metadata("ruby", "Ruby", "static-ruby"),
+        backend_static_metadata("c", "C", "static-c"),
+        backend_static_metadata("cpp", "C++", "static-cpp"),
+        backend_static_metadata("swift", "Swift", "static-swift"),
+        backend_static_metadata("objective_c", "Objective-C", "static-objective-c"),
+        backend_static_metadata("dart", "Dart", "static-dart"),
+        backend_static_metadata("yaml", "YAML", "static-yaml"),
+        backend_static_metadata("json", "JSON", "static-json"),
+        backend_static_metadata("toml", "TOML", "static-toml"),
+        backend_static_metadata("xml", "XML", "static-xml"),
+        backend_static_metadata("html", "HTML", "static-html"),
+        backend_static_metadata("css", "CSS", "static-css"),
+        backend_static_metadata("scss", "SCSS", "static-scss"),
+        backend_static_metadata("ksql", "ksqlDB", "static-ksql"),
         planned_detect_only_backend("typescript", "TypeScript", "planned-lsp-typescript"),
         planned_detect_only_backend("tsx", "TSX", "planned-lsp-typescript-react"),
         planned_detect_only_backend("javascript", "JavaScript", "planned-lsp-javascript"),
         planned_detect_only_backend("jsx", "JSX", "planned-lsp-javascript-react"),
-        planned_detect_only_backend("html", "HTML", "planned-static-html"),
-        planned_detect_only_backend("css", "CSS", "planned-static-css"),
-        planned_detect_only_backend("scss", "SCSS", "planned-static-scss"),
-        planned_detect_only_backend("json", "JSON", "planned-static-json"),
-        planned_detect_only_backend("yaml", "YAML", "planned-static-yaml"),
         planned_detect_only_backend("sql", "SQL", "planned-static-sql"),
         planned_detect_only_backend("dockerfile", "Dockerfile", "planned-static-dockerfile"),
         planned_detect_only_backend("docker-compose", "Docker Compose", "planned-static-compose"),
-        planned_detect_only_backend("ksql", "ksqlDB", "planned-static-ksql"),
         planned_detect_only_backend("xaml", "XAML", "planned-static-xaml"),
-        planned_detect_only_backend("python", "Python", "planned-lsp-python"),
-        planned_detect_only_backend("java", "Java", "planned-lsp-java"),
-        planned_detect_only_backend("php", "PHP", "planned-lsp-php"),
-        planned_detect_only_backend("ruby", "Ruby", "planned-lsp-ruby"),
-        planned_detect_only_backend("c", "C", "planned-lsp-c"),
-        planned_detect_only_backend("cpp", "C++", "planned-lsp-cpp"),
-        planned_detect_only_backend("swift", "Swift", "planned-lsp-swift"),
-        planned_detect_only_backend("kotlin", "Kotlin", "planned-lsp-kotlin"),
-        planned_detect_only_backend("toml", "TOML", "planned-static-toml"),
-        planned_detect_only_backend("xml", "XML", "planned-static-xml"),
     ];
     let known_languages = known_language_samples();
     LanguageBackendRegistry {
@@ -192,6 +194,34 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
         selection_policy: BackendSelectionPolicy::PreferTreeSitter,
         lsp_enabled: false,
         experimental_languages_enabled: false,
+    }
+}
+
+pub fn backend_static_metadata(
+    language_id: &str,
+    language_name: &str,
+    backend_id: &str,
+) -> LanguageBackendMetadata {
+    LanguageBackendMetadata {
+        backend_id: LanguageBackendId(backend_id.to_string()),
+        language_id: LanguageId(language_id.to_string()),
+        language_name: LanguageName(language_name.to_string()),
+        kind: LanguageBackendKind::StaticConfig,
+        support_level: LanguageSupportLevel::Basic,
+        capabilities: vec![
+            LanguageBackendCapability::DetectFile,
+            LanguageBackendCapability::Parse,
+            LanguageBackendCapability::ExtractSymbols,
+            LanguageBackendCapability::ExtractImports,
+            LanguageBackendCapability::ExtractRelationships,
+            LanguageBackendCapability::ExtractRoutes,
+        ],
+        available: true,
+        notes: vec![
+            format!("Basic local static {language_name} backend/application extraction is available."),
+            "No package manager, compiler, runtime execution, language server, external API, or internet access is required.".to_string(),
+            "Compiler-grade semantics and deep framework analysis are deferred.".to_string(),
+        ],
     }
 }
 
@@ -359,6 +389,63 @@ fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
             backend_ids: vec![LanguageBackendId("static-go".to_string())],
             notes: vec!["Detected as Go project metadata; registry/module resolution is not performed.".to_string()],
         }),
+        "pyproject.toml" | "requirements.txt" | "setup.py" | "setup.cfg" | "pipfile"
+        | "poetry.lock" | "uv.lock" => Some(static_basic_detection(
+            "python",
+            "Python",
+            "filename",
+            "static-python",
+            "Detected Python project metadata; package installation is not performed.",
+        )),
+        "pom.xml" | "build.gradle" | "settings.gradle" => Some(static_basic_detection(
+            "java",
+            "Java",
+            "filename",
+            "static-java",
+            "Detected Java project metadata; Maven/Gradle execution is not performed.",
+        )),
+        "build.gradle.kts" | "settings.gradle.kts" => Some(static_basic_detection(
+            "kotlin",
+            "Kotlin",
+            "filename",
+            "static-kotlin",
+            "Detected Kotlin project metadata; Gradle/JVM execution is not performed.",
+        )),
+        "composer.json" | "composer.lock" => Some(static_basic_detection(
+            "php",
+            "PHP",
+            "filename",
+            "static-php",
+            "Detected PHP project metadata; composer execution is not performed.",
+        )),
+        "gemfile" | "gemfile.lock" => Some(static_basic_detection(
+            "ruby",
+            "Ruby",
+            "filename",
+            "static-ruby",
+            "Detected Ruby project metadata; bundle execution is not performed.",
+        )),
+        "package.swift" => Some(static_basic_detection(
+            "swift",
+            "Swift",
+            "filename",
+            "static-swift",
+            "Detected Swift package metadata; swift and xcodebuild execution are not performed.",
+        )),
+        "pubspec.yaml" | "analysis_options.yaml" => Some(static_basic_detection(
+            "dart",
+            "Dart",
+            "filename",
+            "static-dart",
+            "Detected Dart/Flutter project metadata; dart and flutter execution are not performed.",
+        )),
+        "cmakelists.txt" | "makefile" | "compile_commands.json" => Some(static_basic_detection(
+            "cpp",
+            "C++",
+            "filename",
+            "static-cpp",
+            "Detected C/C++ build metadata; build tools, compilers, and package managers are not executed.",
+        )),
         _ => None,
     }
 }
@@ -403,27 +490,190 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
         "tsx" => ("tsx", "TSX", "planned-lsp-typescript-react"),
         "js" => ("javascript", "JavaScript", "planned-lsp-javascript"),
         "jsx" => ("jsx", "JSX", "planned-lsp-javascript-react"),
-        "html" => ("html", "HTML", "planned-static-html"),
-        "css" => ("css", "CSS", "planned-static-css"),
-        "scss" => ("scss", "SCSS", "planned-static-scss"),
-        "json" => ("json", "JSON", "planned-static-json"),
-        "yaml" | "yml" => ("yaml", "YAML", "planned-static-yaml"),
+        "html" | "htm" | "cshtml" | "erb" | "ejs" | "hbs" => {
+            return Some(static_basic_detection(
+                "html",
+                "HTML",
+                "extension",
+                "static-html",
+                "HTML/template files are parsed with basic local static extraction; browser execution and external fetching are not performed.",
+            ));
+        }
+        "css" => {
+            return Some(static_basic_detection(
+                "css",
+                "CSS",
+                "extension",
+                "static-css",
+                "CSS files are parsed with basic local static selector and asset-reference extraction.",
+            ));
+        }
+        "scss" | "sass" => {
+            return Some(static_basic_detection(
+                "scss",
+                "SCSS",
+                "extension",
+                "static-scss",
+                "SCSS/Sass files are parsed with basic local static selector, variable, mixin, and asset-reference extraction.",
+            ));
+        }
+        "json" => {
+            return Some(static_basic_detection(
+                "json",
+                "JSON",
+                "extension",
+                "static-json",
+                "JSON files are parsed statically for key paths and safe package/config metadata; sensitive values are not exposed.",
+            ));
+        }
+        "yaml" | "yml" => {
+            return Some(static_basic_detection(
+                "yaml",
+                "YAML",
+                "extension",
+                "static-yaml",
+                "YAML files are parsed statically for key paths and safe config metadata; sensitive values are not exposed.",
+            ));
+        }
         "sql" => ("sql", "SQL", "planned-static-sql"),
-        "ksql" => ("ksql", "ksqlDB", "planned-static-ksql"),
+        "ksql" => {
+            return Some(static_basic_detection(
+                "ksql",
+                "ksqlDB",
+                "extension",
+                "static-ksql",
+                "ksqlDB files are parsed statically for streams, tables, connectors, topics, and dependencies without broker or ksqlDB connections.",
+            ));
+        }
         "xaml" => ("xaml", "XAML", "planned-static-xaml"),
-        "py" => ("python", "Python", "planned-lsp-python"),
-        "java" => ("java", "Java", "planned-lsp-java"),
-        "php" => ("php", "PHP", "planned-lsp-php"),
-        "rb" => ("ruby", "Ruby", "planned-lsp-ruby"),
-        "c" | "h" => ("c", "C", "planned-lsp-c"),
-        "cpp" | "cc" | "cxx" | "hpp" | "hh" => ("cpp", "C++", "planned-lsp-cpp"),
-        "swift" => ("swift", "Swift", "planned-lsp-swift"),
-        "kt" | "kts" => ("kotlin", "Kotlin", "planned-lsp-kotlin"),
-        "toml" => ("toml", "TOML", "planned-static-toml"),
-        "xml" => ("xml", "XML", "planned-static-xml"),
+        "py" => {
+            return Some(static_basic_detection(
+                "python",
+                "Python",
+                "extension",
+                "static-python",
+                "Python files are parsed with basic local static backend extraction.",
+            ));
+        }
+        "java" => {
+            return Some(static_basic_detection(
+                "java",
+                "Java",
+                "extension",
+                "static-java",
+                "Java files are parsed with basic local static backend extraction.",
+            ));
+        }
+        "php" => {
+            return Some(static_basic_detection(
+                "php",
+                "PHP",
+                "extension",
+                "static-php",
+                "PHP files are parsed with basic local static backend extraction.",
+            ));
+        }
+        "rb" => {
+            return Some(static_basic_detection(
+                "ruby",
+                "Ruby",
+                "extension",
+                "static-ruby",
+                "Ruby files are parsed with basic local static backend extraction.",
+            ));
+        }
+        "c" | "h" => {
+            return Some(static_basic_detection(
+                "c",
+                "C",
+                "extension",
+                "static-c",
+                "C files are parsed with basic local static extraction for includes, macros, declarations, structs, enums, and obvious functions.",
+            ));
+        }
+        "cpp" | "cc" | "cxx" | "hpp" | "hh" => {
+            return Some(static_basic_detection(
+                "cpp",
+                "C++",
+                "extension",
+                "static-cpp",
+                "C++ files are parsed with basic local static extraction for includes, namespaces, classes, methods, structs, enums, and obvious functions.",
+            ));
+        }
+        "m" | "mm" => {
+            return Some(static_basic_detection(
+                "objective_c",
+                "Objective-C",
+                "extension",
+                "static-objective-c",
+                "Objective-C files are parsed with basic local static extraction for imports, interfaces, implementations, protocols, properties, and methods.",
+            ));
+        }
+        "swift" => {
+            return Some(static_basic_detection(
+                "swift",
+                "Swift",
+                "extension",
+                "static-swift",
+                "Swift files are parsed with basic local static extraction for imports, types, extensions, functions, SwiftUI hints, and URLSession literals.",
+            ));
+        }
+        "dart" => {
+            return Some(static_basic_detection(
+                "dart",
+                "Dart",
+                "extension",
+                "static-dart",
+                "Dart/Flutter files are parsed with basic local static extraction for imports, classes, widgets, build methods, route literals, and HTTP literals.",
+            ));
+        }
+        "kt" | "kts" => {
+            return Some(static_basic_detection(
+                "kotlin",
+                "Kotlin",
+                "extension",
+                "static-kotlin",
+                "Kotlin files are parsed with basic local static backend extraction.",
+            ));
+        }
+        "toml" => {
+            return Some(static_basic_detection(
+                "toml",
+                "TOML",
+                "extension",
+                "static-toml",
+                "TOML files are parsed statically for tables, key paths, and package/dependency names.",
+            ));
+        }
+        "xml" => {
+            return Some(static_basic_detection(
+                "xml",
+                "XML",
+                "extension",
+                "static-xml",
+                "XML files are parsed statically for elements, attributes, and safe package/config metadata without schema fetching or entity expansion.",
+            ));
+        }
         _ => return None,
     };
     Some(detect_only(id, name, "extension", backend))
+}
+
+fn static_basic_detection(
+    id: &str,
+    name: &str,
+    matched_by: &str,
+    backend_id: &str,
+    note: &str,
+) -> LanguageDetectionResult {
+    LanguageDetectionResult {
+        language_id: Some(LanguageId(id.to_string())),
+        language_name: Some(LanguageName(name.to_string())),
+        support_level: LanguageSupportLevel::Basic,
+        matched_by: matched_by.to_string(),
+        backend_ids: vec![LanguageBackendId(backend_id.to_string())],
+        notes: vec![note.to_string()],
+    }
 }
 
 fn detect_only(
@@ -488,7 +738,9 @@ fn known_language_samples() -> Vec<LanguageDetectionResult> {
         "app.rb",
         "lib.c",
         "lib.cpp",
+        "ViewController.m",
         "App.swift",
+        "main.dart",
         "Main.kt",
         "Cargo.toml",
         "layout.xml",
@@ -538,7 +790,7 @@ mod tests {
     }
 
     #[test]
-    fn planned_languages_remain_honest_and_csharp_is_basic_static() {
+    fn backend_languages_are_basic_static_and_offline() {
         let registry = default_language_backend_registry();
         let csharp = registry
             .backends
@@ -563,6 +815,23 @@ mod tests {
             .capabilities
             .contains(&LanguageBackendCapability::ExtractImports));
         assert!(go.notes.iter().any(|note| note.contains("No Go toolchain")));
+        for language in ["python", "java", "kotlin", "php", "ruby"] {
+            let backend = registry
+                .backends
+                .iter()
+                .find(|backend| backend.language_id.as_str() == language)
+                .expect("phase 14 backend");
+            assert_eq!(backend.support_level, LanguageSupportLevel::Basic);
+            assert_eq!(backend.kind, LanguageBackendKind::StaticConfig);
+            assert!(backend.available);
+            assert!(backend
+                .capabilities
+                .contains(&LanguageBackendCapability::ExtractRoutes));
+            assert!(backend
+                .notes
+                .iter()
+                .any(|note| note.contains("No package manager")));
+        }
     }
 
     #[test]

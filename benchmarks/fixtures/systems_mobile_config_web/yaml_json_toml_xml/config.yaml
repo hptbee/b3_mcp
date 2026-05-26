@@ -1,0 +1,5 @@
+services:
+  api:
+    image: local/api:dev
+    environment:
+      API_KEY: redacted

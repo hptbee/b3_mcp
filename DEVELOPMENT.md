@@ -201,7 +201,7 @@ Phase 11.7 adds cross-project benchmark coverage and documentation in
 `cross_project_benchmark` JSON section and prints a human-readable Phase 11
 architecture summary. It benchmarks a deterministic local fixture group and
 inspects optional local candidates from `benchmarks/b3.benchmark.toml`; missing
-`Project_B` or `Tuvi_B` paths/DBs warn and skip. It is local fixture/local-repo
+local candidate paths/DBs warn and skip. It is local fixture/local-repo
 coverage only, not a 31 public real-world repository claim. It does not index
 optional real repos automatically, merge DBs, call external services, run package
 managers, run Docker/Kubernetes/Terraform, connect to brokers, execute HTTP
@@ -252,18 +252,31 @@ The default local benchmark configuration path is:
 benchmarks/b3.benchmark.toml
 ```
 
-This file is the Phase 11.7 input for broader real-local benchmark runs. It may
-reference optional local repositories such as
-`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B`.
-Missing optional repositories must be reported as warnings, not failures, and
-normal `cargo build`, `cargo check`, and `cargo test --workspace` runs must not
-require those paths to exist. The current `b3-bench baseline` command uses this
-config for optional project discovery and still remains local/offline.
+This file is the Phase 11.7 input and source of truth for local benchmark
+project names/paths. It may reference optional local repositories with
+machine-specific paths. Missing optional repositories must be reported as
+warnings, not failures, and normal `cargo build`, `cargo check`, and
+`cargo test --workspace` runs must not require those paths to exist. The current
+`b3-bench baseline` command uses this config for optional project discovery and
+still remains local/offline.
+
+## Phase 15 Static Parser Boundaries
+
+Systems/mobile/config/web support must stay static and local. New extractors
+under `b3-indexer` may scan source text and metadata files for conservative
+symbols, imports/includes, key paths, safe package names, route/client hints,
+asset references, Three.js/WebGL hints, XAML hints, and ksqlDB topic/dependency
+hints. They must not run compilers, preprocessors, package managers, formatters,
+runtimes, browsers, WebGL, Docker/Kubernetes/Terraform, Kafka, ksqlDB, brokers,
+databases, language servers, external APIs, telemetry, or internet access.
+Secret-like config values should be redacted or skipped; names and keys are
+acceptable evidence.
 
 ### Optional Local Benchmark Projects
 
-`Project_B` and `Tuvi_B` can participate in the Phase 11.7 cross-project
-benchmark when they exist locally. Prepare them from the B3 repository root with:
+Enabled `local_repo` projects in `benchmarks/b3.benchmark.toml` can participate
+in the Phase 11.7 cross-project benchmark when they exist locally. Prepare them
+from the B3 repository root with:
 
 ```powershell
 .\scripts\setup-local-benchmark.ps1
@@ -276,15 +289,11 @@ with:
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-local-benchmark.ps1
 ```
 
-The helper reads `benchmarks/b3.benchmark.toml`, verifies
-`D:\Project\Project_B` and `D:\Project\Tuvi_B`, creates each repo-local `.b3`
-directory when needed, and indexes each available project into its configured
-database:
-
-```text
-D:\Project\Project_B\.b3\b3.db
-D:\Project\Tuvi_B\.b3\b3.db
-```
+The helper reads `benchmarks/b3.benchmark.toml`, verifies enabled local
+repository candidates, creates each repo-local `.b3` directory when needed, and
+indexes each available project with a missing database into its configured
+database. Local paths are machine-specific and should live only in the benchmark
+config.
 
 Missing optional paths print warnings and are skipped. They must not fail normal
 builds, tests, or CI. To index available optional projects and immediately run
@@ -368,7 +377,10 @@ local static extraction for ASP.NET Core Web API controllers, route attributes,
 action methods, and constructor dependency type names. Go has basic local static
 extraction for `.go` and `go.mod` files, package/import metadata, functions,
 receiver methods, structs, interfaces, type declarations, const/var
-declarations, conservative local call edges, and HTTP route hints. Other
+declarations, conservative local call edges, and HTTP route hints. Phase 14 adds
+basic local static backend extraction for Python, Java, Kotlin, PHP, and Ruby:
+project metadata detection, symbols/imports, conservative route/API hints,
+data-access hints, and messaging hints where literal evidence is visible. Other
 planned languages remain detect-only or unsupported until their phases land.
 LSP exists as a local backend foundation and is disabled by default.
 React/TSX component intelligence is basic static analysis only and is exposed
@@ -399,7 +411,12 @@ basic static analysis only and is exposed through existing symbol metadata,
 project hints, XAML views/resources, code-behind hints, binding paths, command
 bindings, resource references, DataContext hints, and ViewModel naming hints
 without Visual Studio, MSBuild, `dotnet`, Windows runtime, a XAML compiler,
-designer integration, or app execution. Phase
+designer integration, or app execution. Python/Java/Kotlin/PHP/Ruby backend
+support is exposed through existing symbol metadata, `/api/languages`,
+`/api/capabilities`, `GET /api/routes`, `GET /api/data-access`, and
+`GET /api/messaging` where hints are extracted; it does not run pip, poetry,
+uv, Maven, Gradle, composer, bundle, compilers, runtimes, language servers,
+external APIs, or app code. Phase
 9.2.4.1 is a behavior-preserving web module split checkpoint:
 `crates/b3-indexer/src/web/mod.rs` now orchestrates focused web extraction
 modules without behavior, API, schema, MCP, dependency, or Web UI changes. The

@@ -1,4 +1,5 @@
 //! Control server and localhost API boundary.
+#![recursion_limit = "256"]
 //!
 //! This crate is an adapter layer for local developer tooling. It exposes
 //! health, status, query, graph, diagnostics, config, and event endpoints for
@@ -1559,7 +1560,41 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "best_supported_language": "rust",
                 "parsed_languages": ["rust", "javascript", "typescript", "jsx", "tsx"],
                 "static_parsed_languages": ["csharp", "go"],
+                "backend_languages": {
+                    "python": "basic_static",
+                    "java": "basic_static",
+                    "kotlin": "basic_static",
+                    "php": "basic_static",
+                    "ruby": "basic_static"
+                },
                 "detect_only_languages": []
+            },
+            "additional_backend_languages": {
+                "available": true,
+                "phase": "14",
+                "support": "basic_static",
+                "languages": {
+                    "python": "basic",
+                    "java": "basic",
+                    "kotlin": "basic",
+                    "php": "basic",
+                    "ruby": "basic"
+                },
+                "features": {
+                    "file_detection": true,
+                    "project_detection": true,
+                    "symbol_extraction": true,
+                    "import_extraction": true,
+                    "route_hints": true,
+                    "data_access_hints": true,
+                    "messaging_hints": true
+                },
+                "package_manager_execution_required": false,
+                "compiler_execution_required": false,
+                "runtime_execution_required": false,
+                "language_server_required": false,
+                "external_api_required": false,
+                "telemetry_enabled": false
             },
             "go": {
                 "available": true,
@@ -1685,6 +1720,58 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "runtime_execution_required": false,
                 "binding_type_checking": false,
                 "deep_mvvm_analysis": false
+            },
+            "systems_mobile_config_web_phase15": {
+                "available": true,
+                "phase": "15",
+                "support": "basic_static",
+                "systems_languages": {
+                    "c": "basic",
+                    "cpp": "basic",
+                    "swift": "basic",
+                    "objective_c": "basic",
+                    "dart": "basic"
+                },
+                "config_files": {
+                    "yaml": "basic",
+                    "json": "basic",
+                    "toml": "basic",
+                    "xml": "basic"
+                },
+                "web_files": {
+                    "html": "basic",
+                    "css": "basic",
+                    "scss": "basic",
+                    "threejs_webgl": "basic_hints"
+                },
+                "data_files": {
+                    "ksqldb": "basic"
+                },
+                "features": {
+                    "file_detection": true,
+                    "project_config_detection": true,
+                    "symbol_extraction": true,
+                    "import_include_reference_extraction": true,
+                    "safe_config_key_paths": true,
+                    "html_route_hints": true,
+                    "css_asset_references": true,
+                    "xaml_hardening": true,
+                    "ksqldb_messaging_hints": true
+                },
+                "local_only": true,
+                "package_manager_execution_required": false,
+                "compiler_execution_required": false,
+                "formatter_execution_required": false,
+                "runtime_execution_required": false,
+                "browser_execution_required": false,
+                "webgl_execution_required": false,
+                "broker_connection_required": false,
+                "ksqldb_connection_required": false,
+                "database_connection_required": false,
+                "cloud_api_required": false,
+                "external_api_required": false,
+                "telemetry_enabled": false,
+                "mandatory_lsp_required": false
             },
             "lsp": {
                 "available": true,
@@ -2095,6 +2182,177 @@ async fn languages(State(state): State<ControlState>) -> Json<Value> {
                 "backend": "static-go",
                 "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRelationships", "ExtractRoutes"],
                 "notes": "Basic local static Go extraction indexes packages, imports, functions, methods, structs, interfaces, type declarations, const/var declarations, local call edges, and conservative net/http plus simple router route hints; no Go toolchain, go command, module download, package registry, or runtime execution is required."
+            },
+            {
+                "language_id": "python",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-python",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes", "ExtractDataAccessHints", "ExtractMessagingHints"],
+                "notes": "Basic local static Python extraction indexes modules, imports, functions/classes/methods/decorators, FastAPI/Flask/Django route hints, SQLAlchemy/Django ORM hints, and Celery/Pika hints without Python runtime, pip, migrations, or language servers."
+            },
+            {
+                "language_id": "java",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-java",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes", "ExtractDataAccessHints", "ExtractMessagingHints"],
+                "notes": "Basic local static Java extraction indexes packages, imports, classes/interfaces/enums/records, methods, Spring/JAX-RS route hints, JPA/JDBC hints, and listener annotations without JVM, Maven, Gradle, compiler, or language server execution."
+            },
+            {
+                "language_id": "kotlin",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-kotlin",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes", "ExtractDataAccessHints", "ExtractMessagingHints"],
+                "notes": "Basic local static Kotlin extraction indexes packages, imports, classes/objects/interfaces/functions, Spring/Ktor route hints, JPA hints, and listener annotations without JVM, Gradle, compiler, or language server execution."
+            },
+            {
+                "language_id": "php",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-php",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes", "ExtractDataAccessHints", "ExtractMessagingHints"],
+                "notes": "Basic local static PHP extraction indexes namespaces/use statements, classes/interfaces/traits/enums, functions/methods, Laravel/Symfony/Slim route hints, Eloquent/raw SQL hints, and queue hints without PHP runtime or composer execution."
+            },
+            {
+                "language_id": "ruby",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-ruby",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes", "ExtractDataAccessHints", "ExtractMessagingHints"],
+                "notes": "Basic local static Ruby extraction indexes modules/classes/methods/requires, Rails/Sinatra route hints, ActiveRecord hints, and Sidekiq/ActiveJob hints without Ruby runtime or bundle execution."
+            },
+            {
+                "language_id": "c",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-c",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractIncludes"],
+                "notes": "Basic local static C extraction indexes includes, macros, structs, enums, typedefs, and obvious functions without clang, gcc, make, CMake, preprocessors, compilers, or language servers."
+            },
+            {
+                "language_id": "cpp",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-cpp",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractIncludes"],
+                "notes": "Basic local static C++ extraction indexes includes, namespaces, classes, methods, structs, enums, typedefs, and obvious functions without clang, gcc, make, CMake, preprocessors, compilers, or language servers."
+            },
+            {
+                "language_id": "swift",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-swift",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes"],
+                "notes": "Basic local static Swift extraction indexes imports, classes, structs, enums, protocols, extensions, functions, SwiftUI View hints, and URLSession literals without swift, xcodebuild, Xcode, or app execution."
+            },
+            {
+                "language_id": "objective_c",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-objective-c",
+                "capabilities": ["DetectFile", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes"],
+                "notes": "Basic local static Objective-C extraction indexes imports, interfaces, implementations, protocols, properties, methods, UIViewController hints, and NSURLSession literals without clang, Xcode, compilers, or app execution."
+            },
+            {
+                "language_id": "dart",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-dart",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractSymbols", "ExtractImports", "ExtractRoutes"],
+                "notes": "Basic local static Dart/Flutter extraction indexes imports, classes, mixins, enums, functions, Widget/build hints, route literals, and HTTP literals without dart, flutter, package fetch, build, or app execution."
+            },
+            {
+                "language_id": "yaml",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-yaml",
+                "capabilities": ["DetectFile", "Parse", "ExtractConfigKeys", "ExtractInfrastructureHints"],
+                "notes": "Basic local static YAML extraction indexes key paths and safe config names; Docker Compose and Kubernetes YAML continue through existing infrastructure metadata, and secret-like values are redacted/skipped."
+            },
+            {
+                "language_id": "json",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-json",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractConfigKeys", "ExtractPackageNames"],
+                "notes": "Basic local static JSON extraction indexes key paths and package/dependency names where safe; secret-like values and connection strings are not exposed."
+            },
+            {
+                "language_id": "toml",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-toml",
+                "capabilities": ["DetectFile", "DetectProject", "Parse", "ExtractConfigKeys", "ExtractPackageNames"],
+                "notes": "Basic local static TOML extraction indexes tables, keys, and dependency names without running cargo, pip, poetry, uv, or any package manager."
+            },
+            {
+                "language_id": "xml",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-xml",
+                "capabilities": ["DetectFile", "Parse", "ExtractConfigKeys", "ExtractPackageNames"],
+                "notes": "Basic local static XML extraction indexes root/element paths, attribute names, and Maven package names without schema fetching, external entities, Maven, Gradle, dotnet, or remote access."
+            },
+            {
+                "language_id": "html",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-html",
+                "capabilities": ["DetectFile", "Parse", "ExtractTemplateRefs", "ExtractRoutes"],
+                "notes": "Basic local static HTML/template extraction indexes titles, ids/classes, script/style refs, hrefs, and form route hints without browser execution or external resource fetching."
+            },
+            {
+                "language_id": "css",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-css",
+                "capabilities": ["DetectFile", "Parse", "ExtractSelectors", "ExtractAssetRefs"],
+                "notes": "Basic local static CSS extraction indexes class/id selectors, custom properties, imports, url asset references, and keyframes without CSS processing or fetching."
+            },
+            {
+                "language_id": "scss",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-scss",
+                "capabilities": ["DetectFile", "Parse", "ExtractSelectors", "ExtractAssetRefs"],
+                "notes": "Basic local static SCSS extraction indexes selectors, variables, mixins, imports, url asset references, and keyframes without Sass compilation."
+            },
+            {
+                "language_id": "threejs_webgl",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic_hints",
+                "backend": "static-js-ts-hints",
+                "capabilities": ["DetectImport", "ExtractTechnologyHints", "ExtractAssetRefs"],
+                "notes": "Basic static Three.js/WebGL hints are extracted from JS/TS imports and WebGL call patterns without browser, WebGL runtime, or asset loading."
+            },
+            {
+                "language_id": "ksql",
+                "tree_sitter": "not_required",
+                "lsp": "disabled_by_default",
+                "support": "basic",
+                "backend": "static-ksql",
+                "capabilities": ["DetectFile", "Parse", "ExtractMessagingHints", "ExtractDataFlowHints"],
+                "notes": "Basic local static ksqlDB extraction indexes streams, tables, connectors, Kafka topic names, and SELECT/INSERT dependencies without Kafka, ksqlDB, Docker, Confluent Cloud, or query execution."
             }
         ]
     }))
@@ -5237,6 +5495,20 @@ mod tests {
             body["language_backend"]["go"]["go_toolchain_required"],
             false
         );
+        assert_eq!(
+            body["language_backend"]["additional_backend_languages"]["available"],
+            true
+        );
+        assert_eq!(
+            body["language_backend"]["additional_backend_languages"]["languages"]["python"],
+            "basic"
+        );
+        let python = backends
+            .iter()
+            .find(|backend| backend["backend_id"] == "static-python")
+            .expect("python backend");
+        assert_eq!(python["support_level"], "Basic");
+        assert_eq!(python["available"], true);
         assert_eq!(body["vector_search"]["architecture_available"], true);
         assert_eq!(body["vector_search"]["semantic_search_available"], true);
         assert_eq!(body["vector_search"]["semantic_search_ready"], true);
@@ -5918,6 +6190,13 @@ mod tests {
             .any(|language| language["language_id"] == "go"
                 && language["support"] == "basic"
                 && language["backend"] == "static-go"));
+        assert!(body["languages"]
+            .as_array()
+            .expect("languages")
+            .iter()
+            .any(|language| language["language_id"] == "python"
+                && language["support"] == "basic"
+                && language["backend"] == "static-python"));
     }
 
     #[tokio::test]

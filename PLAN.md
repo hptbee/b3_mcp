@@ -63,13 +63,13 @@ Completed:
 - Phase 11.7 Cross-Project Benchmark + Docs
 - Phase 12 Symbolic Editing MVP
 - Phase 13 Rename / Refactor MVP
+- Phase 14 Additional Backend Language Support
+- Phase 15 Systems / Mobile / Config / Web File Support A
 
 Current/Next:
-- Phase 14 Additional Backend Language Support
+- Phase 16 Config / Data / Web File Support B / Hardening
 
 Upcoming:
-- Phase 15 Systems / Mobile Language Support
-- Phase 16 Config / Data / Web File Support
 - Phase 17 Language and Technology Quality Audit
 - Phase 18 Refactor Checkpoint D
 - Phase 19 Performance Optimization Pass B
@@ -157,47 +157,71 @@ Status: Completed.
 
 ## Phase 14 Additional Backend Language Support
 
-Status: Planned.
+Status: Completed.
 
-Targets:
+Scope completed:
 
-- Python
-- Java
-- PHP
-- Ruby
+- added modular static backend language extraction under `b3-indexer::backend_languages`
+- added basic local Python detection for `.py`, Python project metadata files, imports, classes, functions, async functions, decorators, constants, FastAPI/Flask/Django route hints, SQLAlchemy/Django ORM/raw SQL hints, and Celery/Pika messaging hints
+- added basic local Java detection for `.java`, Maven/Gradle project metadata, packages/imports, classes/interfaces/enums/records, methods, Spring/JAX-RS route hints, JPA/JDBC hints, and Kafka/Rabbit listener hints
+- added basic local Kotlin detection for `.kt`/`.kts`, Gradle Kotlin metadata, packages/imports, classes/data classes/objects/interfaces/enums, functions, Spring/Ktor route hints, JPA hints, and Kafka/Rabbit listener hints
+- added basic local PHP detection for `.php`, Composer metadata, namespaces/use statements, classes/interfaces/traits/enums, functions/methods, Laravel/Symfony/Slim route hints, Eloquent/raw SQL hints, and Laravel queue hints
+- added basic local Ruby detection for `.rb`, Gemfile metadata, require/module/class/method extraction, Rails/Sinatra route hints, ActiveRecord hints, and Sidekiq/ActiveJob hints
+- wired new languages into `DefaultLanguagePack`, language detection, `/api/languages`, `/api/capabilities`, existing route/data-access/messaging metadata shapes, graph relationships, storage, query, and architecture matching paths
+- added focused tests for detection, symbols/imports, route hints, data-access hints, messaging hints, and capability/status reporting
+
+Rules:
+
+- static/local/offline analysis only
+- no Python/PHP/Ruby/JVM runtime execution
+- no pip, poetry, uv, composer, bundle, Maven, or Gradle execution
+- no compiler, formatter, package restore, language server, external API, cloud service, telemetry, or internet requirement
+- compiler-grade semantics, deep framework analysis, mobile/system language work, config/data/web file support, quality audit, architecture graph UI, and full Git Intelligence remain deferred
 
 Go is already handled in Phase 9.2.10 as basic local static analysis.
 
 ---
 
-## Phase 15 Systems / Mobile Language Support
+## Phase 15 Systems / Mobile / Config / Web File Support A
 
-Status: Planned.
+Status: Completed.
 
-Targets:
+Scope completed:
 
-- C
-- C++
-- Swift
-- Kotlin
-- Dart if useful
+- added modular static systems/mobile parsers under `b3-indexer::systems_languages`
+- added basic C/C++ file and project metadata detection for `.c`, `.h`, `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh`, `CMakeLists.txt`, `Makefile`, and `compile_commands.json`
+- extracted conservative C/C++ includes, macros, structs, enums, typedefs, namespaces, classes, methods, and obvious functions
+- added basic Swift detection for `.swift` and `Package.swift`, imports, classes, structs, enums, protocols, extensions, functions, SwiftUI View hints, app-entry hints, and URLSession literals
+- added basic Objective-C detection for `.m`/`.mm`, imports, interfaces, implementations, protocols, properties, methods, UIViewController hints, and NSURLSession literals
+- added basic Dart/Flutter detection for `.dart`, `pubspec.yaml`, and `analysis_options.yaml`, imports, classes, mixins, enums, functions, Widget/build hints, route literals, and HTTP literals
+- added modular static config-file parsers for YAML, JSON, TOML, and XML with key paths/tables/elements/attributes plus safe package/dependency names
+- kept sensitive config values redacted or skipped; secret-like names are indexed only as names/keys
+- added static HTML/template extraction for titles, ids/classes/data attributes, script/style references, hrefs, and form action route hints
+- added static CSS/SCSS extraction for class/id selectors, custom properties, imports, url asset references, SCSS variables/mixins, and keyframes
+- hardened XAML metadata with Style TargetType, ControlTemplate/DataTemplate keys, x:Name, xmlns namespace hints, merged dictionaries, resource references, bindings, commands, and code-behind hints
+- added static Three.js/WebGL hints from JS/TS imports/usages and asset literals without browser/WebGL execution
+- added static ksqlDB parsing for streams, tables, connectors, Kafka topic literals, SELECT/INSERT dependencies, and messaging hints without Kafka/ksqlDB connections
+- wired new support into `DefaultLanguagePack`, language detection, `/api/languages`, `/api/capabilities`, existing route/messaging/infrastructure-compatible metadata shapes, and tests
+
+Rules:
+
+- static/local/offline analysis only
+- no clang, gcc, make, CMake, xcodebuild, swift, dart, flutter, npm, browser, WebGL, Kafka, ksqlDB, Docker, Kubernetes, Terraform, compiler, formatter, package-manager, runtime, broker, database, cloud API, telemetry, internet, or mandatory language-server requirement
+- support is Basic unless explicitly detect-only/project metadata; compiler-grade semantics, deeper config/data/web hardening, architecture graph UI, Phase 17 quality audit, full Git Intelligence, and broad refactor work remain deferred
 
 ---
 
-## Phase 16 Config / Data / Web File Support
+## Phase 16 Config / Data / Web File Support B / Hardening
 
 Status: Planned.
 
 Targets:
 
 - SQL
-- YAML
-- JSON
-- HTML
-- CSS / SCSS
-- TOML
-- XML
-- XAML if not already handled by WPF intelligence
+- deeper YAML/JSON/TOML/XML hardening beyond Phase 15 Basic support
+- deeper HTML/CSS/SCSS asset/template linkage beyond Phase 15 Basic support
+- remaining SQL/static data-file support not covered by ksqlDB Basic
+- additional XAML hardening if needed after fixture/real-project review
 
 ---
 
@@ -219,6 +243,77 @@ Measure:
 - false negatives
 - parser crash/error rate
 - LSP timeout/failure rate
+
+### Future Hardening: RabbitMQ Advanced Messaging Intelligence
+
+Goal:
+
+Improve B3's static cross-repo RabbitMQ/message-flow understanding beyond simple name matching.
+
+Scope:
+
+- model RabbitMQ topology statically:
+  - Producer
+  - Exchange
+  - Binding
+  - Queue
+  - Consumer
+- extract and connect:
+  - exchange name
+  - exchange type: direct, topic, fanout, headers, unknown
+  - queue name
+  - binding key / routing key
+  - producer publish exchange + routing key
+  - consumer queue/handler
+- add deterministic matching for:
+  - direct exchange routing-key match
+  - topic exchange wildcard matching using `*` and `#`
+  - fanout exchange through explicit bindings
+  - headers exchange only when literal header arguments are visible
+- classify retry/dead-letter flows:
+  - `DeadLettersTo`
+  - `RetriesThrough`
+  - primary business message flow vs infrastructure retry/DLQ flow
+- add local static resolution for:
+  - constants
+  - enums/static fields
+  - local config files
+  - `appsettings.json`
+  - yaml/json config
+  - `.env.example`/default values
+  - docker-compose environment literals
+  - Kubernetes ConfigMap names/literals where safe
+- add wrapper/event-bus pattern detection:
+  - `EventBus.PublishAsync(...)`
+  - `rabbitPublisher.publish(...)`
+  - `ClientProxy.emit/send` wrappers
+  - message class/type name inference where safe
+- produce better evidence chains:
+  - Producer -> Exchange -> Binding -> Queue -> Consumer
+- add RabbitMQ-specific confidence scoring:
+  - high for literal exchange/routing key/binding/consumer queue
+  - medium for local config/const resolution
+  - medium/low for topic wildcard matches
+  - low for broad wildcard or unknown broker
+  - skip dynamic runtime-only values
+- keep output deterministic, bounded, and evidence-based
+
+Out of scope:
+
+- connecting to RabbitMQ brokers
+- inspecting live exchanges/queues
+- publishing test messages
+- consuming messages
+- requiring Docker Compose or Kubernetes runtime
+- calling cloud RabbitMQ services
+- calling external APIs
+- requiring internet
+- telemetry
+- runtime service discovery
+
+Important:
+
+This is static/local/offline intelligence only. It must preserve B3's offline-first and free-by-default requirement.
 
 ---
 
@@ -975,15 +1070,15 @@ Completed:
 - Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
+- Phase 14 - Additional Backend Language Support
+- Phase 15 - Systems / Mobile / Config / Web File Support A
 
 Current/Next:
 
-- Phase 14 - Additional Backend Language Support
+- Phase 16 - Config / Data / Web File Support B / Hardening
 
 Upcoming:
 
-- Phase 15 - Systems / Mobile Language Support
-- Phase 16 - Config / Data / Web File Support
 - Phase 17 - Language and Technology Quality Audit
 - Phase 18 - Refactor Checkpoint D
 - Phase 19 - Performance Optimization Pass B
@@ -1278,6 +1373,7 @@ Scope completed:
 - added deterministic messaging keys for broker, channel kind, and normalized topic/queue/pattern/routing-key names
 - collected producers and consumers from existing federated messaging metadata
 - matched same broker plus exact channel kind/name, compatible topic/queue/pattern names, unknown broker exact names, NestJS pattern names, and same-name conflicting broker cases
+- current Phase 11.3 messaging matching supports static name/key matching; advanced RabbitMQ topology matching is deferred to RabbitMQ Advanced Messaging Intelligence
 - produced `ArchitectureMatchCandidate`, `ArchitectureNode`, `ArchitectureEdge`, confidence, evidence, warnings, and deterministic sorting/dedupe
 - added read-only Control endpoint `GET /api/architecture/groups/{group_id}/message-matches`
 - updated architecture status/capabilities so messaging matching is ready while package/contract/infra, group impact, and service maps remain false
@@ -1374,7 +1470,7 @@ Scope completed:
 - benchmarked group federation, route/API matching, messaging matching, dependency matching, group impact, cross-repo context pack, architecture graph, and service map behavior
 - added `cross_project_benchmark` to `target/benchmarks/baseline.json` without removing `semantic_quality` or `efficiency_metrics`
 - parsed `benchmarks/b3.benchmark.toml` with local/offline guardrails and optional project handling
-- treated `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` as optional local candidates; missing or unindexed paths warn and skip
+- treated configured optional local benchmark repositories as optional local candidates; missing or unindexed paths warn and skip
 - added branch-safety reporting as benchmark/docs warnings only; full Git Intelligence remains Phase 21
 - documented current benchmark methodology, limitations, target comparisons, and offline/free behavior
 - clarified that Phase 11.7 is local fixture/local-repo benchmarking only, not a 31 public real-world repository claim
@@ -1389,7 +1485,7 @@ Current measured fixture/local run:
 - graph edges: 3
 - services: 4
 - architecture target comparison in the local fixture run: token reduction `25.42x` against `10.0x`, tool-call reduction `2.57x` against `2.1x`, deterministic task quality `1.000` against `0.8`
-- warnings reported for optional local benchmark DBs that were not present: `D:\Project\Project_B\.b3\b3.db` and `D:\Project\Tuvi_B\.b3\b3.db`
+- warnings reported for configured optional local benchmark DBs that were not present
 - after switching branches, users should reindex before comparing results until branch-aware indexing is implemented
 
 Rules:
@@ -1501,6 +1597,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | AMQP / RabbitMQ / Kafka / Google Pub/Sub / NestJS messaging | Usable now, basic/static |
 | Docker / Docker Compose / Kubernetes / GCP / GKE / Terraform | Usable now, basic/static |
 | Go language support | Usable now, basic/static |
+| Python / Java / Kotlin / PHP / Ruby backend basics | Usable now, basic/static |
 | Scoped indexing targets | Usable now |
 | C# WPF / XAML | Usable now, basic/static |
 | Three.js / WebGL | Deferred |
@@ -1512,7 +1609,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |
 | Cross-project route/API matching | Usable now, local/static/read-only |
-| Cross-project messaging matching | Usable now, local/static/read-only |
+| Cross-project messaging matching | Usable now, local/static/read-only static name/key matching; advanced RabbitMQ topology matching deferred |
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Group impact/context pack | Usable now, local/static/read-only |
 | Architecture graph/service map API | Usable now, local/static/read-only |
@@ -1523,7 +1620,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5; local architecture graph/service map APIs begin in Phase 11.6; local cross-project architecture benchmark/docs begin in Phase 11.7. Architecture graph UI remains deferred.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3 with static name/key matching; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5; local architecture graph/service map APIs begin in Phase 11.6; local cross-project architecture benchmark/docs begin in Phase 11.7. Advanced RabbitMQ topology matching is deferred to RabbitMQ Advanced Messaging Intelligence. Architecture graph UI remains deferred.
 
 ---
 
@@ -1663,18 +1760,16 @@ First priority:
 - Terraform
 - Go
 - WPF
-
-Then:
-
 - Python
 - Java
+- Kotlin
 - PHP
 - Ruby
 - C
 - C++
 - Swift
-- Kotlin
-- SQL
+- Objective-C
+- Dart / Flutter
 - YAML
 - JSON
 - HTML
@@ -1684,6 +1779,11 @@ Then:
 - XAML
 - Three.js / WebGL
 - ksqlDB
+
+Then:
+
+- SQL
+- deeper config/data/web hardening from Phase 16
 
 ---
 
@@ -1725,7 +1825,7 @@ For larger feature phases, include phase-specific sections such as API behavior,
 
 These projects are inspirations only, not dependencies. B3 must remain Rust-native where appropriate, local-first, offline-first, and free-by-default.
 
-### codebase-memory-mcp
+### Persistent Tree-Sitter Code Memory
 
 B3 learns tree-sitter code graph, persistent local code memory, MCP code intelligence, and graph visualization.
 

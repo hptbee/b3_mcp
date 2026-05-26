@@ -627,7 +627,7 @@ Added requirements:
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
-- Phase 15: Systems / Mobile Language Support
+- Phase 15: Systems / Mobile / Config / Web File Support A
 
 ### Phase 10.1 Local Hash Embeddings
 
@@ -643,6 +643,30 @@ database, telemetry endpoint, or paid dependency. It is suitable for offline
 chunk/vector generation, but it is not a neural semantic model. MCP/control
 semantic integration is available from Phase 10.4, and fixture-based quality
 benchmarking is available from Phase 10.5.
+
+### Phase 15 Static Systems / Mobile / Config / Web Extraction
+
+Phase 15 uses deterministic local text scanners, not compilers or runtimes. C
+and C++ extraction looks for includes, macros, declarations, namespaces,
+classes, methods, structs, enums, typedefs, and obvious functions while avoiding
+preprocessor expansion or template semantics. Swift, Objective-C, and
+Dart/Flutter extraction records imports, common type/function declarations, UI
+hints, and literal HTTP/route hints without invoking SDKs or app code.
+
+Config and web-file extraction is similarly conservative. YAML, JSON, TOML, and
+XML produce key-path/table/element/attribute metadata and safe package names;
+secret-like values are redacted or skipped. HTML records titles, ids/classes,
+resource references, hrefs, and form actions. CSS/SCSS records selectors,
+custom properties, imports, url assets, mixins, and keyframes. XAML metadata is
+hardened for resources, bindings, styles, templates, names, namespaces, and
+code-behind hints. Three.js/WebGL hints are derived only from JS/TS imports and
+literal usage patterns. ksqlDB extraction records streams/tables/connectors,
+topic literals, and SELECT/INSERT dependencies without Kafka or ksqlDB
+connections.
+
+All Phase 15 outputs reuse existing symbol and metadata shapes so storage stays
+schema-compatible and architecture/query integration can consume route,
+messaging, package, and infrastructure hints where they already fit.
 
 ### Phase 10.2 SQLite Vector Search
 
@@ -950,9 +974,9 @@ The architecture benchmark creates a deterministic local fixture group with
 frontend, API, worker, and shared-package projects. It measures group
 federation, route/API matching, messaging matching, package/contract/infra
 matching, group impact, cross-repo context pack generation, architecture graph
-construction, and service map construction. Optional local repos such as
-`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` are
-inspected only when present; missing paths or DBs become warnings.
+construction, and service map construction. Optional local repositories
+configured in `benchmarks/b3.benchmark.toml` are inspected only when present;
+missing configured paths or DBs become warnings.
 
 Metrics include readiness flags, match counts, impact counts, graph/service map
 counts, warning and unresolved ratios, context-pack chars and chars/4 token
@@ -1089,9 +1113,12 @@ selected filenames. Detection is separated from support level:
 
 - `Good`: Rust through the existing tree-sitter parser path.
 - `Basic`: implemented local static or tree-sitter-backed extraction for a
-  bounded subset, or planned languages with detect-file rules only where noted.
+  bounded subset. Phase 14 adds Basic static backend extraction for Python,
+  Java, Kotlin, PHP, and Ruby.
 - `Unsupported`: unknown files with no local detection rule.
 
-No LSP process, semantic search, embeddings, framework intelligence, or
-cross-project architecture analysis is part of this phase. Benchmark semantics
-remain focused on existing Rust fixtures and current query/index behavior.
+Phase 14 backend extraction is deterministic line-oriented/static analysis. It
+emits existing symbol, route, data-access, and messaging metadata shapes so
+query and architecture paths can consume the results without schema changes. It
+does not run package managers, compilers, runtimes, language servers, cloud
+services, external APIs, telemetry, or internet access.
