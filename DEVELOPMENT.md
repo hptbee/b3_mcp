@@ -124,6 +124,12 @@ worker request handling. MCP tools/list benchmark entries record `profile` and
 field may be `null` on platforms where a rough process-memory snapshot is not
 available yet.
 
+Phase 10.5 adds local hybrid search quality evaluation to the same baseline.
+`semantic_quality` compares lexical-only, vector-only, and hybrid modes on a
+small checked-in fixture set, reports hit@1/3/5/10, MRR, latency, fallback
+counts, and a chars/4 token estimate. These are fixture baselines only; they do
+not claim neural semantic quality or production-level relevance.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

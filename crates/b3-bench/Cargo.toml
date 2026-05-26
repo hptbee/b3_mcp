@@ -15,6 +15,7 @@ path = "src/main.rs"
 b3-compaction = { path = "../b3-compaction" }
 b3-control = { path = "../b3-control" }
 b3-core = { path = "../b3-core" }
+b3-embeddings = { path = "../b3-embeddings" }
 b3-indexer = { path = "../b3-indexer" }
 b3-mcp-runtime = { path = "../b3-mcp-runtime" }
 b3-query = { path = "../b3-query" }

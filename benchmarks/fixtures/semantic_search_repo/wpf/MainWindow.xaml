@@ -1,0 +1,9 @@
+<Window x:Class="Bench.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <Button Content="Save" Command="{Binding SaveCommand}" />
+        <TextBox Text="{Binding UserName}" />
+        <ResourceDictionary Source="Themes/Colors.xaml" />
+    </StackPanel>
+</Window>

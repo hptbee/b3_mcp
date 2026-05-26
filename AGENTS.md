@@ -398,3 +398,13 @@ hosted vector database integrations, OpenAI/cloud embedding providers, model
 downloads, telemetry, API-key requirements, cross-project semantic search,
 symbolic editing, rename/refactor, session memory, or cross-project
 architecture intelligence.
+
+Phase 10.5 is completed as benchmark + quality evaluation only. It may add
+local deterministic benchmark fixtures, query expectations, lexical/vector/
+hybrid comparison metrics, latency measurements, token/context estimates,
+structured benchmark JSON, and regression guardrail tests.
+
+It must not implement cross-project architecture intelligence, symbolic editing,
+rename/refactor, neural embedding providers, hosted vector database
+integrations, OpenAI/cloud embedding providers, model downloads, telemetry,
+API-key requirements, benchmark upload, session memory, or UI redesign.

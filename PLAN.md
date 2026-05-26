@@ -895,14 +895,14 @@ Completed:
 - Phase 10.2 - SQLite Vector Storage / Search Index
 - Phase 10.3 - Hybrid Search Ranking
 - Phase 10.4 - MCP / Control API Integration
+- Phase 10.5 - Benchmark + Quality Evaluation
 
 Current/Next:
 
-- Phase 10.5 - Benchmark + Quality Evaluation
+- Phase 11 - Cross-Project Architecture Intelligence
 
 Upcoming:
 
-- Phase 11 - Cross-Project Architecture Intelligence
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
@@ -1048,13 +1048,36 @@ Rules:
 
 ## Phase 10.5 - Benchmark + Quality Evaluation
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- add deterministic local quality fixtures
-- measure retrieval quality and token savings
-- no external services, cloud APIs, API keys, or telemetry
+- added deterministic local `semantic_search_repo` fixture covering Rust, TypeScript, React, Next.js, Angular, ASP.NET Core/C#, Go, WPF/XAML, messaging, realtime, infrastructure, and data access examples
+- added fixture-based evaluation queries with expected files, optional symbols, source kinds, languages, frameworks, and notes
+- added `semantic_quality` baseline JSON with hit@1/3/5/10, MRR, score, latency, fallback, source-kind, file-match, and symbol-match metrics
+- compared lexical-only, vector-only, and hybrid modes without changing ranking defaults
+- added MCP `semantic_search` and Control `POST /api/search/hybrid` guardrail checks
+- added conservative token/context savings estimates using chars/4 approximation
+- added human-readable semantic quality summary to `b3-bench baseline`
+- added tests for fixture loading, expected targets, metrics, offline benchmark execution, and Phase 10.4 MCP profile counts
+
+Current local fixture baseline:
+
+- lexical-only: hit@1 0.100, hit@3 0.100, MRR 0.100
+- vector-only: hit@1 0.900, hit@3 1.000, MRR 0.950
+- hybrid: hit@1 0.900, hit@3 1.000, MRR 0.950
+- token estimate: 2,843 naive chars vs 1,962 selected chars, about 31% estimated reduction
+
+These are fixture baselines only. They are not neural semantic quality claims or production guarantees.
+
+Rules:
+
+- no benchmark upload
+- no cross-project semantic search
+- no hosted vector database requirement
+- no OpenAI/cloud embedding API integration
+- no neural embedding provider
+- no telemetry, SaaS auth, API keys, model downloads, or internet requirement
 
 ---
 

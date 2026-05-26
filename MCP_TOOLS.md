@@ -36,6 +36,10 @@ adapter over `b3-query` hybrid ranking and local SQLite/vector storage. It uses
 `local_hash` plus existing SQLite vectors, never calls external APIs, and falls
 back to lexical/metadata results with a warning when vector data is unavailable.
 
+Phase 10.5 adds local fixture-based benchmark coverage for `semantic_search`.
+It verifies Phase 10.4 profile counts and compares lexical-only, vector-only,
+and hybrid search modes without adding or changing MCP tools.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

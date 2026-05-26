@@ -920,10 +920,10 @@ Avoid:
 - Phase 10.2: SQLite Vector Storage / Search Index
 - Phase 10.3: Hybrid Search Ranking
 - Phase 10.4: MCP / Control API Integration
+- Phase 10.5: Benchmark + Quality Evaluation
 
 ### Planned Phases
 
-- Phase 10.5: Benchmark + Quality Evaluation
 - Phase 11: Cross-Project Architecture Intelligence
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP

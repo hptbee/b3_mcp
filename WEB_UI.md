@@ -251,7 +251,8 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Phase 10.4 exposes local hybrid search through `POST /api/search/hybrid` and
   the MCP `semantic_search` tool on top of SQLite-backed storage and `b3-query`
   ranking, but no Web UI redesign or dedicated semantic search UI is included.
-  Quality benchmarking remains deferred to Phase 10.5.
+  Phase 10.5 adds local fixture-based benchmark output, but no Web UI redesign
+  or benchmark dashboard is included.
 - Parser subprocess isolation diagnostics are available through the control server, but the UI only shows them through the existing diagnostics/raw event surfaces.
 - A dedicated Node.js REST route browser is deferred; route metadata is
   currently available through `GET /api/routes`.

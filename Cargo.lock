@@ -109,6 +109,7 @@ dependencies = [
  "b3-compaction",
  "b3-control",
  "b3-core",
+ "b3-embeddings",
  "b3-indexer",
  "b3-mcp-runtime",
  "b3-query",

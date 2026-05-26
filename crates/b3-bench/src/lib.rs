@@ -3,6 +3,8 @@
 //! This crate measures current behavior only. It should not become a product
 //! feature surface, and it must not upload results or call external services.
 
+pub mod search_quality;
+
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
     fs,
@@ -29,6 +31,10 @@ use http::Request;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower::ServiceExt;
+
+use search_quality::{
+    format_semantic_quality_summary, run_semantic_quality_benchmark, SemanticQualityReport,
+};
 
 const DEFAULT_FIXTURE_ROOT: &str = "benchmarks/fixtures";
 const DEFAULT_OUTPUT_PATH: &str = "target/benchmarks/baseline.json";
@@ -71,6 +77,7 @@ pub struct BenchmarkRun {
     pub git_commit: Option<String>,
     pub thresholds: BenchmarkThresholdConfig,
     pub results: Vec<BenchmarkResult>,
+    pub semantic_quality: Option<SemanticQualityReport>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -138,6 +145,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), String> {
             let output_path = options.output_path.clone();
             let run = run_baseline(options).map_err(|error| error.message)?;
             println!("{}", format_results_table(&run.results));
+            if let Some(report) = &run.semantic_quality {
+                println!("{}", format_semantic_quality_summary(report));
+            }
             println!("wrote JSON baseline: {}", output_path.display());
             Ok(())
         }
@@ -160,6 +170,7 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     let cycle = copy_fixture(&fixtures, "graph_cycle_repo", &workspace)?;
     let call_graph = copy_fixture(&fixtures, "call_graph_repo", &workspace)?;
     let watcher = copy_fixture(&fixtures, "watcher_change_repo", &workspace)?;
+    let semantic = copy_fixture(&fixtures, "semantic_search_repo", &workspace)?;
 
     let mut results = Vec::new();
     results.push(bench_cold_startup()?);
@@ -219,12 +230,15 @@ pub fn run_baseline(options: BenchmarkOptions) -> ContractResult<BenchmarkRun> {
     results.push(bench_sqlite_query_latency(&medium_state.storage)?);
     results.push(bench_parser_worker_latency()?);
     results.push(bench_command_compaction_latency()?);
+    let (semantic_quality, semantic_results) = run_semantic_quality_benchmark(&semantic)?;
+    results.extend(semantic_results);
 
     let run = BenchmarkRun {
         timestamp_unix_ms: now_unix_ms(),
         git_commit: git_commit(),
         thresholds,
         results,
+        semantic_quality: Some(semantic_quality),
     };
     write_json_output(&options.output_path, &run)?;
     Ok(run)
@@ -238,6 +252,7 @@ pub fn load_fixtures(root: &Path) -> ContractResult<Vec<BenchmarkFixture>> {
         "graph_cycle_repo",
         "call_graph_repo",
         "watcher_change_repo",
+        "semantic_search_repo",
     ] {
         let path = root.join(name);
         if !path.exists() {
@@ -808,7 +823,7 @@ mod tests {
     #[test]
     fn fixture_loading_finds_all_expected_repos() {
         let fixtures = load_fixtures(&default_fixture_root()).expect("fixtures");
-        assert_eq!(fixtures.len(), 5);
+        assert_eq!(fixtures.len(), 6);
         assert!(fixtures.iter().all(|fixture| fixture.file_count > 0));
     }
 

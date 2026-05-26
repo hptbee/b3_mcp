@@ -631,8 +631,8 @@ truncated at a configured character boundary before tokenization.
 The provider requires no model file, API key, network access, hosted vector
 database, telemetry endpoint, or paid dependency. It is suitable for offline
 chunk/vector generation, but it is not a neural semantic model. MCP/control
-semantic integration is available from Phase 10.4, and quality benchmarking
-remains Phase 10.5.
+semantic integration is available from Phase 10.4, and fixture-based quality
+benchmarking is available from Phase 10.5.
 
 ### Phase 10.2 SQLite Vector Search
 
@@ -679,6 +679,21 @@ data when available and returns lexical/metadata fallback warnings when vector
 data is missing. It does not add hosted vector databases, cloud providers,
 model downloads, telemetry, cross-project semantic search, or benchmark quality
 claims.
+
+### Phase 10.5 Search Quality Benchmark
+
+Phase 10.5 adds fixture-based quality evaluation in `b3-bench`. The benchmark
+seeds a small local semantic-search fixture into SQLite, creates local_hash
+vectors, and evaluates the same query set in lexical-only, vector-only, and
+hybrid modes. Metrics include hit@1/3/5/10, MRR, average score, average/p50/p95
+latency, result counts, fallback counts, source-kind matches, file matches, and
+symbol matches.
+
+The baseline JSON contains a `semantic_quality` section and the terminal output
+prints a compact comparison table. Token/context savings are estimated with a
+simple chars/4 approximation. The results are deterministic fixture baselines,
+not production quality guarantees, and they do not imply neural embedding
+quality.
 
 ## Additional Planned Algorithms
 
