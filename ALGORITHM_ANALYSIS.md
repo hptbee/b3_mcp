@@ -764,6 +764,41 @@ target, and `0.699` answer-quality approximation against the `0.8` target. The
 benchmark therefore proves only the tool-call target for this fixture/model.
 Token reduction and quality remain work items.
 
+### Phase 11.2 Cross-Repo Route/API Matching
+
+Phase 11.2 matches HTTP client call literals to server route metadata inside a
+registry-defined project group. The matcher keeps the Phase 11 storage model:
+each project remains in its own repo-local `.b3/b3.db`, opened read-only during
+federation. No global database merge, cloud graph database, hosted vector
+database, telemetry, external API, runtime HTTP request, DNS lookup, or remote
+OpenAPI fetch is used.
+
+Route keys are deterministic: method is uppercased, unknown methods use
+`UNKNOWN`, paths get a leading slash, duplicate/trailing slashes are normalized,
+query strings are removed, and route parameters such as `:id`, `[id]`, and
+`<id>` become `{id}`. Server endpoints come from existing route metadata and
+frontend page routes are excluded as backend targets by default.
+
+Client call extraction is conservative and local. It recognizes literal
+JS/TS `fetch`, Axios/member-client calls, Angular-style `HttpClient`, C#
+`HttpClient`, and Go `http` call patterns in already-indexed file text.
+Literal same-file base URLs such as `"/api"` can be composed; runtime
+environment variables, secrets, DNS, and HTTP are not resolved.
+
+Matching rules are ordered by evidence strength:
+
+- exact method plus normalized path: high confidence
+- unknown client method plus exact normalized path: medium confidence
+- exact method plus route pattern, such as `/api/users/123` to
+  `/api/users/{id}`: high confidence with route-pattern evidence
+- same path with different method: low confidence with a method-mismatch warning
+
+Output is an `ArchitectureMatchCandidate` plus corresponding
+`ArchitectureNode` and `ArchitectureEdge` records for `CallsHttpRoute`, with
+compact evidence, provenance, deterministic IDs, deterministic sorting, and
+dedupe. Messaging, package/contract/infra relationships, group impact/context
+pack, and service-map APIs remain deferred.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

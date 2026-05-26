@@ -55,6 +55,11 @@ file-by-file exploration, `search_code`, `semantic_search`, and context-pack
 selection locally without invoking an LLM, network, telemetry, hosted vector
 database, or external API.
 
+Phase 11.2 adds cross-repo route/API matching through the local Control API
+only. It does not add MCP architecture tools, change MCP profiles, or change
+tool counts. The MCP runtime remains a thin query adapter; route matching lives
+in `b3-query::architecture`.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

@@ -445,3 +445,16 @@ architecture graph UI, service map APIs, symbolic editing, rename/refactor,
 neural embedding providers, hosted vector databases, cloud embeddings, external
 APIs, telemetry, paid dependencies, model downloads, internet requirements, or
 cross-project relationship inference.
+
+Phase 11.2 is completed as cross-repo route/API matching only. It may match
+conservative static HTTP client call literals to existing server route metadata
+inside a registry project group, produce `CallsHttpRoute` match candidates,
+architecture nodes/edges, confidence, evidence, warnings, and expose a
+read-only local Control API endpoint.
+
+It must not implement cross-repo messaging matching, package/contract/infra
+matching, group-level impact/context pack, architecture graph UI, service map
+APIs, symbolic editing, rename/refactor, runtime HTTP calls, remote OpenAPI
+fetching, DNS/service discovery, global database merges, cloud graph databases,
+hosted vector databases, external APIs, telemetry, paid dependencies, model
+downloads, or internet requirements.

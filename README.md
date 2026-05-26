@@ -31,12 +31,12 @@ Completed:
 - Phase 11.0 - Cross-Project Architecture Model + Contracts
 - Phase 11.1 - Group Query Federation
 - Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
-
-Current / Next:
 - Phase 11.2 - Cross-Repo Route / API Matching
 
-Upcoming (major):
+Current / Next:
 - Phase 11.3 - Cross-Repo Messaging Matching
+
+Upcoming (major):
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
@@ -84,7 +84,8 @@ Cross-project architecture foundation:
 - Phase 11.0 adds serializable local architecture contracts for projects, groups, services, nodes, edges, match candidates, confidence, provenance, and normalization.
 - Phase 11.1 resolves local registry groups and federates read-only summaries across repo-local `.b3/b3.db` files.
 - Phase 11.1.1 measures token/context reduction, tool-call reduction, and fixture-based answer-quality approximation. Current measured balanced context-pack baseline is about `1.11x` fewer tokens, `4.05x` fewer modeled tool calls, and `0.699` answer-quality score; the `10x` token target and `0.8` quality target are not met yet.
-- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; matching is deferred to later Phase 11 subphases.
+- Phase 11.2 adds local/read-only cross-repo route/API matching inside registry project groups.
+- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; messaging, package/contract/infra, group impact, and service maps are deferred to later Phase 11 subphases.
 
 ---
 
@@ -95,7 +96,7 @@ Cross-project architecture foundation:
 - MCP/control semantic search is local/offline and uses lexical/hash-based `local_hash`, not neural semantic vectors.
 - Quality metrics are fixture baselines, not production guarantees.
 - Efficiency metrics are deterministic benchmark estimates. Token estimates use chars/4, tool-call counts use a fixed local workflow model, and answer quality is fixture coverage rather than human grading.
-- Cross-project relationship matching and service maps are not usable yet; Phase 11.1 only adds group federation/status/summary.
+- Cross-project route/API matching is static and conservative. It does not execute HTTP requests, fetch OpenAPI remotely, infer messaging/package/infra relationships, or build service maps.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
@@ -128,7 +129,8 @@ Cross-project architecture foundation:
 | Context efficiency benchmark | Usable now, local deterministic baseline |
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |
-| Cross-project matching | Phase 11.2+ |
+| Cross-project route/API matching | Usable now, local/static/read-only |
+| Cross-project messaging matching | Phase 11.3 |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.

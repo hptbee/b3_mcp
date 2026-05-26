@@ -236,6 +236,13 @@ Current truth:
   `POST /api/search/hybrid` path and MCP profile/tool availability. It does not
   add Control API endpoints, service maps, group impact APIs, route/API
   matching, messaging matching, telemetry, or external service calls.
+- Phase 11.2 adds read-only
+  `GET /api/architecture/groups/{group_id}/route-matches`. The endpoint reads
+  registry-defined local project DBs independently, returns static route/API
+  match candidates with confidence/evidence/warnings, and reports
+  `route_matching_ready = true`. It does not merge DBs, execute HTTP requests,
+  fetch remote OpenAPI documents, call external APIs, or add service-map/group
+  impact APIs.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

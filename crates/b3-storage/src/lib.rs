@@ -533,6 +533,16 @@ pub struct StoredRoute {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredFileContent {
+    pub id: String,
+    pub project_id: String,
+    pub branch_id: String,
+    pub path: String,
+    pub language: Option<String>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoredComponent {
     pub id: String,
     pub project_id: String,
@@ -1527,6 +1537,38 @@ impl SqliteStorage {
             routes.retain(|route| route.path == path);
         }
         Ok(routes)
+    }
+
+    pub fn file_contents(
+        &self,
+        project_id: &str,
+        branch_id: &str,
+        limit: usize,
+    ) -> ContractResult<Vec<StoredFileContent>> {
+        let mut statement = self
+            .connection
+            .prepare_cached(
+                "SELECT f.id, f.project_id, f.branch_id, f.path, f.language, file_content_fts.content
+                 FROM files f
+                 JOIN file_content_fts ON file_content_fts.file_id = f.id
+                 WHERE f.project_id = ?1 AND f.branch_id = ?2
+                 ORDER BY f.path, f.id
+                 LIMIT ?3",
+            )
+            .map_err(to_contract_error)?;
+        let rows = statement
+            .query_map(params![project_id, branch_id, limit as i64], |row| {
+                Ok(StoredFileContent {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    branch_id: row.get(2)?,
+                    path: row.get(3)?,
+                    language: row.get(4)?,
+                    content: row.get(5)?,
+                })
+            })
+            .map_err(to_contract_error)?;
+        collect_rows(rows)
     }
 
     pub fn components(
@@ -4216,6 +4258,43 @@ mod tests {
             .routes("project", "main", None, None, None, 10)
             .expect("routes after cleanup")
             .is_empty());
+    }
+
+    #[test]
+    fn file_contents_return_indexed_text_read_only() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new("client-file"),
+                        project_id: project_id.clone(),
+                        path: "src/client.ts".to_string(),
+                        content_hash: "hash".to_string(),
+                    },
+                    language: Some("typescript".to_string()),
+                    size_bytes: 22,
+                    content: "fetch('/api/orders');".to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("indexed file");
+
+        let files = storage
+            .file_contents("project", "main", 10)
+            .expect("file contents");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/client.ts");
+        assert_eq!(files[0].language.as_deref(), Some("typescript"));
+        assert!(files[0].content.contains("/api/orders"));
     }
 
     #[test]

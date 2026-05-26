@@ -154,6 +154,15 @@ current balanced context-pack fixture result is about `1.11x` fewer tokens,
 `4.05x` fewer modeled tool calls, and `0.699` quality, so the token and quality
 targets are not yet met.
 
+Phase 11.2 adds local cross-repo route/API matching in
+`b3-query::architecture`. It reads each registry project DB independently,
+collects existing server route metadata, extracts conservative HTTP client
+literals from indexed local file text, and returns deterministic match
+candidates through `GET /api/architecture/groups/{group_id}/route-matches`.
+It does not merge databases, execute HTTP requests, resolve DNS/runtime env
+vars, fetch OpenAPI documents, add MCP tools, or infer messaging/package/infra
+relationships.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

@@ -924,6 +924,7 @@ Avoid:
 - Phase 11.0: Cross-Project Architecture Model + Contracts
 - Phase 11.1: Group Query Federation
 - Phase 11.1.1: Context Efficiency + Tool Call Reduction Benchmark
+- Phase 11.2: Cross-Repo Route / API Matching
 
 Phase 11.1.1 is benchmark/measurement only. It must remain local,
 deterministic, offline-first, and free-by-default. It measures chars/4 token
@@ -934,9 +935,17 @@ not add MCP tools, cross-repo matching, group-level impact/context pack,
 service-map APIs, symbolic editing, rename/refactor, telemetry, cloud APIs,
 hosted vector databases, paid dependencies, or internet requirements.
 
+Phase 11.2 adds static/read-only cross-repo route/API matching inside local
+registry project groups. It may match deterministic HTTP client call keys to
+server route keys and produce architecture match candidates, nodes, edges,
+confidence, evidence, and warnings. It must preserve one repo-local
+`.b3/b3.db` per project and must not merge project DBs globally, execute HTTP
+requests, fetch OpenAPI remotely, call external APIs, use cloud graph
+databases, require hosted vector databases, infer messaging/package/infra
+relationships, add telemetry, or add MCP architecture tools.
+
 ### Planned Phases
 
-- Phase 11.2: Cross-Repo Route / API Matching
 - Phase 11.3: Cross-Repo Messaging Matching
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5: Group-Level Impact + Context Pack

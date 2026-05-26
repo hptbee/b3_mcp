@@ -1,8 +1,15 @@
 //! Local group query federation for cross-project architecture work.
 //!
 //! Phase 11.1 reads registry-defined project groups and queries each
-//! repo-local `.b3/b3.db` independently. It does not infer cross-project
-//! relationships, create cross-project edges, or merge databases.
+//! repo-local `.b3/b3.db` independently. Phase 11.2 adds local/static
+//! route/API matching without merging databases or performing runtime calls.
+
+#[path = "architecture/http_clients.rs"]
+pub mod http_clients;
+#[path = "architecture/match_keys.rs"]
+pub mod match_keys;
+#[path = "architecture/route_matching.rs"]
+pub mod route_matching;
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -16,6 +23,8 @@ use b3_storage::{
     StoredRealtime, StoredRoute, StoredWpf,
 };
 use serde::{Deserialize, Serialize};
+
+pub use route_matching::{GroupRouteMatchReport, RouteMatch, RouteMatchOptions};
 
 const DEFAULT_BRANCH: &str = "main";
 const DEFAULT_LIMIT: usize = 200;
@@ -280,7 +289,7 @@ impl GroupFederation {
             warnings: context.warnings,
             local_only: true,
             federation_ready: true,
-            matching_ready: false,
+            matching_ready: true,
         })
     }
 
@@ -786,7 +795,7 @@ mod tests {
         assert_eq!(summary.skipped_project_count, 0);
         assert_eq!(summary.counts.routes, 2);
         assert!(summary.federation_ready);
-        assert!(!summary.matching_ready);
+        assert!(summary.matching_ready);
         assert_eq!(routes.len(), 2);
         assert_eq!(routes[0].project_id, "api");
         assert_eq!(routes[1].project_id, "web");

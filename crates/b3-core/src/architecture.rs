@@ -1,7 +1,8 @@
 //! Cross-project architecture contracts.
 //!
-//! Phase 11.0 defines portable DTOs and deterministic normalization helpers
-//! only. It does not federate project databases or match routes/messages.
+//! Phase 11.0 defines portable DTOs and deterministic normalization helpers.
+//! Phase 11.2 enables local route/API matching; messaging and other matching
+//! domains remain deferred.
 
 use std::collections::BTreeMap;
 
@@ -466,7 +467,7 @@ impl Default for ArchitectureCapabilityStatus {
         Self {
             architecture_contracts_available: true,
             group_federation_ready: true,
-            route_matching_ready: false,
+            route_matching_ready: true,
             messaging_matching_ready: false,
             package_contract_infra_matching_ready: false,
             group_impact_ready: false,
@@ -794,12 +795,12 @@ mod tests {
     }
 
     #[test]
-    fn capability_status_is_contracts_only_and_local() {
+    fn capability_status_reports_route_matching_ready_and_local() {
         let status = ArchitectureCapabilityStatus::default();
 
         assert!(status.architecture_contracts_available);
         assert!(status.group_federation_ready);
-        assert!(!status.route_matching_ready);
+        assert!(status.route_matching_ready);
         assert!(!status.messaging_matching_ready);
         assert!(!status.package_contract_infra_matching_ready);
         assert!(!status.group_impact_ready);
