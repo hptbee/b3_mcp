@@ -407,7 +407,19 @@ Completed scope:
 - did not change API behavior, MCP tools/profiles, benchmark targets, frontend files, or feature behavior
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
 
-Next: Phase 18.4 Indexer Pipeline / Dispatch Split.
+### Phase 18.4 Indexer Pipeline / Dispatch Split
+
+Status: Completed.
+
+Completed scope:
+
+- split `crates/b3-indexer/src/lib.rs` into focused indexer modules for language dispatch, path/language detection, parser worker isolation, local indexing pipeline orchestration, and metadata string helpers
+- kept public `b3-indexer` exports compatible through `lib.rs` re-exports for existing callers
+- preserved language/path detection behavior, `DefaultLanguagePack` dispatch order, parser worker timeout/error/retry semantics, scoped indexing behavior, invalid UTF-8 skip behavior, extraction metadata formats, and symbol/route extraction behavior
+- did not change database schema, migration numbers, control APIs, storage APIs, MCP tools/profiles, benchmark targets, language support levels, frontend files, or feature behavior
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
+
+Next: Phase 18.5 Shared Helper Consolidation.
 
 ---
 
@@ -1150,14 +1162,14 @@ Completed:
 - Phase 18.1 - Test Organization Split
 - Phase 18.2 - Control Server Route Module Split
 - Phase 18.3 - Storage Module Split
+- Phase 18.4 - Indexer Pipeline / Dispatch Split
 
 Current/Next:
 
-- Phase 18.4 - Indexer Pipeline / Dispatch Split
+- Phase 18.5 - Shared Helper Consolidation
 
 Upcoming:
 
-- Phase 18.5 - Shared Helper Consolidation
 - Phase 18.6 - Optional Core / Query Architecture Split Review
 - Phase 18.7 - Final Refactor Checkpoint Verification
 - Phase 19 - Performance Optimization Pass B
