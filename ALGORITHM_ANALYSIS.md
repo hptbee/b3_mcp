@@ -985,6 +985,32 @@ package managers, generated code, external APIs, telemetry, or cloud services.
 It does not implement rename/refactor, update-all-references, broad multi-file
 edits, MCP edit tools, UI editing, or Git Intelligence.
 
+### Phase 13 Rename / Refactor MVP
+
+Phase 13 builds a conservative rename planner on top of the local editing
+foundation. The planner resolves an indexed symbol target by symbol ID or by
+file path plus symbol name/old name, then collects candidate files from the
+target definition, existing graph neighbors, and local FTS hits. It performs
+bounded identifier scanning with identifier-boundary checks, treats indexed
+definition evidence as high confidence, normal identifier occurrences in
+evidenced files as medium confidence, and comment/string matches as low
+confidence. Low-confidence occurrences are excluded by default and reported as
+warnings.
+
+Rename preview groups occurrences by file, validates UTF-8 text and project-root
+containment, verifies occurrence text equals `old_name`, rejects invalid names,
+overlaps, stale expected hashes/occurrences, too many files, too many
+occurrences, and too-large edits, then returns a deterministic plan ID and
+bounded unified-diff-style patch. Apply requires `mode=apply` and
+`dry_run=false`, re-plans, validates every changed file before writing any file,
+creates backups by default under `.b3/backups/refactors`, writes locally, and
+returns `reindex_recommended=true`.
+
+This remains an MVP, not an IDE-grade semantic rename engine. It does not run
+language servers, compilers, formatters, package managers, generated code,
+external APIs, telemetry, cloud services, Git commands, or broad automatic
+refactoring workflows.
+
 ## Additional Planned Algorithms
 
 The following algorithms and techniques are planned for future phases:

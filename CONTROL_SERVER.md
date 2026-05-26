@@ -127,8 +127,21 @@ plan, compact snippets, warnings, and unified diff text without mutating files.
 `POST /api/edit/apply` uses the same request shape, but mutates only when
 `mode` is `apply` and `dry_run` is `false`. Apply re-reads the target file,
 checks the planned text/hash, creates a local backup by default, and returns a
-reindex-recommended warning. Phase 12 is single-file only; rename/refactor and
-MCP edit tools remain deferred.
+reindex-recommended warning. Phase 12 is single-file only; MCP edit tools remain
+deferred.
+
+Rename/refactor:
+
+- `POST /api/refactor/rename/preview`
+- `POST /api/refactor/rename/apply`
+
+`POST /api/refactor/rename/preview` returns a bounded local rename plan for an
+indexed symbol target and conservative identifier occurrences. Preview does not
+mutate files. `POST /api/refactor/rename/apply` mutates only when `mode` is
+`apply` and `dry_run` is `false`; it validates all changed files before writes,
+creates backups by default, and returns `reindex_recommended=true`. Phase 13 is
+not an IDE-grade semantic rename engine and does not run compilers, formatters,
+language servers, package managers, Git commands, or external APIs.
 
 Query adapter endpoints:
 

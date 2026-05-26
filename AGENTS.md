@@ -540,6 +540,20 @@ execution, package manager execution, generated code execution, cloud services,
 external APIs, telemetry, paid dependencies, model downloads, or internet
 requirements. Reindex after apply is recommended, not hidden or automatic.
 
+Phase 13 is completed as Rename / Refactor MVP only. It may define local
+rename/refactor contracts, resolve indexed symbol targets, discover conservative
+identifier occurrences from indexed evidence, graph/FTS candidate files, and
+bounded scans, preview bounded rename plans, apply only with explicit
+`mode=apply` and `dry_run=false`, create backups for all changed files by
+default, emit patch output, and expose local Control API rename preview/apply
+endpoints. It must not implement broad automatic refactoring, extract method,
+move symbol/module broadly, IDE-grade semantic rename guarantees, mandatory LSP
+edits, MCP rename/refactor tools, UI editing, compiler/formatter execution,
+package manager execution, generated code execution, architecture graph UI,
+full Git Intelligence, cloud services, external APIs, telemetry, paid
+dependencies, model downloads, or internet requirements. Reindex after apply is
+recommended, not hidden or automatic.
+
 ## Local Benchmark Config Boundaries
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark config path for

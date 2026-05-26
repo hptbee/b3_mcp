@@ -77,6 +77,10 @@ Phase 12 symbolic editing is available through the local Control API
 editor, apply button, rename/refactor workflow, or architecture graph UI for
 editing yet.
 
+Phase 13 rename/refactor is also available through the local Control API
+(`/api/refactor/rename/preview` and `/api/refactor/rename/apply`) only. The Web
+UI still does not include a rename/refactor workflow or apply surface.
+
 Node.js REST route metadata is available through the local control API, but the
 current Web UI does not include a dedicated route browser yet.
 

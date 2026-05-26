@@ -15,6 +15,7 @@ mod ids;
 mod language;
 mod plugin;
 mod query;
+mod refactor;
 mod scope;
 mod vector;
 
@@ -28,6 +29,7 @@ pub use ids::*;
 pub use language::*;
 pub use plugin::*;
 pub use query::*;
+pub use refactor::*;
 pub use scope::*;
 pub use vector::*;
 

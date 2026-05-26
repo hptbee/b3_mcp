@@ -7,6 +7,7 @@
 pub mod architecture;
 pub mod editing;
 pub mod hybrid;
+pub mod refactor;
 
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet, VecDeque},

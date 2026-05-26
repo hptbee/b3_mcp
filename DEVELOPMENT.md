@@ -220,6 +220,19 @@ UI editing, formatter/compiler execution, package manager execution, generated
 code execution, external APIs, telemetry, and full Git Intelligence remain
 deferred.
 
+Phase 13 adds the local Rename / Refactor MVP. Rename/refactor contracts live in
+`b3-core`, planning/apply logic lives in `b3-query::refactor`, and `b3-control`
+exposes `POST /api/refactor/rename/preview` plus
+`POST /api/refactor/rename/apply`. Preview is the default. Apply requires
+`mode=apply` and `dry_run=false`, validates all changed files before writing,
+creates backups by default, and returns `reindex_recommended=true`. The MVP is
+conservative: it uses indexed symbol targets, graph/FTS candidate files, and
+bounded identifier scanning; comments/strings are excluded unless low-confidence
+occurrences are explicitly requested. It is not an IDE-grade semantic rename
+engine, and broad refactoring, compiler/formatter execution, package managers,
+LSP-required edits, MCP refactor tools, UI editing, and Git Intelligence remain
+deferred.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.

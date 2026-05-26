@@ -62,12 +62,12 @@ Completed:
 - Phase 11.6 Architecture Graph / Service Map API
 - Phase 11.7 Cross-Project Benchmark + Docs
 - Phase 12 Symbolic Editing MVP
-
-Current/Next:
 - Phase 13 Rename / Refactor MVP
 
-Upcoming:
+Current/Next:
 - Phase 14 Additional Backend Language Support
+
+Upcoming:
 - Phase 15 Systems / Mobile Language Support
 - Phase 16 Config / Data / Web File Support
 - Phase 17 Language and Technology Quality Audit
@@ -121,7 +121,7 @@ Status: Completed.
 
 ## Phase 13 Rename / Refactor MVP
 
-Status: Planned.
+Status: Completed.
 
 ### Tools
 
@@ -138,6 +138,20 @@ Status: Planned.
 - apply atomically where possible
 - reindex after apply
 - fallback to readonly behavior when LSP capability is missing
+- Phase 13 implementation does not require LSP; it uses local indexed symbols and conservative identifier matching
+- MCP rename/refactor tools are deferred; Control API only
+
+### Scope Completed
+
+- added rename/refactor DTOs/contracts in `b3-core`
+- added `b3-query::refactor::RenameRefactorEngine`
+- added deterministic symbol target resolution by symbol ID or file path plus symbol name/old name
+- added conservative occurrence discovery from indexed symbol evidence, graph/FTS candidate files, and bounded identifier scanning
+- skipped comments/strings by default, with low-confidence inclusion only when explicitly requested
+- added bounded single-file and explicit bounded multi-file rename planning
+- added backup-protected explicit apply with all-file validation before writes
+- added local Control API endpoints `POST /api/refactor/rename/preview` and `POST /api/refactor/rename/apply`
+- kept broad refactoring, extract method, move symbol/module, IDE-grade semantic rename, compiler/formatter execution, MCP refactor tools, UI editing, and Git Intelligence deferred
 
 ---
 
@@ -960,14 +974,14 @@ Completed:
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
+- Phase 13 - Rename / Refactor MVP
 
 Current/Next:
 
-- Phase 13 - Rename / Refactor MVP
+- Phase 14 - Additional Backend Language Support
 
 Upcoming:
 
-- Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile Language Support
 - Phase 16 - Config / Data / Web File Support
 - Phase 17 - Language and Technology Quality Audit
@@ -1493,7 +1507,7 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
 | Symbolic editing preview/apply | Usable now, local Control API MVP |
-| Refactor assistant | Phase 13 |
+| Refactor assistant | Usable now, local bounded rename/refactor MVP |
 | Local embeddings / vector search | Phase 10.0-10.5 |
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |

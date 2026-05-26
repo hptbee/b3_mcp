@@ -38,12 +38,12 @@ Completed:
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
-
-Current / Next:
 - Phase 13 - Rename / Refactor MVP
 
-Upcoming (major):
+Current / Next:
 - Phase 14 - Additional Backend Language Support
+
+Upcoming (major):
 - Phase 15 - Systems / Mobile Language Support
 - Phase 16 - Config / Data / Web File Support
 - Phase 17 - Language and Technology Quality Audit
@@ -106,6 +106,8 @@ Symbolic editing foundation:
 - Phase 12 adds local/offline symbolic edit preview and explicit apply endpoints: `POST /api/edit/preview` and `POST /api/edit/apply`.
 - Preview is dry-run by default. Apply requires explicit `mode=apply` and `dry_run=false`, creates backups by default, and recommends reindex after writing.
 - Phase 12 supports bounded single-file file/range and indexed-symbol edits only. Rename/refactor remains Phase 13.
+- Phase 13 adds conservative local rename/refactor preview/apply endpoints: `POST /api/refactor/rename/preview` and `POST /api/refactor/rename/apply`.
+- Rename is bounded and preview-first, uses indexed symbols plus conservative identifier occurrences, creates backups by default on apply, and is not an IDE-grade full semantic rename engine.
 
 ---
 
@@ -122,7 +124,7 @@ Symbolic editing foundation:
 - Group impact/context packs are static and bounded. They do not execute HTTP requests, connect to brokers, run package managers, run Docker/Kubernetes/Terraform, or merge DBs.
 - Architecture graph/service map APIs are static, local, read-only, and built on demand from existing match candidates. They do not persist a global graph, merge DBs, execute runtime discovery, or include a graph UI.
 - Cross-project benchmark results are fixture/local-repo measurements only. They are not a 31 public real-world repository claim. Branch assumptions are reported as warnings; after switching branches, reindex before comparing results until branch-aware indexing and full Git Intelligence arrive later.
-- Symbolic editing is a bounded Control API MVP; MCP edit tools and rename/refactor remain deferred.
+- Symbolic editing and rename/refactor are bounded Control API MVPs; MCP edit/refactor tools remain deferred.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
 ---
@@ -161,7 +163,7 @@ Symbolic editing foundation:
 | Architecture graph/service map API | Usable now, local/static/read-only |
 | Cross-project architecture benchmark | Usable now, local fixture/optional repo baseline |
 | Symbolic editing preview/apply | Usable now, local Control API MVP |
-| Refactor assistant / rename & refactor | Phase 13 |
+| Refactor assistant / rename & refactor | Usable now, local bounded Control API MVP |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.
 

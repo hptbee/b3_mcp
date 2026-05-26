@@ -28,8 +28,8 @@ use b3_core::{
     default_language_backend_registry, AppConfig, ArchitectureCapabilityStatus, BranchId,
     BranchMetadata, ContractError, ContractResult, EditRequest, EventBus, IndexScope,
     IndexScopeKind, IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest,
-    QueryResult, QueryScope as CoreQueryScope, ScopePreview, SourceKind, SymbolRepository,
-    PRODUCT_NAME,
+    QueryResult, QueryScope as CoreQueryScope, RenameRequest, ScopePreview, SourceKind,
+    SymbolRepository, PRODUCT_NAME,
 };
 use b3_indexer::{
     lsp::LspBackend,
@@ -43,8 +43,8 @@ use b3_query::architecture::{
     GraphConfidenceFilter, GroupFederation, GroupImpactRequest, MessageMatchOptions,
     RouteMatchOptions, ServiceMapRequest,
 };
-use b3_query::editing::SymbolicEditEngine;
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
+use b3_query::{editing::SymbolicEditEngine, refactor::RenameRefactorEngine};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
     StoredComponent, StoredDataAccess, StoredGraphEdge, StoredGraphNode, StoredInfrastructure,
@@ -303,6 +303,8 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/index/status", get(index_status))
         .route("/api/edit/preview", post(edit_preview))
         .route("/api/edit/apply", post(edit_apply))
+        .route("/api/refactor/rename/preview", post(rename_preview))
+        .route("/api/refactor/rename/apply", post(rename_apply))
         .route("/api/query/:operation", post(query_operation))
         .route("/api/search/hybrid", post(hybrid_search))
         .route("/api/graph/summary", get(graph_summary))
@@ -527,10 +529,50 @@ async fn edit_apply(
         .map_err(|error| ControlError::bad_request(error.to_string()))
 }
 
+async fn rename_preview(
+    State(state): State<ControlState>,
+    payload: Result<Json<RenameRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<b3_core::RenamePlan>, ControlError> {
+    let request = rename_request_with_defaults(state.clone(), payload)?;
+    let storage = state.storage.lock().await;
+    RenameRefactorEngine::new(&*storage)
+        .preview_rename(request)
+        .map(Json)
+        .map_err(|error| ControlError::bad_request(error.to_string()))
+}
+
+async fn rename_apply(
+    State(state): State<ControlState>,
+    payload: Result<Json<RenameRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<b3_core::RenameApplyResult>, ControlError> {
+    let request = rename_request_with_defaults(state.clone(), payload)?;
+    let storage = state.storage.lock().await;
+    RenameRefactorEngine::new(&*storage)
+        .apply_rename(request)
+        .map(Json)
+        .map_err(|error| ControlError::bad_request(error.to_string()))
+}
+
 fn edit_request_with_defaults(
     state: ControlState,
     payload: Result<Json<EditRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<EditRequest, ControlError> {
+    let mut request = payload
+        .map_err(|rejection| ControlError::bad_request(rejection.body_text()))?
+        .0;
+    if request.project_path.is_none() {
+        request.project_path = Some(path_string(&state.project_path));
+    }
+    if request.database_path.is_none() {
+        request.database_path = Some(path_string(&state.database_path));
+    }
+    Ok(request)
+}
+
+fn rename_request_with_defaults(
+    state: ControlState,
+    payload: Result<Json<RenameRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<RenameRequest, ControlError> {
     let mut request = payload
         .map_err(|rejection| ControlError::bad_request(rejection.body_text()))?
         .0;
@@ -1491,16 +1533,21 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
         },
         "architecture": architecture,
         "editing": {
-            "phase": "12",
+            "phase": "13",
             "symbolic_editing_mvp": true,
             "control_preview_endpoint": "/api/edit/preview",
             "control_apply_endpoint": "/api/edit/apply",
+            "rename_refactor_mvp": true,
+            "rename_preview_endpoint": "/api/refactor/rename/preview",
+            "rename_apply_endpoint": "/api/refactor/rename/apply",
             "dry_run_default": true,
             "explicit_apply_required": true,
             "backup_default": true,
             "single_file_default": true,
+            "bounded_multi_file_rename": true,
             "mcp_tool_available": false,
-            "rename_refactor_available": false,
+            "rename_refactor_available": true,
+            "ide_grade_semantic_rename": false,
             "local_only": true,
             "external_api_required": false,
             "telemetry_enabled": false
@@ -4400,6 +4447,38 @@ mod tests {
         app(ControlState::from_storage(root, database_path, storage))
     }
 
+    fn rename_app(root: PathBuf, database_path: PathBuf) -> Router {
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .upsert_project(&project_id, "Default", &root.display().to_string())
+            .expect("project");
+        storage
+            .upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"))
+            .expect("branch");
+        let file = FileRecord {
+            id: FileId::new("src-lib"),
+            project_id: project_id.clone(),
+            path: "src/lib.rs".to_string(),
+            content_hash: "hash".to_string(),
+        };
+        storage.upsert_file(&file, &branch_id).expect("file");
+        let mut symbol = SymbolRecord::new(
+            SymbolId::new("old-name-symbol"),
+            file.id.clone(),
+            "old_name",
+            NodeKind::Function,
+        );
+        symbol.start_line = 1;
+        symbol.end_line = 1;
+        storage
+            .upsert_symbol(&project_id, &branch_id, &symbol)
+            .expect("symbol");
+
+        app(ControlState::from_storage(root, database_path, storage))
+    }
+
     fn write_group_registry(
         path: &std::path::Path,
         projects: &[(&str, &str, &std::path::Path)],
@@ -6962,6 +7041,83 @@ output "cluster_name" {
                 .len(),
             1
         );
+    }
+
+    #[tokio::test]
+    async fn rename_preview_is_dry_run_and_apply_requires_explicit_mode() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::write(
+            root.join("src").join("lib.rs"),
+            "pub fn old_name() {}\nfn caller() { old_name(); }\n",
+        )
+        .expect("source");
+        let app = rename_app(root.clone(), dir.path().join("b3.db"));
+
+        let preview = post_json(
+            app.clone(),
+            "/api/refactor/rename/preview",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"old_name"},
+                "old_name":"old_name",
+                "new_name":"new_name",
+                "scope":"single_file"
+            }"#,
+        )
+        .await;
+        assert_eq!(preview.status(), StatusCode::OK);
+        let preview_body = response_json(preview).await;
+        assert_eq!(preview_body["dry_run"], true);
+        assert_eq!(preview_body["preview"]["occurrence_count"], 2);
+        assert!(preview_body["preview"]["patch"]
+            .as_str()
+            .expect("patch")
+            .contains("+pub fn new_name()"));
+        assert!(fs::read_to_string(root.join("src").join("lib.rs"))
+            .expect("source")
+            .contains("old_name"));
+
+        let rejected = post_json(
+            app.clone(),
+            "/api/refactor/rename/apply",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"old_name"},
+                "old_name":"old_name",
+                "new_name":"new_name",
+                "scope":"single_file"
+            }"#,
+        )
+        .await;
+        assert_eq!(rejected.status(), StatusCode::BAD_REQUEST);
+
+        let applied = post_json(
+            app,
+            "/api/refactor/rename/apply",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"old_name"},
+                "old_name":"old_name",
+                "new_name":"new_name",
+                "scope":"single_file",
+                "mode":"apply",
+                "dry_run":false
+            }"#,
+        )
+        .await;
+        assert_eq!(applied.status(), StatusCode::OK);
+        let applied_body = response_json(applied).await;
+        assert_eq!(applied_body["applied"], true);
+        assert_eq!(applied_body["reindex_recommended"], true);
+        assert_eq!(
+            applied_body["backup_paths"]
+                .as_array()
+                .expect("backups")
+                .len(),
+            1
+        );
+        let source = fs::read_to_string(root.join("src").join("lib.rs")).expect("source");
+        assert!(source.contains("new_name"));
+        assert!(!source.contains("old_name()"));
     }
 
     #[tokio::test]

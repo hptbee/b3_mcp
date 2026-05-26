@@ -1027,6 +1027,18 @@ external APIs, telemetry, paid dependencies, or internet requirements. After
 apply, it should warn that reindex is recommended rather than silently updating
 the index.
 
+Phase 13 adds the Rename / Refactor MVP. It may define local rename/refactor
+contracts, resolve indexed symbol targets, discover conservative identifier
+occurrences from indexed evidence, graph/FTS candidate files, and bounded
+same-file or bounded multi-file scans, produce preview-first rename plans,
+apply only with explicit `mode=apply` and `dry_run=false`, create backups for
+all changed files by default, and expose local Control API preview/apply
+endpoints. It must not implement broad automatic refactoring, extract method,
+move symbol/module broadly, IDE-grade semantic rename guarantees, compiler or
+formatter validation, package manager execution, LSP-required edits, MCP
+rename/refactor tools by default, UI editing, Git Intelligence, cloud services,
+external APIs, telemetry, paid dependencies, or internet requirements.
+
 ### Roadmap
 
 Completed:
@@ -1036,14 +1048,14 @@ Completed:
 - Phase 11.6: Architecture Graph / Service Map API
 - Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
+- Phase 13: Rename / Refactor MVP
 
 Current / Next:
 
-- Phase 13: Rename / Refactor MVP
+- Phase 14: Additional Backend Language Support
 
 Upcoming:
 
-- Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile Language Support
 - Phase 16: Config / Data / Web File Support
 - Phase 17: Language and Technology Quality Audit

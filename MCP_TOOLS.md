@@ -164,10 +164,11 @@ suggestion to use `full` or `debug` when appropriate.
 | `web-app` | same as `optimized` for now; future web workflow tools may prioritize TypeScript, JavaScript, Go, C#, ASP.NET Core, React, Next.js, Angular, Node.js, REST APIs, routes, components, data access metadata, realtime/socket metadata, messaging metadata, and infrastructure metadata | 8 |
 | `enterprise` | `find_symbol`, `search_code`, `semantic_search`, `related_symbols`, `impact_analysis`, `get_context_pack`, `trace_dependency`, `detect_cycles`, `compact_command_output`, `savings_report` | 10 |
 
-Phase 12 exposes symbolic editing through the local Control API only. Future MCP
-mutation tools such as `preview_edit`, `apply_edit`, and `rename_symbol` must
-remain hidden from `readonly` and appear only in `editing`, `full`, or `debug`
-when explicitly allowed.
+Phase 12 exposes symbolic editing through the local Control API only. Phase 13
+also keeps rename/refactor on the local Control API only. Future MCP mutation
+tools such as `preview_edit`, `apply_edit`, and `rename_symbol` must remain
+hidden from `readonly` and appear only in `editing`, `full`, or `debug` when
+explicitly allowed.
 
 ## Manifest Slimming
 
