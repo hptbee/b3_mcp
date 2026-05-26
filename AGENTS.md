@@ -498,6 +498,19 @@ broker connections, global database merges, cloud graph databases, hosted vector
 databases, external APIs, telemetry, paid dependencies, model downloads, or
 internet requirements.
 
+Phase 11.6 is completed as architecture graph / service map API only. It may
+build bounded local graph and service-map responses on demand from existing
+route/message/dependency match candidates, group impact/context metadata where
+useful, and group federation summaries. It may expose read-only local Control
+API endpoints for graph and service-map responses.
+
+It must not implement architecture graph UI, Phase 11.7 benchmark/docs
+expansion, symbolic editing, rename/refactor, package manager execution,
+Docker/Kubernetes/Terraform/cloud CLI execution, runtime HTTP calls, broker
+connections, global database merges, persisted global architecture graphs, cloud
+graph databases, hosted vector databases, external APIs, telemetry, paid
+dependencies, model downloads, or internet requirements.
+
 ## Local Benchmark Config Boundaries
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark config path for

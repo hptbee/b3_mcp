@@ -38,8 +38,9 @@ use b3_indexer::{
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_query::architecture::{
-    package_matching::DependencyMatchKindFilter, DependencyMatchOptions, GroupFederation,
-    GroupImpactRequest, MessageMatchOptions, RouteMatchOptions,
+    package_matching::DependencyMatchKindFilter, ArchitectureGraphRequest, DependencyMatchOptions,
+    GraphConfidenceFilter, GroupFederation, GroupImpactRequest, MessageMatchOptions,
+    RouteMatchOptions, ServiceMapRequest,
 };
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
@@ -333,6 +334,14 @@ pub fn app(state: ControlState) -> Router {
         .route(
             "/api/architecture/groups/:group_id/impact",
             post(architecture_group_impact),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/graph",
+            get(architecture_group_graph),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/service-map",
+            get(architecture_group_service_map),
         )
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
@@ -1605,6 +1614,8 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "architecture_group_message_matches": true,
             "architecture_group_dependency_matches": true,
             "architecture_group_impact": true,
+            "architecture_group_graph": true,
+            "architecture_group_service_map": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1632,7 +1643,9 @@ async fn architecture_groups(
         "package_contract_infra_matching_ready": true,
         "group_impact_ready": true,
         "group_context_pack_ready": true,
-        "service_map_ready": false
+        "service_map_ready": true,
+        "architecture_graph_api_ready": true,
+        "architecture_graph_ui_ready": false
     })))
 }
 
@@ -1655,6 +1668,9 @@ async fn architecture_group_status(
         "package_contract_infra_matching_ready": true,
         "group_impact_ready": true,
         "group_context_pack_ready": true,
+        "service_map_ready": true,
+        "architecture_graph_api_ready": true,
+        "architecture_graph_ui_ready": false,
         "local_only": true
     })))
 }
@@ -1676,6 +1692,9 @@ async fn architecture_group_summary(
         "package_contract_infra_matching_ready": true,
         "group_impact_ready": true,
         "group_context_pack_ready": true,
+        "service_map_ready": true,
+        "architecture_graph_api_ready": true,
+        "architecture_graph_ui_ready": false,
         "local_only": true
     })))
 }
@@ -1692,6 +1711,32 @@ async fn architecture_group_impact(
         .map_err(ControlError::internal)?;
     let report = federation
         .group_impact(&group_id, request)
+        .map_err(federation_error)?;
+    Ok(Json(json!(report)))
+}
+
+async fn architecture_group_graph(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+    Query(query): Query<ArchitectureGraphQuery>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let report = federation
+        .architecture_graph(&group_id, query.into_request())
+        .map_err(federation_error)?;
+    Ok(Json(json!(report)))
+}
+
+async fn architecture_group_service_map(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+    Query(query): Query<ServiceMapQuery>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let report = federation
+        .service_map(&group_id, query.into_request())
         .map_err(federation_error)?;
     Ok(Json(json!(report)))
 }
@@ -3106,6 +3151,104 @@ struct DependencyMatchesQuery {
     min_confidence: Option<u16>,
     limit: Option<usize>,
     branch: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ArchitectureGraphQuery {
+    relationship_kind: Option<String>,
+    relationship_kinds: Option<String>,
+    project_id: Option<String>,
+    project_ids: Option<String>,
+    min_confidence: Option<String>,
+    include_evidence: Option<bool>,
+    include_warnings: Option<bool>,
+    include_unresolved: Option<bool>,
+    max_nodes: Option<usize>,
+    max_edges: Option<usize>,
+    depth: Option<usize>,
+    seed_project_id: Option<String>,
+    seed_node_id: Option<String>,
+    layout_hint: Option<String>,
+    branch: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ServiceMapQuery {
+    project_id: Option<String>,
+    project_ids: Option<String>,
+    min_confidence: Option<String>,
+    include_routes: Option<bool>,
+    include_messaging: Option<bool>,
+    include_dependencies: Option<bool>,
+    include_infrastructure: Option<bool>,
+    include_evidence: Option<bool>,
+    include_unresolved: Option<bool>,
+    limit: Option<usize>,
+    branch: Option<String>,
+}
+
+impl ArchitectureGraphQuery {
+    fn into_request(self) -> ArchitectureGraphRequest {
+        let mut relationship_kinds = split_query_list(self.relationship_kinds);
+        relationship_kinds.extend(split_query_list(self.relationship_kind));
+        ArchitectureGraphRequest {
+            branch: self.branch,
+            relationship_kinds,
+            project_ids: merged_query_list(self.project_ids, self.project_id),
+            min_confidence: self.min_confidence.map(confidence_filter),
+            include_evidence: self.include_evidence.unwrap_or(true),
+            include_warnings: self.include_warnings.unwrap_or(true),
+            include_unresolved: self.include_unresolved.unwrap_or(true),
+            max_nodes: self.max_nodes,
+            max_edges: self.max_edges,
+            depth: self.depth,
+            seed_project_id: self.seed_project_id,
+            seed_node_id: self.seed_node_id,
+            layout_hint: self.layout_hint,
+        }
+    }
+}
+
+impl ServiceMapQuery {
+    fn into_request(self) -> ServiceMapRequest {
+        ServiceMapRequest {
+            branch: self.branch,
+            project_ids: merged_query_list(self.project_ids, self.project_id),
+            include_routes: self.include_routes.unwrap_or(true),
+            include_messaging: self.include_messaging.unwrap_or(true),
+            include_dependencies: self.include_dependencies.unwrap_or(true),
+            include_infrastructure: self.include_infrastructure.unwrap_or(true),
+            min_confidence: self.min_confidence.map(confidence_filter),
+            include_evidence: self.include_evidence.unwrap_or(true),
+            include_unresolved: self.include_unresolved.unwrap_or(true),
+            limit: self.limit,
+        }
+    }
+}
+
+fn confidence_filter(value: String) -> GraphConfidenceFilter {
+    value
+        .parse::<u16>()
+        .map(GraphConfidenceFilter::Score)
+        .unwrap_or(GraphConfidenceFilter::Level(value))
+}
+
+fn merged_query_list(primary: Option<String>, secondary: Option<String>) -> Vec<String> {
+    let mut values = split_query_list(primary);
+    values.extend(split_query_list(secondary));
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn split_query_list(value: Option<String>) -> Vec<String> {
+    value
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 impl DependencyMatchesQuery {
@@ -4942,7 +5085,9 @@ mod tests {
         );
         assert_eq!(body["architecture"]["group_impact_ready"], true);
         assert_eq!(body["architecture"]["group_context_pack_ready"], true);
-        assert_eq!(body["architecture"]["service_map_ready"], false);
+        assert_eq!(body["architecture"]["service_map_ready"], true);
+        assert_eq!(body["architecture"]["architecture_graph_api_ready"], true);
+        assert_eq!(body["architecture"]["architecture_graph_ui_ready"], false);
         assert_eq!(body["architecture"]["local_only"], true);
         assert_eq!(body["architecture"]["global_db_merge_required"], false);
         assert_eq!(body["architecture"]["cloud_graph_database_required"], false);
@@ -4967,6 +5112,8 @@ mod tests {
             true
         );
         assert_eq!(body["control_api"]["architecture_group_impact"], true);
+        assert_eq!(body["control_api"]["architecture_group_graph"], true);
+        assert_eq!(body["control_api"]["architecture_group_service_map"], true);
         assert_eq!(body["vector_search"]["local_only"], true);
         assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
@@ -4993,7 +5140,9 @@ mod tests {
         assert_eq!(body["package_contract_infra_matching_ready"], true);
         assert_eq!(body["group_impact_ready"], true);
         assert_eq!(body["group_context_pack_ready"], true);
-        assert_eq!(body["service_map_ready"], false);
+        assert_eq!(body["service_map_ready"], true);
+        assert_eq!(body["architecture_graph_api_ready"], true);
+        assert_eq!(body["architecture_graph_ui_ready"], false);
         assert_eq!(body["local_only"], true);
         assert_eq!(body["global_db_merge_required"], false);
         assert_eq!(body["cloud_graph_database_required"], false);
@@ -5062,6 +5211,9 @@ mod tests {
         assert_eq!(status["messaging_matching_ready"], true);
         assert_eq!(status["group_impact_ready"], true);
         assert_eq!(status["group_context_pack_ready"], true);
+        assert_eq!(status["service_map_ready"], true);
+        assert_eq!(status["architecture_graph_api_ready"], true);
+        assert_eq!(status["architecture_graph_ui_ready"], false);
 
         let summary_response = app
             .clone()
@@ -5202,6 +5354,123 @@ mod tests {
             edge["relationship_kind"] == "CallsHttpRoute"
                 && edge["source_phase"] == "route_matching"
         }));
+    }
+
+    #[tokio::test]
+    async fn architecture_group_graph_endpoint_returns_static_service_relationships() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let web_db = dir.path().join("web").join(".b3").join("b3.db");
+        let api_db = dir.path().join("api").join(".b3").join("b3.db");
+        seed_route_match_database(
+            &web_db,
+            "web",
+            r#"fetch("/api/orders");"#,
+            &[("GET", "/dashboard")],
+        );
+        seed_route_match_database(
+            &api_db,
+            "api",
+            "app.get('/api/orders', handler);",
+            &[("GET", "/api/orders")],
+        );
+        write_group_registry(
+            &registry_path,
+            &[("web", "Web", &web_db), ("api", "API", &api_db)],
+            &["web", "api"],
+        );
+
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("control storage"),
+            registry_path,
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/graph?relationship_kind=CallsHttpRoute&max_nodes=20&max_edges=20")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["graph_api_ready"], true);
+        assert_eq!(body["service_map_ready"], true);
+        assert!(body["nodes"]
+            .as_array()
+            .expect("nodes")
+            .iter()
+            .any(|node| { node["kind"] == "Project" && node["project_id"] == "api" }));
+        assert!(body["edges"]
+            .as_array()
+            .expect("edges")
+            .iter()
+            .all(|edge| { edge["relationship_kind"] == "CallsHttpRoute" }));
+        assert_eq!(
+            body["summary"]["relationship_kind_counts"]["CallsHttpRoute"],
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn architecture_group_service_map_endpoint_summarizes_projects() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let web_db = dir.path().join("web").join(".b3").join("b3.db");
+        let api_db = dir.path().join("api").join(".b3").join("b3.db");
+        seed_route_match_database(
+            &web_db,
+            "web",
+            r#"fetch("/api/orders");"#,
+            &[("GET", "/dashboard")],
+        );
+        seed_route_match_database(
+            &api_db,
+            "api",
+            "app.get('/api/orders', handler);",
+            &[("GET", "/api/orders")],
+        );
+        write_group_registry(
+            &registry_path,
+            &[("web", "Web", &web_db), ("api", "API", &api_db)],
+            &["web", "api"],
+        );
+
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("control storage"),
+            registry_path,
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/service-map?include_messaging=false&include_dependencies=false&include_infrastructure=false&limit=20")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["service_map_ready"], true);
+        assert_eq!(body["architecture_graph_api_ready"], true);
+        assert_eq!(body["services"].as_array().expect("services").len(), 2);
+        assert!(body["service_edges"]
+            .as_array()
+            .expect("edges")
+            .iter()
+            .any(|edge| {
+                edge["from_project_id"] == "web"
+                    && edge["to_project_id"] == "api"
+                    && edge["relationship_kind"] == "CallsHttpRoute"
+            }));
     }
 
     #[tokio::test]

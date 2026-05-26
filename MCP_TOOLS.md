@@ -76,6 +76,11 @@ Control API only. It does not add an MCP group-impact tool, change MCP profiles,
 or change tool counts. Existing MCP `impact_analysis` and `get_context_pack`
 remain per-project query tools.
 
+Phase 11.6 adds architecture graph and service map APIs through the local
+Control API only. It does not add MCP graph/service-map tools, change MCP
+profiles, or change tool counts. Existing MCP graph/query tools remain scoped to
+their current local behavior.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

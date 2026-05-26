@@ -470,6 +470,8 @@ pub struct ArchitectureCapabilityStatus {
     pub group_impact_ready: bool,
     pub group_context_pack_ready: bool,
     pub service_map_ready: bool,
+    pub architecture_graph_api_ready: bool,
+    pub architecture_graph_ui_ready: bool,
     pub local_only: bool,
     pub global_db_merge_required: bool,
     pub global_database_required: bool,
@@ -488,7 +490,9 @@ impl Default for ArchitectureCapabilityStatus {
             package_contract_infra_matching_ready: true,
             group_impact_ready: true,
             group_context_pack_ready: true,
-            service_map_ready: false,
+            service_map_ready: true,
+            architecture_graph_api_ready: true,
+            architecture_graph_ui_ready: false,
             local_only: true,
             global_db_merge_required: false,
             global_database_required: false,
@@ -822,7 +826,9 @@ mod tests {
         assert!(status.package_contract_infra_matching_ready);
         assert!(status.group_impact_ready);
         assert!(status.group_context_pack_ready);
-        assert!(!status.service_map_ready);
+        assert!(status.service_map_ready);
+        assert!(status.architecture_graph_api_ready);
+        assert!(!status.architecture_graph_ui_ready);
         assert!(status.local_only);
         assert!(!status.global_db_merge_required);
         assert!(!status.global_database_required);

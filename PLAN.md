@@ -59,12 +59,12 @@ Completed:
 - Phase 11.3 Cross-Repo Messaging Matching
 - Phase 11.4 Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 Group-Level Impact + Context Pack
-
-Current/Next:
 - Phase 11.6 Architecture Graph / Service Map API
 
-Upcoming:
+Current/Next:
 - Phase 11.7 Cross-Project Benchmark + Docs
+
+Upcoming:
 - Phase 12 Symbolic Editing MVP
 - Phase 13 Rename / Refactor MVP
 - Phase 14 Additional Backend Language Support
@@ -942,16 +942,16 @@ Completed:
 - Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2 - Cross-Repo Route / API Matching
 - Phase 11.3 - Cross-Repo Messaging Matching
+- Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5 - Group-Level Impact + Context Pack
+- Phase 11.6 - Architecture Graph / Service Map API
 
 Current/Next:
 
-- Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
+- Phase 11.7 - Cross-Project Benchmark + Docs
 
 Upcoming:
 
-- Phase 11.5 - Group-Level Impact + Context Pack
-- Phase 11.6 - Architecture Graph / Service Map API
-- Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 - Symbolic Editing MVP
 - Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
@@ -1315,15 +1315,29 @@ Rules:
 
 ## Phase 11.6 - Architecture Graph / Service Map API
 
-Status: Current / Next.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- expose read-only service map and architecture graph APIs after matching is implemented
+- added `b3-query::architecture::architecture_graph` for static/read-only graph construction
+- added deterministic architecture graph request/response models with project, relationship-kind, confidence, evidence, unresolved, seed, node, edge, and limit filters
+- built graph nodes and edges on demand from Phase 11.2 route matches, Phase 11.3 messaging matches, Phase 11.4 dependency matches, and Phase 11.1 group summaries
+- added project/service/resource summaries, unresolved relationship reporting, confidence distribution, relationship-kind counts, connected-project ranking, and isolated-project reporting
+- added project-level service map summaries and service-to-service edges from existing match evidence
+- added read-only Control endpoints `GET /api/architecture/groups/{group_id}/graph` and `GET /api/architecture/groups/{group_id}/service-map`
+- updated architecture status/capabilities so service map and architecture graph API are ready while architecture graph UI remains false
+- preserved one repo-local `.b3/b3.db` per project and avoided global database merging or graph persistence
+
+Rules:
+
+- no architecture graph UI or service map UI
+- no Phase 11.7 cross-project benchmark/docs expansion
+- no symbolic editing or rename/refactor
+- no package manager execution, Docker/Kubernetes/Terraform/cloud CLI execution, runtime HTTP calls, broker connections, cloud APIs, graph database, hosted vector database, schema compatibility validation, telemetry, external API, paid dependency, model download, or internet requirement
 
 ## Phase 11.7 - Cross-Project Benchmark + Docs
 
-Status: Planned.
+Status: Current / Next.
 
 Scope:
 
@@ -1447,13 +1461,14 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project messaging matching | Usable now, local/static/read-only |
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Group impact/context pack | Usable now, local/static/read-only |
+| Architecture graph/service map API | Usable now, local/static/read-only |
 | Full memory/context platform | Later phase |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5. Service maps remain later Phase 11 work.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5; local architecture graph/service map APIs begin in Phase 11.6. Architecture graph UI and cross-project benchmark/docs expansion remain later work.
 
 ---
 

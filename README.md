@@ -35,12 +35,12 @@ Completed:
 - Phase 11.3 - Cross-Repo Messaging Matching
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5 - Group-Level Impact + Context Pack
-
-Current / Next:
 - Phase 11.6 - Architecture Graph / Service Map API
 
-Upcoming (major):
+Current / Next:
 - Phase 11.7 - Cross-Project Benchmark + Docs
+
+Upcoming (major):
 - Phase 12 — Symbolic Editing MVP
 - Phase 13 — Rename / Refactor MVP
 
@@ -89,7 +89,8 @@ Cross-project architecture foundation:
 - Phase 11.3 adds local/read-only cross-repo messaging matching inside registry project groups.
 - Phase 11.4 adds local/read-only cross-repo package, contract, and infrastructure matching inside registry project groups.
 - Phase 11.5 adds local/read-only group impact analysis and bounded cross-repo context packs.
-- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; service maps are deferred to later Phase 11 subphases.
+- Phase 11.6 adds local/read-only architecture graph and service map APIs for registry project groups.
+- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; architecture graph UI is deferred.
 
 ---
 
@@ -103,7 +104,8 @@ Cross-project architecture foundation:
 - Cross-project route/API matching is static and conservative. It does not execute HTTP requests, fetch OpenAPI remotely, infer messaging/package/infra relationships, or build service maps.
 - Cross-project messaging matching is static and conservative. It does not connect to brokers, publish/consume messages, call cloud Pub/Sub APIs, infer package/contract/infra relationships, or build service maps.
 - Cross-project package/contract/infra matching is static and conservative. It does not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote schema fetches, or schema compatibility validation.
-- Group impact/context packs are static and bounded. They do not execute HTTP requests, connect to brokers, run package managers, run Docker/Kubernetes/Terraform, merge DBs, or build service maps.
+- Group impact/context packs are static and bounded. They do not execute HTTP requests, connect to brokers, run package managers, run Docker/Kubernetes/Terraform, or merge DBs.
+- Architecture graph/service map APIs are static, local, read-only, and built on demand from existing match candidates. They do not persist a global graph, merge DBs, execute runtime discovery, or include a graph UI.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
@@ -140,6 +142,7 @@ Cross-project architecture foundation:
 | Cross-project messaging matching | Usable now, local/static/read-only |
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Group impact/context pack | Usable now, local/static/read-only |
+| Architecture graph/service map API | Usable now, local/static/read-only |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.

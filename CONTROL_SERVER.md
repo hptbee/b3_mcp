@@ -147,6 +147,12 @@ Diagnostics and config:
 - `GET /api/architecture/groups`
 - `GET /api/architecture/groups/{group_id}/status`
 - `GET /api/architecture/groups/{group_id}/summary`
+- `GET /api/architecture/groups/{group_id}/route-matches`
+- `GET /api/architecture/groups/{group_id}/message-matches`
+- `GET /api/architecture/groups/{group_id}/dependency-matches`
+- `POST /api/architecture/groups/{group_id}/impact`
+- `GET /api/architecture/groups/{group_id}/graph`
+- `GET /api/architecture/groups/{group_id}/service-map`
 - `GET /api/vector/status`
 - `GET /api/vector/providers`
 - `GET /api/vector/stats`
@@ -228,8 +234,9 @@ Current truth:
 - Phase 11.0 architecture contracts are available locally. Phase 11.1 adds
   local group federation endpoints. `GET /api/architecture/status` reports
   architecture contracts, group federation, route matching, messaging matching,
-  package/contract/infra matching, group impact, and group context packs ready,
-  while service maps are not ready yet. Group endpoints read the local registry and
+  package/contract/infra matching, group impact, group context packs,
+  architecture graph API, and service maps ready, while architecture graph UI is
+  not ready yet. Group endpoints read the local registry and
   existing repo-local project DBs only; no global database merge, cloud graph
   database, hosted vector database, telemetry, or remote lookup is required.
 - Phase 11.1.1 adds benchmark-only efficiency checks for the existing
@@ -265,6 +272,14 @@ Current truth:
   context pack. It does not run package managers, Docker, Kubernetes,
   Terraform, cloud CLIs, brokers, runtime HTTP calls, cloud APIs, DB merges,
   service-map APIs, or graph UI behavior.
+- Phase 11.6 adds read-only
+  `GET /api/architecture/groups/{group_id}/graph` and
+  `GET /api/architecture/groups/{group_id}/service-map`. These endpoints build
+  bounded static graph and project-level service-map responses on demand from
+  existing route, messaging, dependency, impact, and federation metadata. They
+  do not persist a global graph, merge DBs, run package managers, run Docker,
+  Kubernetes, Terraform, or cloud CLIs, connect to brokers, execute HTTP
+  requests, call external APIs, or implement a graph UI.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

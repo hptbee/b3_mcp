@@ -835,8 +835,8 @@ Matching rules are ordered by evidence strength:
 Output is an `ArchitectureMatchCandidate` plus corresponding
 `ArchitectureNode` and `ArchitectureEdge` records for `PublishesMessage`, with
 compact evidence, provenance, deterministic IDs, deterministic sorting, and
-dedupe. Package/contract/infra matching is added in Phase 11.4; group
-impact/context pack and service-map APIs remain deferred.
+dedupe. Package/contract/infra matching is added in Phase 11.4, group
+impact/context pack in Phase 11.5, and service-map APIs in Phase 11.6.
 
 ### Phase 11.4 Cross-Repo Package / Contract / Infra Matching
 
@@ -874,7 +874,7 @@ Output is an `ArchitectureMatchCandidate` plus `ArchitectureNode` and
 `SharesContract`, `UsesContract`, `DependsOnInfrastructure`, `DeploysService`,
 and `SelectsService`, with compact evidence, warnings, deterministic IDs,
 deterministic sorting, and dedupe. Group impact/context pack is added in Phase
-11.5; service-map APIs remain deferred.
+11.5; service-map APIs are added in Phase 11.6.
 
 ### Phase 11.5 Group-Level Impact + Context Pack
 
@@ -902,6 +902,37 @@ impact summaries, top relationship paths, key files/symbols, compact snippets,
 warnings, skipped items, truncation reason, and chars/4 token estimates. File
 content is read from existing local project DBs only, snippets are capped, and
 full-file dumps are avoided.
+
+### Phase 11.6 Architecture Graph / Service Map API
+
+Phase 11.6 builds a bounded architecture graph on demand from existing Phase
+11.2 route matches, Phase 11.3 messaging matches, Phase 11.4 dependency
+matches, and Phase 11.1 group summaries. It does not persist graph state,
+merge project DBs, perform runtime discovery, execute HTTP requests, connect to
+brokers, run package managers, run Docker/Kubernetes/Terraform/cloud CLIs, call
+external APIs, or use hosted graph/vector databases.
+
+Graph requests support relationship-kind filters, project filters,
+confidence filters, evidence/warning/unresolved toggles, bounded node/edge
+limits, and optional seed-node expansion. Invalid relationship kinds and unsafe
+project filters return structured errors. Nodes and edges are sorted
+deterministically and deduped by stable architecture IDs.
+
+Graph output includes project, route, messaging, package, contract, and
+infrastructure nodes where existing match evidence provides them. Edges keep
+their relationship kind, conservative confidence, evidence, warnings, and source
+phase (`route_matching`, `messaging_matching`, `dependency_matching`, or
+`federation_summary`). Unresolved relationships are reported as warnings instead
+of being invented.
+
+The service map is a project-level grouping over the graph. Each service summary
+uses the registry project identity when deeper service identity is not available,
+counts inbound/outbound route, messaging, dependency, and infrastructure
+relationships, and emits service-to-service edges with aggregated confidence.
+Summary metrics include project/service/node/edge counts, relationship-kind
+counts, confidence distribution, connected projects, isolated projects,
+unresolved count, and warning count. The API is intentionally non-UI; graph
+visualization remains deferred.
 
 ## Additional Planned Algorithms
 

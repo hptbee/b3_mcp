@@ -4,6 +4,8 @@
 //! repo-local `.b3/b3.db` independently. Phase 11.2 adds local/static
 //! route/API matching without merging databases or performing runtime calls.
 
+#[path = "architecture/architecture_graph.rs"]
+pub mod architecture_graph;
 #[path = "architecture/contract_matching.rs"]
 pub mod contract_matching;
 #[path = "architecture/dependency_keys.rs"]
@@ -38,6 +40,10 @@ use b3_storage::{
 };
 use serde::{Deserialize, Serialize};
 
+pub use architecture_graph::{
+    ArchitectureGraphRequest, ArchitectureGraphResult, GraphConfidenceFilter, ServiceMapRequest,
+    ServiceMapResult,
+};
 pub use group_impact::{
     ContextPackProfile, GroupContextPack, GroupImpactDirection, GroupImpactRequest,
     GroupImpactResult, GroupImpactSeedType,

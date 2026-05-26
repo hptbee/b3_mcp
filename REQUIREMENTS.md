@@ -974,7 +974,20 @@ repo-local `.b3/b3.db` per project and must not merge project DBs globally,
 execute HTTP requests, connect to brokers, run package managers, run
 Docker/Kubernetes/Terraform/cloud CLIs, fetch remote schemas, validate schema
 compatibility, call external APIs, add telemetry, or add MCP architecture tools.
-Service map APIs and graph UI remain deferred.
+Architecture graph/service map APIs and graph UI remain deferred.
+
+Phase 11.6 adds static/read-only architecture graph and service map APIs inside
+local registry project groups. It may build bounded graph/service-map responses
+on demand from existing route, messaging, package/contract/infra, impact, and
+federation metadata; produce project/service/resource nodes, relationship
+edges, summaries, confidence, evidence, warnings, unresolved relationship
+reports, and service-level dependency summaries. It must preserve one repo-local
+`.b3/b3.db` per project, must not persist a global graph by default, and must
+not merge project DBs globally, execute HTTP requests, connect to brokers, run
+package managers, run Docker/Kubernetes/Terraform/cloud CLIs, fetch remote
+schemas, validate schema compatibility, call external APIs, add telemetry, add
+MCP architecture tools, or implement graph UI. Cross-project benchmark/docs
+expansion remains Phase 11.7.
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark configuration
 path for broader Phase 11.7 real-local benchmarks. It may reference optional
@@ -992,14 +1005,14 @@ Completed:
 
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
 - Phase 11.5: Group-Level Impact + Context Pack
+- Phase 11.6: Architecture Graph / Service Map API
 
 Current / Next:
 
-- Phase 11.6: Architecture Graph / Service Map API
+- Phase 11.7: Cross-Project Benchmark + Docs
 
 Upcoming:
 
-- Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
