@@ -7,8 +7,9 @@ pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
         .to_string_lossy()
         .to_ascii_lowercase()
         .contains("migration");
-    for (index, statement) in input.source.split(';').enumerate() {
-        let line = line_for_statement(&input.source, statement).unwrap_or(index + 1);
+    let parse_source = strip_sql_comments(&input.source);
+    for (index, statement) in parse_source.split(';').enumerate() {
+        let line = line_for_statement(&parse_source, statement).unwrap_or(index + 1);
         let upper = statement.to_ascii_uppercase();
         for (marker, kind) in [
             ("CREATE TABLE", "Table"),
@@ -134,4 +135,21 @@ fn words_after_all(upper: &str, original: &str, marker: &str) -> Vec<String> {
 fn line_for_statement(source: &str, statement: &str) -> Option<usize> {
     let offset = source.find(statement.trim())?;
     Some(source[..offset].lines().count().max(1))
+}
+
+fn strip_sql_comments(source: &str) -> String {
+    source
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("--") {
+                ""
+            } else if let Some(index) = line.find("--") {
+                &line[..index]
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

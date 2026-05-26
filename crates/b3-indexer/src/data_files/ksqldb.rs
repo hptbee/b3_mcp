@@ -6,7 +6,7 @@ pub(crate) fn is_ksqldb_file(path: &Path, source: &str) -> bool {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let upper = source.to_ascii_uppercase();
+    let upper = strip_sql_comments(source).to_ascii_uppercase();
     name.ends_with(".ksql")
         || name.ends_with(".ksql.sql")
         || upper.contains("CREATE STREAM")
@@ -18,8 +18,9 @@ pub(crate) fn is_ksqldb_file(path: &Path, source: &str) -> bool {
 
 pub(crate) fn parse(input: ParseInput) -> ContractResult<ParsedFile> {
     let mut symbols = vec![module_symbol(&input)];
-    for (index, statement) in input.source.split(';').enumerate() {
-        let line = line_for_statement(&input.source, statement).unwrap_or(index + 1);
+    let parse_source = strip_sql_comments(&input.source);
+    for (index, statement) in parse_source.split(';').enumerate() {
+        let line = line_for_statement(&parse_source, statement).unwrap_or(index + 1);
         let upper = statement.to_ascii_uppercase();
         if let Some((kind, name)) = create_name(&upper, statement) {
             symbols.push(config_symbol(
@@ -266,6 +267,23 @@ fn literal_in(value: &str) -> Option<String> {
 fn line_for_statement(source: &str, statement: &str) -> Option<usize> {
     let offset = source.find(statement.trim())?;
     Some(source[..offset].lines().count().max(1))
+}
+
+fn strip_sql_comments(source: &str) -> String {
+    source
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("--") {
+                ""
+            } else if let Some(index) = line.find("--") {
+                &line[..index]
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn encode_messaging_metadata(metadata: &MessagingMetadata) -> String {

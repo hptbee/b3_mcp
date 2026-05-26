@@ -234,9 +234,23 @@ It must not read OS environment variables, run SQL, connect to databases,
 Kafka, ksqlDB, RabbitMQ, brokers, browsers, WebGL runtimes,
 Docker/Kubernetes/Terraform, package managers, compilers, formatters, language
 servers, external APIs, cloud services, telemetry, or internet access. It does
-not implement Phase 17 quality audit, architecture graph UI, full Git
-Intelligence, broad refactor behavior, runtime validation, schema compatibility
-validation, or advanced messaging intelligence.
+not implement architecture graph UI, full Git Intelligence, broad refactor
+behavior, runtime validation, schema compatibility validation, or advanced
+messaging intelligence.
+
+Phase 17 Language and Technology Quality Audit is completed as a local/static
+truthfulness and regression pass. It may audit and align support levels,
+`/api/languages`, `/api/capabilities`, fixture/test coverage, metadata key
+consistency, redaction guarantees, false-positive guardrails, cross-surface
+integration, benchmark claims, and docs. Small hardening is allowed only when
+directly tied to an audit finding. It must not implement Phase 18 refactor
+checkpoint, Phase 19 performance work, architecture graph UI, full Git
+Intelligence, broad refactor behavior, RabbitMQ advanced messaging
+implementation, cloud services, hosted vector/graph databases, telemetry,
+external APIs, paid dependencies, package-manager/compiler/runtime execution,
+browser/WebGL execution, Docker/Kubernetes/Terraform execution,
+Kafka/ksqlDB/RabbitMQ/broker/database connections, or mandatory language
+servers.
 
 ## Node.js REST Boundaries
 

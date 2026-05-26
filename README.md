@@ -42,12 +42,12 @@ Completed:
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile / Config / Web File Support A
 - Phase 16 - Config / Data / Web File Support B / Hardening
-
-Current / Next:
 - Phase 17 - Language and Technology Quality Audit
 
-Upcoming (major):
+Current / Next:
 - Phase 18 - Refactor Checkpoint D
+
+Upcoming (major):
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
 - Phase 21 - Git Intelligence
@@ -86,6 +86,7 @@ Application intelligence (static hints):
 - Cloud / infrastructure hints (Docker, Compose, Kubernetes, Terraform)
 - C# WPF / XAML (basic static/local)
 - Config/data/web file hints are static/local only; secret-like config values are redacted or skipped, real env files are key-only/redacted, browsers/WebGL are never executed, and Kafka/ksqlDB/databases/brokers are never contacted.
+- Phase 17 audited support levels and capability reporting. Current claims are conservative: Rust is Good; implemented language/file/framework surfaces are Basic static/local or Basic static hints; graph UI, full Git Intelligence, broad refactor behavior, runtime validation, compiler-grade parsing, cloud/external APIs, telemetry, and mandatory LSP remain deferred or unsupported.
 
 Vector foundation:
 - `local_hash` embeddings and SQLite vector persistence/search (local/offline raw vector search).

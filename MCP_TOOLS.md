@@ -31,6 +31,13 @@ change profile counts, read OS environment, execute SQL, start browsers/WebGL,
 or connect to databases, brokers, Kafka, ksqlDB, cloud services, or external
 APIs.
 
+Phase 17 is a quality audit only. It does not add MCP tools, profile behavior,
+runtime execution, cloud/API dependencies, telemetry, package-manager/compiler
+execution, broker/database connections, browser/WebGL execution, architecture
+graph UI, full Git Intelligence, or broad refactor behavior. Existing MCP query
+and search tools consume the same local static metadata, now with audited
+support-level and redaction claims.
+
 Phase 10.0 adds local embedding/vector architecture only. It does not add a
 semantic search MCP tool, does not change MCP profiles or tool counts, and does
 not move vector storage, embedding generation, or ranking into the MCP runtime.

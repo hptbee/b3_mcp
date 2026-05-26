@@ -322,6 +322,8 @@ Phase 15 systems/mobile/config/web support is static/local/offline only. It expo
 
 Phase 16 config/data/web hardening is static/local/offline only. It adds shared secret redaction, safe env-example parsing, key-only/redacted handling for real env files, static env/config reference hints, hardened YAML/JSON/TOML/XML metadata, HTML/template route and asset hints, CSS/SCSS media/import/asset hints, SQL table-reference metadata, stricter ksqlDB dependency metadata, and stronger Three.js/WebGL asset hints. It does not read OS environment, run SQL, connect to databases, Kafka, ksqlDB, RabbitMQ, brokers, browsers, WebGL, cloud services, or external APIs.
 
+Phase 17 adds a quality-audit status block to `GET /api/capabilities`. It reports that the support matrix, capability truthfulness, fixture coverage, metadata consistency, secret redaction, false-positive guardrails, cross-surface integration, and benchmark claims were audited. The block explicitly keeps runtime validation, compiler-grade parsing, IDE-grade refactor, architecture graph UI, full Git Intelligence, mandatory LSP, external APIs, cloud services, and telemetry as false/deferred.
+
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route
 metadata from `Route` symbols. Optional filters include `project_id`,

@@ -688,6 +688,23 @@ ksqlDB emits topic/format/JOIN dependency hints. No SQL is executed, no browser
 or WebGL runtime is started, and no Kafka/ksqlDB/broker/database/cloud endpoint
 is contacted.
 
+### Phase 17 Language / Technology Quality Audit
+
+Phase 17 audits support-level truthfulness and metadata quality rather than
+adding broad new parsing surfaces. The core language registry now distinguishes
+real Basic static/local support from DetectOnly entries, and `/api/capabilities`
+reports an explicit quality-audit block for support matrix coverage,
+capability/status truthfulness, fixture coverage, metadata consistency, secret
+redaction, false-positive guardrails, and benchmark claims.
+
+Small hardening is limited to audit findings: SQL and ksqlDB line comments are
+ignored before static table/topic/stream extraction so commented-out statements
+do not create strong metadata. The audit keeps runtime validation,
+compiler-grade semantics, IDE-grade refactor, architecture graph UI, full Git
+Intelligence, cloud/external APIs, telemetry, mandatory LSP, browser/WebGL
+execution, broker/database connections, and package-manager/compiler/runtime
+execution out of scope.
+
 ### Phase 10.2 SQLite Vector Search
 
 Phase 10.2 stores vector documents and embedding vectors in normal SQLite

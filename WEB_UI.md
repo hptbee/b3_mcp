@@ -322,4 +322,10 @@ The Raw JSON panel exposes request, response, and trace payloads for debugging f
 - Phase 16 hardened config/data/web metadata is available through existing
   backend APIs and query surfaces. A dedicated UI refresh remains deferred to
   Phase 20.
+- Phase 17 quality-audit metadata is exposed through `/api/capabilities`.
+  Displaying audited support levels in the developer console remains deferred;
+  architecture graph UI, full Git Intelligence UI, broad refactor UI, runtime
+  validation, telemetry, cloud/external API integration, mandatory LSP,
+  browser/WebGL execution, and package-manager/compiler/runtime execution are
+  not implemented in this phase.
 - SSE currently reflects the minimal control-server event stream.

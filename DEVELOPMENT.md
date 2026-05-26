@@ -282,6 +282,19 @@ SQL execution, database/broker/Kafka/ksqlDB connections, browser/WebGL runtime,
 package manager, compiler, formatter, Docker/Kubernetes/Terraform execution,
 external API, cloud service, telemetry, or internet access.
 
+## Phase 17 Audit Boundaries
+
+Language and technology quality audit work is limited to truthful capability
+reporting, support matrix alignment, fixture/test coverage, metadata
+consistency, secret redaction guarantees, and small false-positive guardrails.
+Support levels stay conservative: Rust is Good; implemented language/file/
+framework surfaces are Basic static/local; Three.js/WebGL is Basic static
+hints; architecture graph UI, full Git Intelligence, broad refactor behavior,
+runtime validation, and compiler-grade parsing are deferred. Do not run package
+managers, compilers, formatters, runtimes, browsers/WebGL, Docker/Kubernetes/
+Terraform, brokers, databases, Kafka, ksqlDB, RabbitMQ, external APIs, cloud
+services, telemetry, or mandatory language servers.
+
 ### Optional Local Benchmark Projects
 
 Enabled `local_repo` projects in `benchmarks/b3.benchmark.toml` can participate

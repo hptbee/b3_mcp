@@ -36,9 +36,11 @@ pub enum LanguageBackendKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LanguageSupportLevel {
     Unsupported,
+    DetectOnly,
     Basic,
     Good,
     Advanced,
+    Experimental,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -158,6 +160,30 @@ pub struct LanguageBackendRegistry {
 pub fn default_language_backend_registry() -> LanguageBackendRegistry {
     let backends = vec![
         rust_tree_sitter_backend_metadata(),
+        web_tree_sitter_backend_metadata(
+            "typescript",
+            "TypeScript",
+            "tree-sitter-typescript",
+            "Basic local TypeScript symbols, imports, relationships, Node REST routes, React/Next/Angular metadata, and Three.js/WebGL hints are indexed without node/npm/tsc execution.",
+        ),
+        web_tree_sitter_backend_metadata(
+            "tsx",
+            "TSX",
+            "tree-sitter-typescript",
+            "Basic local TSX component-like symbols, imports, React/Next metadata, and Three.js/WebGL hints are indexed without browser, node/npm, or compiler execution.",
+        ),
+        web_tree_sitter_backend_metadata(
+            "javascript",
+            "JavaScript",
+            "tree-sitter-javascript",
+            "Basic local JavaScript symbols, imports, relationships, Node REST routes, Next.js metadata, and Three.js/WebGL hints are indexed without node/npm execution.",
+        ),
+        web_tree_sitter_backend_metadata(
+            "jsx",
+            "JSX",
+            "tree-sitter-javascript",
+            "Basic local JSX component-like symbols, imports, React metadata, and static route/template hints are indexed without browser or runtime execution.",
+        ),
         csharp_static_backend_metadata(),
         go_static_backend_metadata(),
         backend_static_metadata("python", "Python", "static-python"),
@@ -180,13 +206,40 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
         backend_static_metadata("ksql", "ksqlDB", "static-ksql"),
         backend_static_metadata("sql", "SQL", "static-sql"),
         backend_static_metadata("env", "Env", "static-env"),
-        planned_detect_only_backend("typescript", "TypeScript", "planned-lsp-typescript"),
-        planned_detect_only_backend("tsx", "TSX", "planned-lsp-typescript-react"),
-        planned_detect_only_backend("javascript", "JavaScript", "planned-lsp-javascript"),
-        planned_detect_only_backend("jsx", "JSX", "planned-lsp-javascript-react"),
-        planned_detect_only_backend("dockerfile", "Dockerfile", "planned-static-dockerfile"),
-        planned_detect_only_backend("docker-compose", "Docker Compose", "planned-static-compose"),
-        planned_detect_only_backend("xaml", "XAML", "planned-static-xaml"),
+        backend_static_metadata_with_capabilities(
+            "dockerfile",
+            "Dockerfile",
+            "static-dockerfile",
+            vec![
+                LanguageBackendCapability::DetectFile,
+                LanguageBackendCapability::Parse,
+                LanguageBackendCapability::ExtractRelationships,
+            ],
+            "Basic local static Dockerfile extraction records infrastructure image, port, environment-key, command, and entrypoint hints without Docker execution.",
+        ),
+        backend_static_metadata_with_capabilities(
+            "docker-compose",
+            "Docker Compose",
+            "static-compose",
+            vec![
+                LanguageBackendCapability::DetectFile,
+                LanguageBackendCapability::Parse,
+                LanguageBackendCapability::ExtractRelationships,
+            ],
+            "Basic local static Docker Compose extraction records service, image, port, environment-key, and dependency hints without Docker Compose execution.",
+        ),
+        backend_static_metadata_with_capabilities(
+            "xaml",
+            "XAML",
+            "static-xaml",
+            vec![
+                LanguageBackendCapability::DetectFile,
+                LanguageBackendCapability::Parse,
+                LanguageBackendCapability::ExtractSymbols,
+                LanguageBackendCapability::ExtractRelationships,
+            ],
+            "Basic local static XAML extraction records WPF roots, resources, bindings, commands, namespace hints, and code-behind links without Visual Studio, MSBuild, dotnet, or XAML compiler execution.",
+        ),
     ];
     let known_languages = known_language_samples();
     LanguageBackendRegistry {
@@ -198,16 +251,17 @@ pub fn default_language_backend_registry() -> LanguageBackendRegistry {
     }
 }
 
-pub fn backend_static_metadata(
+pub fn web_tree_sitter_backend_metadata(
     language_id: &str,
     language_name: &str,
     backend_id: &str,
+    note: &str,
 ) -> LanguageBackendMetadata {
     LanguageBackendMetadata {
         backend_id: LanguageBackendId(backend_id.to_string()),
         language_id: LanguageId(language_id.to_string()),
         language_name: LanguageName(language_name.to_string()),
-        kind: LanguageBackendKind::StaticConfig,
+        kind: LanguageBackendKind::TreeSitter,
         support_level: LanguageSupportLevel::Basic,
         capabilities: vec![
             LanguageBackendCapability::DetectFile,
@@ -219,7 +273,51 @@ pub fn backend_static_metadata(
         ],
         available: true,
         notes: vec![
-            format!("Basic local static {language_name} backend/application extraction is available."),
+            note.to_string(),
+            "No package manager, compiler, runtime execution, browser, WebGL runtime, language server, external API, or internet access is required.".to_string(),
+            "Full framework semantics, browser/runtime behavior, and IDE-grade type analysis are deferred.".to_string(),
+        ],
+    }
+}
+
+pub fn backend_static_metadata(
+    language_id: &str,
+    language_name: &str,
+    backend_id: &str,
+) -> LanguageBackendMetadata {
+    backend_static_metadata_with_capabilities(
+        language_id,
+        language_name,
+        backend_id,
+        vec![
+            LanguageBackendCapability::DetectFile,
+            LanguageBackendCapability::Parse,
+            LanguageBackendCapability::ExtractSymbols,
+            LanguageBackendCapability::ExtractImports,
+            LanguageBackendCapability::ExtractRelationships,
+            LanguageBackendCapability::ExtractRoutes,
+        ],
+        &format!("Basic local static {language_name} backend/application extraction is available."),
+    )
+}
+
+pub fn backend_static_metadata_with_capabilities(
+    language_id: &str,
+    language_name: &str,
+    backend_id: &str,
+    capabilities: Vec<LanguageBackendCapability>,
+    primary_note: &str,
+) -> LanguageBackendMetadata {
+    LanguageBackendMetadata {
+        backend_id: LanguageBackendId(backend_id.to_string()),
+        language_id: LanguageId(language_id.to_string()),
+        language_name: LanguageName(language_name.to_string()),
+        kind: LanguageBackendKind::StaticConfig,
+        support_level: LanguageSupportLevel::Basic,
+        capabilities,
+        available: true,
+        notes: vec![
+            primary_note.to_string(),
             "No package manager, compiler, runtime execution, language server, external API, or internet access is required.".to_string(),
             "Compiler-grade semantics and deep framework analysis are deferred.".to_string(),
         ],
@@ -367,18 +465,20 @@ fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
         ));
     }
     match file_name {
-        "dockerfile" => Some(detect_only(
+        "dockerfile" => Some(static_basic_detection(
             "dockerfile",
             "Dockerfile",
             "filename",
-            "planned-static-dockerfile",
+            "static-dockerfile",
+            "Dockerfile files are parsed statically for infrastructure hints; Docker is not executed.",
         )),
         "docker-compose.yml" | "docker-compose.yaml" | "compose.yml" | "compose.yaml" => {
-            Some(detect_only(
+            Some(static_basic_detection(
                 "docker-compose",
                 "Docker Compose",
                 "filename",
-                "planned-static-compose",
+                "static-compose",
+                "Docker Compose files are parsed statically for service/image/port/env/dependency hints; Docker Compose is not executed.",
             ))
         }
         "go.mod" => Some(LanguageDetectionResult {
@@ -469,7 +569,7 @@ fn detect_by_filename(file_name: &str) -> Option<LanguageDetectionResult> {
 }
 
 fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
-    let (id, name, backend) = match extension {
+    match extension {
         "rs" => {
             return Some(LanguageDetectionResult {
                 language_id: Some(LanguageId("rust".to_string())),
@@ -504,10 +604,42 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 ],
             });
         }
-        "ts" => ("typescript", "TypeScript", "planned-lsp-typescript"),
-        "tsx" => ("tsx", "TSX", "planned-lsp-typescript-react"),
-        "js" => ("javascript", "JavaScript", "planned-lsp-javascript"),
-        "jsx" => ("jsx", "JSX", "planned-lsp-javascript-react"),
+        "ts" => {
+            return Some(static_basic_detection(
+                "typescript",
+                "TypeScript",
+                "extension",
+                "tree-sitter-typescript",
+                "TypeScript files are parsed locally for basic symbols/imports/routes/components; no node, npm, tsc, or language server is required.",
+            ));
+        }
+        "tsx" => {
+            return Some(static_basic_detection(
+                "tsx",
+                "TSX",
+                "extension",
+                "tree-sitter-typescript",
+                "TSX files are parsed locally for basic symbols/imports/components/routes; no browser, node, npm, tsc, or language server is required.",
+            ));
+        }
+        "js" => {
+            return Some(static_basic_detection(
+                "javascript",
+                "JavaScript",
+                "extension",
+                "tree-sitter-javascript",
+                "JavaScript files are parsed locally for basic symbols/imports/routes; no node, npm, or language server is required.",
+            ));
+        }
+        "jsx" => {
+            return Some(static_basic_detection(
+                "jsx",
+                "JSX",
+                "extension",
+                "tree-sitter-javascript",
+                "JSX files are parsed locally for basic symbols/imports/components; no browser, node, npm, or language server is required.",
+            ));
+        }
         "html" | "htm" | "cshtml" | "erb" | "ejs" | "hbs" => {
             return Some(static_basic_detection(
                 "html",
@@ -571,7 +703,15 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 "ksqlDB files are parsed statically for streams, tables, connectors, topics, and dependencies without broker or ksqlDB connections.",
             ));
         }
-        "xaml" => ("xaml", "XAML", "planned-static-xaml"),
+        "xaml" => {
+            return Some(static_basic_detection(
+                "xaml",
+                "XAML",
+                "extension",
+                "static-xaml",
+                "XAML files are parsed statically for WPF metadata, resources, bindings, and code-behind hints without Visual Studio, MSBuild, dotnet, or a XAML compiler.",
+            ));
+        }
         "py" => {
             return Some(static_basic_detection(
                 "python",
@@ -680,9 +820,8 @@ fn detect_by_extension(extension: &str) -> Option<LanguageDetectionResult> {
                 "XML files are parsed statically for elements, attributes, and safe package/config metadata without schema fetching or entity expansion.",
             ));
         }
-        _ => return None,
-    };
-    Some(detect_only(id, name, "extension", backend))
+        _ => None,
+    }
 }
 
 fn static_basic_detection(
@@ -699,42 +838,6 @@ fn static_basic_detection(
         matched_by: matched_by.to_string(),
         backend_ids: vec![LanguageBackendId(backend_id.to_string())],
         notes: vec![note.to_string()],
-    }
-}
-
-fn detect_only(
-    id: &str,
-    name: &str,
-    matched_by: &str,
-    backend_id: &str,
-) -> LanguageDetectionResult {
-    LanguageDetectionResult {
-        language_id: Some(LanguageId(id.to_string())),
-        language_name: Some(LanguageName(name.to_string())),
-        support_level: LanguageSupportLevel::Basic,
-        matched_by: matched_by.to_string(),
-        backend_ids: vec![LanguageBackendId(backend_id.to_string())],
-        notes: vec!["Detected locally; parser/backend implementation is planned.".to_string()],
-    }
-}
-
-fn planned_detect_only_backend(id: &str, name: &str, backend_id: &str) -> LanguageBackendMetadata {
-    LanguageBackendMetadata {
-        backend_id: LanguageBackendId(backend_id.to_string()),
-        language_id: LanguageId(id.to_string()),
-        language_name: LanguageName(name.to_string()),
-        kind: if backend_id.contains("lsp") {
-            LanguageBackendKind::Lsp
-        } else {
-            LanguageBackendKind::StaticConfig
-        },
-        support_level: LanguageSupportLevel::Basic,
-        capabilities: vec![LanguageBackendCapability::DetectFile],
-        available: false,
-        notes: vec![
-            "Detection rule exists; full backend implementation is deferred.".to_string(),
-            "LSP is disabled until Phase 9.1.".to_string(),
-        ],
     }
 }
 
@@ -859,6 +962,78 @@ mod tests {
                 .iter()
                 .any(|note| note.contains("No package manager")));
         }
+    }
+
+    #[test]
+    fn phase17_support_matrix_keeps_implemented_web_and_xaml_backends_honest() {
+        let registry = default_language_backend_registry();
+        for (language, backend_id, kind) in [
+            (
+                "typescript",
+                "tree-sitter-typescript",
+                LanguageBackendKind::TreeSitter,
+            ),
+            (
+                "javascript",
+                "tree-sitter-javascript",
+                LanguageBackendKind::TreeSitter,
+            ),
+            (
+                "tsx",
+                "tree-sitter-typescript",
+                LanguageBackendKind::TreeSitter,
+            ),
+            (
+                "jsx",
+                "tree-sitter-javascript",
+                LanguageBackendKind::TreeSitter,
+            ),
+            ("xaml", "static-xaml", LanguageBackendKind::StaticConfig),
+            (
+                "dockerfile",
+                "static-dockerfile",
+                LanguageBackendKind::StaticConfig,
+            ),
+            (
+                "docker-compose",
+                "static-compose",
+                LanguageBackendKind::StaticConfig,
+            ),
+        ] {
+            let backend = registry
+                .backends
+                .iter()
+                .find(|backend| backend.language_id.as_str() == language)
+                .expect("implemented backend");
+            assert_eq!(backend.backend_id.0, backend_id);
+            assert_eq!(backend.kind, kind);
+            assert_eq!(backend.support_level, LanguageSupportLevel::Basic);
+            assert!(backend.available);
+            assert!(backend
+                .notes
+                .iter()
+                .any(|note| note.contains("No") || note.contains("not executed")));
+            if matches!(language, "dockerfile" | "docker-compose" | "xaml") {
+                assert!(!backend
+                    .capabilities
+                    .contains(&LanguageBackendCapability::ExtractRoutes));
+            }
+        }
+    }
+
+    #[test]
+    fn detect_only_support_level_is_distinct_from_basic() {
+        let detection = LanguageDetectionResult {
+            language_id: Some(LanguageId("future".to_string())),
+            language_name: Some(LanguageName("Future".to_string())),
+            support_level: LanguageSupportLevel::DetectOnly,
+            matched_by: "test".to_string(),
+            backend_ids: vec![LanguageBackendId("future-backend".to_string())],
+            notes: vec!["Detected locally; parser/backend implementation is planned.".to_string()],
+        };
+
+        assert_eq!(detection.support_level, LanguageSupportLevel::DetectOnly);
+        assert!(detection.notes.iter().any(|note| note.contains("planned")));
     }
 
     #[test]

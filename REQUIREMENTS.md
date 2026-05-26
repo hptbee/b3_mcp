@@ -1071,6 +1071,17 @@ run SQL, connect to databases, Kafka, ksqlDB, RabbitMQ, brokers, browsers,
 WebGL, package managers, compilers, formatters, Docker/Kubernetes/Terraform,
 external APIs, cloud services, telemetry, or internet access.
 
+Phase 17 completes the Language and Technology Quality Audit. It audits support
+level truthfulness, `/api/languages`, `/api/capabilities`, fixture coverage,
+metadata consistency, redaction guarantees, false-positive/false-negative
+guardrails, cross-surface integration, and benchmark claims. It may add small
+local/static hardening fixes only when directly tied to audit findings. It must
+not add compiler-grade parsing, runtime validation, architecture graph UI, full
+Git Intelligence, broad refactor behavior, cloud/external APIs, telemetry,
+package-manager/compiler/runtime execution, mandatory LSP, browser/WebGL
+execution, broker/database/Kafka/ksqlDB/RabbitMQ connections, or internet
+requirements.
+
 ### Roadmap
 
 Completed:
@@ -1084,14 +1095,14 @@ Completed:
 - Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile / Config / Web File Support A
 - Phase 16: Config / Data / Web File Support B / Hardening
+- Phase 17: Language and Technology Quality Audit
 
 Current / Next:
 
-- Phase 17: Language and Technology Quality Audit
+- Phase 18: Refactor Checkpoint D
 
 Upcoming:
 
-- Phase 18: Refactor Checkpoint D
 - Phase 19: Performance Optimization Pass B
 - Phase 20: Web UI Developer Console Refresh
 - Phase 21: Git Intelligence
