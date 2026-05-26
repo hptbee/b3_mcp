@@ -33,12 +33,12 @@ Completed:
 - Phase 11.1.1 - Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2 - Cross-Repo Route / API Matching
 - Phase 11.3 - Cross-Repo Messaging Matching
-
-Current / Next:
 - Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 
-Upcoming (major):
+Current / Next:
 - Phase 11.5 - Group-Level Impact + Context Pack
+
+Upcoming (major):
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
 - Phase 12 — Symbolic Editing MVP
@@ -77,6 +77,7 @@ Vector foundation:
 - Hybrid ranking combines lexical, vector, and metadata signals inside `b3-query`.
 - Local hybrid search is exposed through `POST /api/search/hybrid` and the MCP `semantic_search` tool.
 - Fixture-based benchmark/quality evaluation is available through `cargo run -p b3-bench -- baseline`.
+- The default local benchmark config path is `benchmarks/b3.benchmark.toml`; its real-local repository paths are optional candidates and missing paths are warnings, not build/test failures.
 - Phase 11.1.1 adds a local context-efficiency benchmark comparing deterministic file-by-file exploration, `search_code`, `semantic_search`, context-pack-style selection, and a group-summary model.
 - Production-grade neural embedding providers are planned in later optional-provider phases.
 
@@ -86,7 +87,8 @@ Cross-project architecture foundation:
 - Phase 11.1.1 measures token/context reduction, tool-call reduction, and fixture-based answer-quality approximation. Current measured balanced context-pack baseline is about `1.11x` fewer tokens, `4.05x` fewer modeled tool calls, and `0.699` answer-quality score; the `10x` token target and `0.8` quality target are not met yet.
 - Phase 11.2 adds local/read-only cross-repo route/API matching inside registry project groups.
 - Phase 11.3 adds local/read-only cross-repo messaging matching inside registry project groups.
-- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; package/contract/infra, group impact, and service maps are deferred to later Phase 11 subphases.
+- Phase 11.4 adds local/read-only cross-repo package, contract, and infrastructure matching inside registry project groups.
+- B3 still preserves `1 project = 1 repo-local .b3/b3.db`; group impact/context packs and service maps are deferred to later Phase 11 subphases.
 
 ---
 
@@ -99,6 +101,7 @@ Cross-project architecture foundation:
 - Efficiency metrics are deterministic benchmark estimates. Token estimates use chars/4, tool-call counts use a fixed local workflow model, and answer quality is fixture coverage rather than human grading.
 - Cross-project route/API matching is static and conservative. It does not execute HTTP requests, fetch OpenAPI remotely, infer messaging/package/infra relationships, or build service maps.
 - Cross-project messaging matching is static and conservative. It does not connect to brokers, publish/consume messages, call cloud Pub/Sub APIs, infer package/contract/infra relationships, or build service maps.
+- Cross-project package/contract/infra matching is static and conservative. It does not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote schema fetches, or schema compatibility validation.
 - Symbolic editing / rename & refactor: Phase 12 / Phase 13.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
@@ -133,7 +136,7 @@ Cross-project architecture foundation:
 | Cross-project group federation | Usable now, read-only summaries |
 | Cross-project route/API matching | Usable now, local/static/read-only |
 | Cross-project messaging matching | Usable now, local/static/read-only |
-| Cross-project package/contract/infra matching | Phase 11.4 |
+| Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.

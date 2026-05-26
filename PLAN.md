@@ -57,12 +57,12 @@ Completed:
 - Phase 11.1.1 Context Efficiency + Tool Call Reduction Benchmark
 - Phase 11.2 Cross-Repo Route / API Matching
 - Phase 11.3 Cross-Repo Messaging Matching
-
-Current/Next:
 - Phase 11.4 Cross-Repo Package / Contract / Infra Matching
 
-Upcoming:
+Current/Next:
 - Phase 11.5 Group-Level Impact + Context Pack
+
+Upcoming:
 - Phase 11.6 Architecture Graph / Service Map API
 - Phase 11.7 Cross-Project Benchmark + Docs
 - Phase 12 Symbolic Editing MVP
@@ -1265,16 +1265,34 @@ Rules:
 
 ## Phase 11.4 - Cross-Repo Package / Contract / Infra Matching
 
-Status: Planned.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- match local package, contract, deployment, and infrastructure metadata where explicit keys exist
-- do not run package managers, Terraform, Docker, Kubernetes, or cloud CLIs
+- added deterministic package/dependency keys for npm, .NET, Go, Rust, Python, and unknown ecosystems
+- added deterministic contract/schema keys for DTO/model/interface/type/enum and local OpenAPI, GraphQL, protobuf, Avro, and JSON schema names
+- added deterministic infrastructure keys for Docker Compose services/images, Kubernetes services/deployments/configmaps/secrets, Terraform resources/modules, databases, caches, queues, Pub/Sub, and unknown resources
+- matched local package providers to dependency consumers, including package.json names/dependencies, .NET PackageReference/ProjectReference, Go module/require prefixes, and Rust crate dependencies where local manifest content is indexed
+- matched exact shared contract/schema names across projects, with generic names such as `User`, `Request`, `Response`, `Model`, `Item`, and `Data` kept low confidence unless stronger evidence is added later
+- matched infrastructure relationships from existing metadata, including Docker Compose `depends_on`, Kubernetes Service selector to Deployment labels, image/name overlap, and Terraform module/resource name overlap
+- produced `ArchitectureMatchCandidate`, `ArchitectureNode`, `ArchitectureEdge`, confidence, compact evidence, warnings, deterministic IDs, deterministic sorting, and dedupe for package, contract, and infrastructure matches
+- added read-only Control endpoint `GET /api/architecture/groups/{group_id}/dependency-matches` with filters for kind, ecosystem, contract kind, infra kind, name, source project, target project, confidence, limit, and branch
+- updated architecture status/capabilities so package/contract/infra matching is ready while group impact/context pack and service maps remain false
+- counted indexed files in federated metadata readiness so manifest/schema-only project DBs can participate without requiring route/component/infra records
+- preserved one repo-local `.b3/b3.db` per project and avoided global database merging
+
+Rules:
+
+- no group-level impact or context pack
+- no architecture graph UI or service map API
+- no symbolic editing or rename/refactor
+- no package manager execution, dependency restore, lockfile resolution by tools, or registry access
+- no Docker, Docker Compose, kubectl, Terraform, gcloud, cloud provider, broker, or database server execution/connection
+- no remote OpenAPI/GraphQL/schema parsing, schema compatibility validation, cloud graph database, hosted vector database, telemetry, paid dependency, model download, external API, or internet requirement
 
 ## Phase 11.5 - Group-Level Impact + Context Pack
 
-Status: Planned.
+Status: Current / Next.
 
 Scope:
 
@@ -1295,6 +1313,9 @@ Status: Planned.
 Scope:
 
 - add local fixture-based benchmark coverage and documentation for Phase 11 matching/federation behavior
+- use `benchmarks/b3.benchmark.toml` as the default input for broader real-local benchmarks
+- treat configured local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` as optional candidates; missing paths must warn, not fail normal build/test runs
+- preserve one repo-local `.b3/b3.db` per project and do not merge benchmark project databases into a global DB
 
 ---
 
@@ -1409,14 +1430,14 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project group federation | Usable now, read-only summaries |
 | Cross-project route/API matching | Usable now, local/static/read-only |
 | Cross-project messaging matching | Usable now, local/static/read-only |
+| Cross-project package/contract/infra matching | Usable now, local/static/read-only |
 | Full memory/context platform | Later phase |
-| Cross-project package/contract/infra matching | Phase 11.4+ |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3. Package/contract/infra matching, group impact, and service maps remain later Phase 11 work.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4. Group impact/context packs and service maps remain later Phase 11 work.
 
 ---
 
@@ -1480,7 +1501,7 @@ Track:
 - infrastructure extraction latency when implemented
 - approximate memory use when feasible
 
-Benchmark fixtures must remain local, deterministic, small enough to commit, and free from network/cloud/API calls.
+Benchmark fixtures must remain local, deterministic, small enough to commit, and free from network/cloud/API calls. The default broader local benchmark config is `benchmarks/b3.benchmark.toml`; it may name optional real-local repositories, but missing optional paths must produce warnings rather than failures and must not be required by `cargo test --workspace`.
 
 ---
 

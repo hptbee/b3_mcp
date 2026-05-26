@@ -65,6 +65,12 @@ only. It does not add MCP architecture tools, change MCP profiles, or change
 tool counts. Messaging matching lives in `b3-query::architecture` and never
 connects to brokers or cloud messaging APIs.
 
+Phase 11.4 adds cross-repo package/contract/infra matching through the local
+Control API only. It does not add an MCP dependency-matching tool, change MCP
+profiles, or change tool counts. Matching lives in `b3-query::architecture`
+and never runs package managers, Docker, Kubernetes, Terraform, cloud CLIs, or
+remote schema fetches.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

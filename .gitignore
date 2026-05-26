@@ -71,3 +71,4 @@ Thumbs.db
 package-lock.json
 /README copy.md
 /apps/web-ui/package-lock.json
+benchmarks/b3.benchmark.toml

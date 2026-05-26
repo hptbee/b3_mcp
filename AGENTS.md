@@ -471,3 +471,30 @@ rename/refactor, broker connections, runtime publish/consume operations, cloud
 Pub/Sub API calls, global database merges, cloud graph databases, hosted vector
 databases, external APIs, telemetry, paid dependencies, model downloads, or
 internet requirements.
+
+Phase 11.4 is completed as cross-repo package/contract/infra matching only. It
+may match deterministic local package/dependency, contract/schema, and
+infrastructure keys inside a registry project group, produce match candidates,
+architecture nodes/edges, confidence, evidence, warnings, and expose a read-only
+local Control API endpoint.
+
+It must not implement group-level impact/context pack, architecture graph UI,
+service map APIs, symbolic editing, rename/refactor, package manager execution,
+dependency restore, Docker/Kubernetes/Terraform/cloud CLI execution, remote
+schema fetching, schema compatibility validation, global database merges, cloud
+graph databases, hosted vector databases, external APIs, telemetry, paid
+dependencies, model downloads, or internet requirements.
+
+## Local Benchmark Config Boundaries
+
+`benchmarks/b3.benchmark.toml` is the default local benchmark config path for
+future broader real-local benchmarks. Paths in that file, including
+`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B`, are
+optional benchmark candidates. Missing optional benchmark projects must be
+warnings, not failures, and `cargo test --workspace` must pass on machines
+without `Project_B` or `Tuvi_B`.
+
+Benchmark config handling must remain offline-first and free-by-default: no
+internet access, external APIs, telemetry, hosted vector databases, cloud
+embeddings, brokers, database servers, paid dependencies, or global database
+merge. Each benchmark project keeps its own repo-local `.b3/b3.db`.

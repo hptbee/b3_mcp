@@ -37,7 +37,10 @@ use b3_indexer::{
     WatchConfig, WatchEventKind,
 };
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
-use b3_query::architecture::{GroupFederation, MessageMatchOptions, RouteMatchOptions};
+use b3_query::architecture::{
+    package_matching::DependencyMatchKindFilter, DependencyMatchOptions, GroupFederation,
+    MessageMatchOptions, RouteMatchOptions,
+};
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
@@ -322,6 +325,10 @@ pub fn app(state: ControlState) -> Router {
         .route(
             "/api/architecture/groups/:group_id/message-matches",
             get(architecture_group_message_matches),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/dependency-matches",
+            get(architecture_group_dependency_matches),
         )
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
@@ -1524,7 +1531,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "cloud_api_required": false,
                 "runtime_discovery": false,
                 "payload_schema_inference": false,
-                "cross_project_matching": false
+                "cross_project_matching": true
             },
             "infrastructure": {
                 "available": true,
@@ -1543,7 +1550,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
                 "gcloud_execution_required": false,
                 "cloud_api_required": false,
                 "runtime_discovery": false,
-                "cross_project_matching": false
+                "cross_project_matching": true
             },
             "dotnet_desktop": {
                 "available": true,
@@ -1592,6 +1599,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "architecture_group_summary": true,
             "architecture_group_route_matches": true,
             "architecture_group_message_matches": true,
+            "architecture_group_dependency_matches": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1615,7 +1623,8 @@ async fn architecture_groups(
         "federation_ready": true,
         "matching_ready": true,
         "route_matching_ready": true,
-        "messaging_matching_ready": true
+        "messaging_matching_ready": true,
+        "package_contract_infra_matching_ready": true
     })))
 }
 
@@ -1635,6 +1644,7 @@ async fn architecture_group_status(
         "matching_ready": true,
         "route_matching_ready": true,
         "messaging_matching_ready": true,
+        "package_contract_infra_matching_ready": true,
         "local_only": true
     })))
 }
@@ -1653,7 +1663,34 @@ async fn architecture_group_summary(
         "matching_ready": true,
         "route_matching_ready": true,
         "messaging_matching_ready": true,
+        "package_contract_infra_matching_ready": true,
         "local_only": true
+    })))
+}
+
+async fn architecture_group_dependency_matches(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+    Query(query): Query<DependencyMatchesQuery>,
+) -> Result<Json<Value>, ControlError> {
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let report = federation
+        .dependency_matches(&group_id, query.into_options())
+        .map_err(federation_error)?;
+    Ok(Json(json!({
+        "status": "ok",
+        "group_id": report.group_id,
+        "group_name": report.group_name,
+        "matching_kind": report.matching_kind,
+        "match_count": report.match_count,
+        "matches": report.matches,
+        "warnings": report.warnings,
+        "local_only": report.local_only,
+        "federation_ready": report.federation_ready,
+        "dependency_matching_ready": report.dependency_matching_ready,
+        "package_contract_infra_matching_ready": report.dependency_matching_ready,
+        "branch": report.branch
     })))
 }
 
@@ -3029,6 +3066,37 @@ struct MessageMatchesQuery {
     branch: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct DependencyMatchesQuery {
+    kind: Option<String>,
+    ecosystem: Option<String>,
+    contract_kind: Option<String>,
+    infra_kind: Option<String>,
+    name: Option<String>,
+    source_project_id: Option<String>,
+    target_project_id: Option<String>,
+    min_confidence: Option<u16>,
+    limit: Option<usize>,
+    branch: Option<String>,
+}
+
+impl DependencyMatchesQuery {
+    fn into_options(self) -> DependencyMatchOptions {
+        DependencyMatchOptions {
+            kind: DependencyMatchKindFilter::from_query(self.kind.as_deref()),
+            ecosystem: self.ecosystem,
+            contract_kind: self.contract_kind,
+            infra_kind: self.infra_kind,
+            name: self.name,
+            source_project_id: self.source_project_id,
+            target_project_id: self.target_project_id,
+            min_confidence: self.min_confidence,
+            limit: self.limit.unwrap_or(DEFAULT_LIMIT),
+            branch: self.branch,
+        }
+    }
+}
+
 impl MessageMatchesQuery {
     fn into_options(self) -> MessageMatchOptions {
         MessageMatchOptions {
@@ -4258,6 +4326,39 @@ mod tests {
             .expect("message match file");
     }
 
+    fn seed_manifest_database(
+        database_path: &std::path::Path,
+        project: &str,
+        file_path: &str,
+        content: &str,
+    ) {
+        let storage = SqliteStorage::open(database_path).expect("open project database");
+        let project_id = ProjectId::new(project);
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("project branch");
+        storage
+            .upsert_indexed_file(
+                &project_id,
+                &branch_id,
+                IndexedFileRecord {
+                    file: FileRecord {
+                        id: FileId::new(format!("{project}-manifest-file")),
+                        project_id: project_id.clone(),
+                        path: file_path.to_string(),
+                        content_hash: format!("hash-{project}"),
+                    },
+                    language: Some("json".to_string()),
+                    size_bytes: content.len() as u64,
+                    content: content.to_string(),
+                    symbols: Vec::new(),
+                    edges: Vec::new(),
+                },
+            )
+            .expect("manifest file");
+    }
+
     fn route_app() -> Router {
         let storage = SqliteStorage::open_in_memory().expect("open storage");
         let project_id = ProjectId::new("default");
@@ -4809,7 +4910,7 @@ mod tests {
         assert_eq!(body["architecture"]["messaging_matching_ready"], true);
         assert_eq!(
             body["architecture"]["package_contract_infra_matching_ready"],
-            false
+            true
         );
         assert_eq!(body["architecture"]["group_impact_ready"], false);
         assert_eq!(body["architecture"]["service_map_ready"], false);
@@ -4830,6 +4931,10 @@ mod tests {
         );
         assert_eq!(
             body["control_api"]["architecture_group_message_matches"],
+            true
+        );
+        assert_eq!(
+            body["control_api"]["architecture_group_dependency_matches"],
             true
         );
         assert_eq!(body["vector_search"]["local_only"], true);
@@ -4855,7 +4960,7 @@ mod tests {
         assert_eq!(body["group_federation_ready"], true);
         assert_eq!(body["route_matching_ready"], true);
         assert_eq!(body["messaging_matching_ready"], true);
-        assert_eq!(body["package_contract_infra_matching_ready"], false);
+        assert_eq!(body["package_contract_infra_matching_ready"], true);
         assert_eq!(body["group_impact_ready"], false);
         assert_eq!(body["service_map_ready"], false);
         assert_eq!(body["local_only"], true);
@@ -5097,6 +5202,63 @@ mod tests {
         assert_eq!(
             body["matches"][0]["candidate"]["relationship_kind"],
             "PublishesMessage"
+        );
+    }
+
+    #[tokio::test]
+    async fn architecture_group_dependency_matches_endpoint_filters_and_stays_local() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let shared_db = dir.path().join("shared").join(".b3").join("b3.db");
+        let app_db = dir.path().join("app").join(".b3").join("b3.db");
+        seed_manifest_database(
+            &shared_db,
+            "shared",
+            "package.json",
+            r#"{"name":"shared-contracts","version":"1.0.0"}"#,
+        );
+        seed_manifest_database(
+            &app_db,
+            "app",
+            "package.json",
+            r#"{"name":"app","dependencies":{"shared-contracts":"file:../shared"}}"#,
+        );
+        write_group_registry(
+            &registry_path,
+            &[("shared", "Shared", &shared_db), ("app", "App", &app_db)],
+            &["shared", "app"],
+        );
+
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("control storage"),
+            registry_path,
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/architecture/groups/suite/dependency-matches?kind=package&ecosystem=npm&name=shared-contracts&limit=5")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["matching_kind"], "dependency");
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["federation_ready"], true);
+        assert_eq!(body["dependency_matching_ready"], true);
+        assert_eq!(body["package_contract_infra_matching_ready"], true);
+        assert_eq!(body["match_count"], 1);
+        assert_eq!(body["matches"][0]["kind"], "Package");
+        assert_eq!(body["matches"][0]["ecosystem"], "npm");
+        assert_eq!(body["matches"][0]["name"], "shared-contracts");
+        assert_eq!(
+            body["matches"][0]["candidate"]["relationship_kind"],
+            "DependsOnPackage"
         );
     }
 

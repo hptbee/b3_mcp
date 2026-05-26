@@ -4,14 +4,22 @@
 //! repo-local `.b3/b3.db` independently. Phase 11.2 adds local/static
 //! route/API matching without merging databases or performing runtime calls.
 
+#[path = "architecture/contract_matching.rs"]
+pub mod contract_matching;
+#[path = "architecture/dependency_keys.rs"]
+pub mod dependency_keys;
 #[path = "architecture/http_clients.rs"]
 pub mod http_clients;
+#[path = "architecture/infra_matching.rs"]
+pub mod infra_matching;
 #[path = "architecture/match_keys.rs"]
 pub mod match_keys;
 #[path = "architecture/messaging_keys.rs"]
 pub mod messaging_keys;
 #[path = "architecture/messaging_matching.rs"]
 pub mod messaging_matching;
+#[path = "architecture/package_matching.rs"]
+pub mod package_matching;
 #[path = "architecture/route_matching.rs"]
 pub mod route_matching;
 
@@ -29,6 +37,7 @@ use b3_storage::{
 use serde::{Deserialize, Serialize};
 
 pub use messaging_matching::{GroupMessageMatchReport, MessageMatch, MessageMatchOptions};
+pub use package_matching::{DependencyMatch, DependencyMatchOptions, GroupDependencyMatchReport};
 pub use route_matching::{GroupRouteMatchReport, RouteMatch, RouteMatchOptions};
 
 const DEFAULT_BRANCH: &str = "main";
@@ -102,6 +111,7 @@ pub struct FederatedQueryContext {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct FederatedMetadataCounts {
+    pub files: usize,
     pub routes: usize,
     pub components: usize,
     pub data_access: usize,
@@ -115,6 +125,7 @@ pub struct FederatedMetadataCounts {
 
 impl FederatedMetadataCounts {
     fn add(&mut self, other: &Self) {
+        self.files += other.files;
         self.routes += other.routes;
         self.components += other.components;
         self.data_access += other.data_access;
@@ -583,7 +594,11 @@ fn project_counts(
         .wpf(project_id, DEFAULT_BRANCH, None, None, None, DEFAULT_LIMIT)?
         .len();
     let vector_stats = storage.vector_stats()?;
+    let files = storage
+        .file_contents(project_id, DEFAULT_BRANCH, DEFAULT_LIMIT)?
+        .len();
     Ok(FederatedMetadataCounts {
+        files,
         routes,
         components,
         data_access,

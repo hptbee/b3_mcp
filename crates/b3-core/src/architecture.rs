@@ -2,7 +2,8 @@
 //!
 //! Phase 11.0 defines portable DTOs and deterministic normalization helpers.
 //! Phase 11.2 enables local route/API matching. Phase 11.3 enables local
-//! messaging matching; package/contract/infra matching remains deferred.
+//! messaging matching. Phase 11.4 enables local package, contract, and
+//! infrastructure matching without merging project databases.
 
 use std::collections::BTreeMap;
 
@@ -238,8 +239,15 @@ pub enum ArchitectureEdgeKind {
     RoutesToService,
     ImportsPackage,
     ProvidesPackage,
+    DependsOnPackage,
+    SharesContract,
+    UsesContract,
     ImplementsContract,
     UsesInfrastructure,
+    DefinesInfrastructureResource,
+    DependsOnInfrastructure,
+    DeploysService,
+    SelectsService,
     DependsOnService,
     Unknown,
 }
@@ -260,8 +268,15 @@ impl ArchitectureEdgeKind {
             Self::RoutesToService => "RoutesToService",
             Self::ImportsPackage => "ImportsPackage",
             Self::ProvidesPackage => "ProvidesPackage",
+            Self::DependsOnPackage => "DependsOnPackage",
+            Self::SharesContract => "SharesContract",
+            Self::UsesContract => "UsesContract",
             Self::ImplementsContract => "ImplementsContract",
             Self::UsesInfrastructure => "UsesInfrastructure",
+            Self::DefinesInfrastructureResource => "DefinesInfrastructureResource",
+            Self::DependsOnInfrastructure => "DependsOnInfrastructure",
+            Self::DeploysService => "DeploysService",
+            Self::SelectsService => "SelectsService",
             Self::DependsOnService => "DependsOnService",
             Self::Unknown => "Unknown",
         }
@@ -469,7 +484,7 @@ impl Default for ArchitectureCapabilityStatus {
             group_federation_ready: true,
             route_matching_ready: true,
             messaging_matching_ready: true,
-            package_contract_infra_matching_ready: false,
+            package_contract_infra_matching_ready: true,
             group_impact_ready: false,
             service_map_ready: false,
             local_only: true,
@@ -795,14 +810,14 @@ mod tests {
     }
 
     #[test]
-    fn capability_status_reports_route_matching_ready_and_local() {
+    fn capability_status_reports_dependency_matching_ready_and_local() {
         let status = ArchitectureCapabilityStatus::default();
 
         assert!(status.architecture_contracts_available);
         assert!(status.group_federation_ready);
         assert!(status.route_matching_ready);
         assert!(status.messaging_matching_ready);
-        assert!(!status.package_contract_infra_matching_ready);
+        assert!(status.package_contract_infra_matching_ready);
         assert!(!status.group_impact_ready);
         assert!(!status.service_map_ready);
         assert!(status.local_only);

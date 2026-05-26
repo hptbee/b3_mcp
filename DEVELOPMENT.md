@@ -137,10 +137,10 @@ architecture contracts are available.
 Phase 11.1 adds local group query federation in `b3-query::architecture`.
 Federation reads registry-defined project groups, opens existing project DBs
 read-only, returns partial project status/warnings, and aggregates metadata
-summaries without merging databases. Cross-repo route/API matching, messaging
-matching, package/contract/infra matching, group impact, and service maps are
-still pending. The local storage model remains one repo-local `.b3/b3.db` per
-project.
+  summaries without merging databases. Route/API, messaging, and
+  package/contract/infra matching are now local/read-only query features; group
+  impact and service maps remain pending. The local storage model remains one
+  repo-local `.b3/b3.db` per project.
 
 Phase 11.1.1 adds context efficiency and tool-call reduction measurements to
 the same local baseline. The JSON output includes `efficiency_metrics` with
@@ -171,6 +171,14 @@ deterministic local keys, and returns candidates through
 to brokers, publish or consume messages, call cloud Pub/Sub APIs, merge
 databases, add MCP tools, or infer package/contract/infra relationships.
 
+Phase 11.4 adds local cross-repo package/contract/infra matching in
+`b3-query::architecture`. It reads local manifest, schema/contract, and
+infrastructure metadata from federated project DBs and returns candidates
+through `GET /api/architecture/groups/{group_id}/dependency-matches`. It does
+not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote
+schema fetches, schema validators, merge databases, add MCP tools, or add group
+impact/service-map APIs.
+
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that
 would benchmark the configured delay rather than processing cost.
@@ -183,6 +191,21 @@ benchmarks/benchmark-thresholds.json
 
 Thresholds are advisory by default. They do not fail CI unless
 `fail_on_regression` is explicitly enabled.
+
+The default local benchmark configuration path is:
+
+```text
+benchmarks/b3.benchmark.toml
+```
+
+This file is the planned Phase 11.7 input for broader real-local benchmark
+runs. It may reference optional local repositories such as
+`D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B`.
+Missing optional repositories must be reported as warnings, not failures, and
+normal `cargo build`, `cargo check`, and `cargo test --workspace` runs must not
+require those paths to exist. The current `b3-bench baseline` command remains a
+deterministic fixture-based local benchmark unless/until Phase 11.7 wires this
+TOML input into a broader runner.
 
 ## Agent Install Helper
 

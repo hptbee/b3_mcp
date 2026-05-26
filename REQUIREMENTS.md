@@ -954,10 +954,39 @@ project DBs globally, connect to brokers, publish or consume messages, call
 cloud Pub/Sub APIs, infer package/contract/infra relationships, add telemetry,
 or add MCP architecture tools.
 
-### Planned Phases
+Phase 11.4 adds static/read-only cross-repo package/contract/infra matching
+inside local registry project groups. It may match deterministic package,
+contract/schema, and infrastructure keys from existing local project DBs and
+indexed file contents, and produce architecture match candidates, nodes, edges,
+confidence, evidence, and warnings. It must preserve one repo-local
+`.b3/b3.db` per project and must not merge project DBs globally, run package
+managers, restore dependencies, run Docker/Kubernetes/Terraform/cloud CLIs,
+fetch remote schemas, validate schema compatibility, call external APIs, add
+telemetry, or add MCP architecture tools. Group impact/context packs and service
+map APIs remain deferred.
+
+`benchmarks/b3.benchmark.toml` is the default local benchmark configuration
+path for broader Phase 11.7 real-local benchmarks. It may reference optional
+local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and
+`D:\Project\Tuvi_B`, but missing optional projects must produce warnings, not
+failures. Normal cargo build/test runs must not require these paths to exist,
+must not access the internet or external APIs, must not use telemetry, hosted
+vector databases, cloud embeddings, brokers, database servers, or paid
+dependencies, and must preserve one repo-local `.b3/b3.db` per project without
+merging benchmark databases into a global DB.
+
+### Roadmap
+
+Completed:
 
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
+
+Current / Next:
+
 - Phase 11.5: Group-Level Impact + Context Pack
+
+Upcoming:
+
 - Phase 11.6: Architecture Graph / Service Map API
 - Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP

@@ -796,8 +796,9 @@ Matching rules are ordered by evidence strength:
 Output is an `ArchitectureMatchCandidate` plus corresponding
 `ArchitectureNode` and `ArchitectureEdge` records for `CallsHttpRoute`, with
 compact evidence, provenance, deterministic IDs, deterministic sorting, and
-dedupe. Messaging, package/contract/infra relationships, group impact/context
-pack, and service-map APIs remain deferred.
+dedupe. Messaging matching is added in Phase 11.3, package/contract/infra
+matching is added in Phase 11.4, and group impact/context pack plus service-map
+APIs remain deferred.
 
 ### Phase 11.3 Cross-Repo Messaging Matching
 
@@ -834,8 +835,46 @@ Matching rules are ordered by evidence strength:
 Output is an `ArchitectureMatchCandidate` plus corresponding
 `ArchitectureNode` and `ArchitectureEdge` records for `PublishesMessage`, with
 compact evidence, provenance, deterministic IDs, deterministic sorting, and
-dedupe. Package/contract/infra relationships, group impact/context pack, and
-service-map APIs remain deferred.
+dedupe. Package/contract/infra matching is added in Phase 11.4; group
+impact/context pack and service-map APIs remain deferred.
+
+### Phase 11.4 Cross-Repo Package / Contract / Infra Matching
+
+Phase 11.4 matches local package, contract/schema, and infrastructure metadata
+inside a registry-defined project group. It preserves one repo-local
+`.b3/b3.db` per project and opens project DBs read-only through federation. It
+does not run package managers, Docker, Kubernetes, Terraform, cloud CLIs,
+remote schema fetches, schema compilers, external APIs, telemetry, hosted
+vector databases, or cloud graph databases.
+
+Package keys use `package:{ecosystem}:{name}` with conservative normalization:
+npm names are lowercased, .NET names compare case-insensitively, Go module
+paths are exact/lowercase where safe, Rust crate names normalize underscore and
+hyphen variants, and unknown ecosystems remain allowed with lower confidence.
+Providers come from local manifest identity such as `package.json` name,
+`.csproj` package/assembly/root namespace, `go.mod module`, and Cargo package
+name. Consumers come from local manifest dependencies/references only.
+
+Contract keys use `contract:{kind}:{name}` for DTO/model/interface/type/enum
+and local OpenAPI, GraphQL, protobuf, Avro, and JSON schema names. Exact names
+across projects produce medium/high confidence depending on kind agreement.
+Generic names such as `User`, `Request`, `Response`, `Model`, `Item`, and
+`Data` are low confidence. The matcher does not validate schema compatibility.
+
+Infrastructure keys use `infra:{kind}:{name}` with optional namespace for
+Docker Compose services/images, Kubernetes services/deployments/configmaps/
+secrets, Terraform resources/modules, databases, caches, queues, Pub/Sub, and
+unknown resources. Relationships are conservative: Compose `depends_on`,
+Kubernetes Service selectors matching workload labels, image/name overlap, and
+Terraform module/resource name overlap. Secret/config names are used only by
+name; values are never extracted.
+
+Output is an `ArchitectureMatchCandidate` plus `ArchitectureNode` and
+`ArchitectureEdge` records for `DependsOnPackage`, `ImportsPackage`,
+`SharesContract`, `UsesContract`, `DependsOnInfrastructure`, `DeploysService`,
+and `SelectsService`, with compact evidence, warnings, deterministic IDs,
+deterministic sorting, and dedupe. Group impact/context pack and service-map
+APIs remain deferred.
 
 ## Additional Planned Algorithms
 
