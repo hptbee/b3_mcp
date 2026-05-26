@@ -72,6 +72,11 @@ safe incremental reindexing in this phase and skips unchanged files. Scoped
 indexing is available through the control server API/CLI, but dedicated scoped
 indexing controls in the Web UI are deferred.
 
+Phase 12 symbolic editing is available through the local Control API
+(`/api/edit/preview` and `/api/edit/apply`) only. The Web UI does not include an
+editor, apply button, rename/refactor workflow, or architecture graph UI for
+editing yet.
+
 Node.js REST route metadata is available through the local control API, but the
 current Web UI does not include a dedicated route browser yet.
 

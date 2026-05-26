@@ -5,6 +5,7 @@
 //! not own storage clients, embedding workers, MCP request handling, or UI.
 
 pub mod architecture;
+pub mod editing;
 pub mod hybrid;
 
 use std::{

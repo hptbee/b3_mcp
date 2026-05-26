@@ -8,6 +8,7 @@
 mod architecture;
 mod config;
 mod contracts;
+mod editing;
 mod embedding;
 mod events;
 mod ids;
@@ -20,6 +21,7 @@ mod vector;
 pub use architecture::*;
 pub use config::*;
 pub use contracts::*;
+pub use editing::*;
 pub use embedding::*;
 pub use events::*;
 pub use ids::*;

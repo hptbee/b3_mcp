@@ -26,9 +26,10 @@ use axum::{
 };
 use b3_core::{
     default_language_backend_registry, AppConfig, ArchitectureCapabilityStatus, BranchId,
-    BranchMetadata, ContractError, ContractResult, EventBus, IndexScope, IndexScopeKind,
-    IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest, QueryResult,
-    QueryScope as CoreQueryScope, ScopePreview, SourceKind, SymbolRepository, PRODUCT_NAME,
+    BranchMetadata, ContractError, ContractResult, EditRequest, EventBus, IndexScope,
+    IndexScopeKind, IndexSummary, Indexer, ParserIsolationMode, ProjectId, QueryRequest,
+    QueryResult, QueryScope as CoreQueryScope, ScopePreview, SourceKind, SymbolRepository,
+    PRODUCT_NAME,
 };
 use b3_indexer::{
     lsp::LspBackend,
@@ -42,6 +43,7 @@ use b3_query::architecture::{
     GraphConfidenceFilter, GroupFederation, GroupImpactRequest, MessageMatchOptions,
     RouteMatchOptions, ServiceMapRequest,
 };
+use b3_query::editing::SymbolicEditEngine;
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
     SavingsSummary, SharedSqliteIndexStore, SqliteStorage, StorageStats, StoredCentralityRecord,
@@ -299,6 +301,8 @@ pub fn app(state: ControlState) -> Router {
         .route("/api/index/run", post(index_run))
         .route("/api/index/reindex", post(index_reindex))
         .route("/api/index/status", get(index_status))
+        .route("/api/edit/preview", post(edit_preview))
+        .route("/api/edit/apply", post(edit_apply))
         .route("/api/query/:operation", post(query_operation))
         .route("/api/search/hybrid", post(hybrid_search))
         .route("/api/graph/summary", get(graph_summary))
@@ -497,6 +501,46 @@ async fn index_status(
     State(state): State<ControlState>,
 ) -> Result<Json<IndexStatusResponse>, ControlError> {
     Ok(Json(state.index_status.lock().await.clone()))
+}
+
+async fn edit_preview(
+    State(state): State<ControlState>,
+    payload: Result<Json<EditRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<b3_core::EditPlan>, ControlError> {
+    let request = edit_request_with_defaults(state.clone(), payload)?;
+    let storage = state.storage.lock().await;
+    SymbolicEditEngine::new(&*storage)
+        .preview_edit(request)
+        .map(Json)
+        .map_err(|error| ControlError::bad_request(error.to_string()))
+}
+
+async fn edit_apply(
+    State(state): State<ControlState>,
+    payload: Result<Json<EditRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<b3_core::EditApplyResult>, ControlError> {
+    let request = edit_request_with_defaults(state.clone(), payload)?;
+    let storage = state.storage.lock().await;
+    SymbolicEditEngine::new(&*storage)
+        .apply_edit(request)
+        .map(Json)
+        .map_err(|error| ControlError::bad_request(error.to_string()))
+}
+
+fn edit_request_with_defaults(
+    state: ControlState,
+    payload: Result<Json<EditRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<EditRequest, ControlError> {
+    let mut request = payload
+        .map_err(|rejection| ControlError::bad_request(rejection.body_text()))?
+        .0;
+    if request.project_path.is_none() {
+        request.project_path = Some(path_string(&state.project_path));
+    }
+    if request.database_path.is_none() {
+        request.database_path = Some(path_string(&state.database_path));
+    }
+    Ok(request)
 }
 
 async fn query_operation(
@@ -1446,6 +1490,21 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "control_mcp_integration_phase": "10.4"
         },
         "architecture": architecture,
+        "editing": {
+            "phase": "12",
+            "symbolic_editing_mvp": true,
+            "control_preview_endpoint": "/api/edit/preview",
+            "control_apply_endpoint": "/api/edit/apply",
+            "dry_run_default": true,
+            "explicit_apply_required": true,
+            "backup_default": true,
+            "single_file_default": true,
+            "mcp_tool_available": false,
+            "rename_refactor_available": false,
+            "local_only": true,
+            "external_api_required": false,
+            "telemetry_enabled": false
+        },
         "mcp_runtime": RuntimeSummary::default(),
         "language_backend": {
             "tree_sitter": {
@@ -2009,7 +2068,7 @@ async fn lsp_status(State(state): State<ControlState>) -> Json<Value> {
         "limitations": [
             "LSP is disabled by default",
             "language servers are never installed or downloaded by B3",
-            "symbolic editing and rename/refactor tools are deferred"
+            "LSP-based symbolic editing and rename/refactor tools are deferred"
         ]
     }))
 }
@@ -4307,6 +4366,38 @@ mod tests {
             PathBuf::from(":memory:"),
             SqliteStorage::open_in_memory().expect("open storage"),
         ))
+    }
+
+    fn edit_app(root: PathBuf, database_path: PathBuf) -> Router {
+        let storage = SqliteStorage::open(&database_path).expect("storage");
+        let project_id = ProjectId::new("default");
+        let branch_id = BranchId::new("main");
+        storage
+            .upsert_project(&project_id, "Default", &root.display().to_string())
+            .expect("project");
+        storage
+            .upsert_branch(&branch_id, &project_id, &BranchMetadata::new("main"))
+            .expect("branch");
+        let file = FileRecord {
+            id: FileId::new("src-lib"),
+            project_id: project_id.clone(),
+            path: "src/lib.rs".to_string(),
+            content_hash: "hash".to_string(),
+        };
+        storage.upsert_file(&file, &branch_id).expect("file");
+        let mut symbol = SymbolRecord::new(
+            SymbolId::new("run-symbol"),
+            file.id.clone(),
+            "run",
+            NodeKind::Function,
+        );
+        symbol.start_line = 1;
+        symbol.end_line = 1;
+        storage
+            .upsert_symbol(&project_id, &branch_id, &symbol)
+            .expect("symbol");
+
+        app(ControlState::from_storage(root, database_path, storage))
     }
 
     fn write_group_registry(
@@ -6801,6 +6892,76 @@ output "cluster_name" {
         let body = response_json(response).await;
         assert_eq!(body["matches"].as_array().expect("matches").len(), 1);
         assert_eq!(body["full_file_dump_included"], false);
+    }
+
+    #[tokio::test]
+    async fn edit_preview_is_dry_run_and_apply_requires_explicit_mode() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::write(root.join("src").join("lib.rs"), "pub fn run() {}\n").expect("source");
+        let app = edit_app(root.clone(), dir.path().join("b3.db"));
+
+        let preview = post_json(
+            app.clone(),
+            "/api/edit/preview",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"run"},
+                "operation":"replace_symbol_body",
+                "new_text":"pub fn run() { 1 }\n"
+            }"#,
+        )
+        .await;
+        assert_eq!(preview.status(), StatusCode::OK);
+        let preview_body = response_json(preview).await;
+        assert_eq!(preview_body["dry_run"], true);
+        assert!(preview_body["preview"]["patch"]
+            .as_str()
+            .expect("patch")
+            .contains("+pub fn run() { 1 }"));
+        assert_eq!(
+            fs::read_to_string(root.join("src").join("lib.rs")).expect("source"),
+            "pub fn run() {}\n"
+        );
+
+        let rejected = post_json(
+            app.clone(),
+            "/api/edit/apply",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"run"},
+                "operation":"replace_symbol_body",
+                "new_text":"pub fn run() { 1 }\n"
+            }"#,
+        )
+        .await;
+        assert_eq!(rejected.status(), StatusCode::BAD_REQUEST);
+
+        let applied = post_json(
+            app,
+            "/api/edit/apply",
+            r#"{
+                "target":{"kind":"symbol","file_path":"src/lib.rs","symbol_name":"run"},
+                "operation":"replace_symbol_body",
+                "mode":"apply",
+                "dry_run":false,
+                "new_text":"pub fn run() { 1 }\n"
+            }"#,
+        )
+        .await;
+        assert_eq!(applied.status(), StatusCode::OK);
+        let applied_body = response_json(applied).await;
+        assert_eq!(applied_body["applied"], true);
+        assert_eq!(
+            fs::read_to_string(root.join("src").join("lib.rs")).expect("source"),
+            "pub fn run() { 1 }\n"
+        );
+        assert_eq!(
+            applied_body["backup_paths"]
+                .as_array()
+                .expect("backups")
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]

@@ -61,12 +61,12 @@ Completed:
 - Phase 11.5 Group-Level Impact + Context Pack
 - Phase 11.6 Architecture Graph / Service Map API
 - Phase 11.7 Cross-Project Benchmark + Docs
-
-Current/Next:
 - Phase 12 Symbolic Editing MVP
 
-Upcoming:
+Current/Next:
 - Phase 13 Rename / Refactor MVP
+
+Upcoming:
 - Phase 14 Additional Backend Language Support
 - Phase 15 Systems / Mobile Language Support
 - Phase 16 Config / Data / Web File Support
@@ -74,6 +74,7 @@ Upcoming:
 - Phase 18 Refactor Checkpoint D
 - Phase 19 Performance Optimization Pass B
 - Phase 20 Web UI Developer Console Refresh
+- Phase 21 Git Intelligence
 ```
 
 ## Previously Deferred -> Scheduled Phases (12–20)
@@ -83,7 +84,7 @@ have been renumbered and scheduled in the Phase 12–20 sequence below.
 
 ## Phase 12 Symbolic Editing MVP
 
-Status: Planned.
+Status: Completed.
 
 ### Tools
 
@@ -92,17 +93,29 @@ Status: Planned.
 - `insert_after_symbol`
 - `preview_edit`
 - `apply_edit`
-- `reindex_after_edit`
+- file/range replace
+- append/prepend file
 
 ### Rules
 
 - dry-run first
 - show affected files
 - require explicit apply
-- reindex changed files
+- create backups by default
+- return reindex recommended warnings after apply
 - no blind text replacement
 - no full-file rewrite unless needed
 - readonly profile must hide mutation tools
+- MCP editing tools are deferred; Phase 12 exposes local Control API endpoints only
+
+### Scope Completed
+
+- added editing DTOs/contracts in `b3-core`
+- added `b3-query::editing::SymbolicEditEngine`
+- added deterministic target resolution for explicit file ranges, whole files, indexed symbols, and symbol IDs
+- added safe single-file preview/apply with UTF-8 and binary validation, project-root containment, stale text/hash checks, edit size limits, unified diff output, and default backups
+- added local Control API endpoints `POST /api/edit/preview` and `POST /api/edit/apply`
+- kept rename/refactor, update-all-references, multi-file rename workflows, MCP edit tools, UI editing, formatter/compiler execution, and Git Intelligence deferred
 
 ---
 
@@ -946,14 +959,14 @@ Completed:
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
+- Phase 12 - Symbolic Editing MVP
 
 Current/Next:
 
-- Phase 12 - Symbolic Editing MVP
+- Phase 13 - Rename / Refactor MVP
 
 Upcoming:
 
-- Phase 13 - Rename / Refactor MVP
 - Phase 14 - Additional Backend Language Support
 - Phase 15 - Systems / Mobile Language Support
 - Phase 16 - Config / Data / Web File Support
@@ -961,6 +974,7 @@ Upcoming:
 - Phase 18 - Refactor Checkpoint D
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
+- Phase 21 - Git Intelligence
 
 ## Phase 10.0 - Local Embeddings + Vector Search Architecture
 
@@ -1349,6 +1363,7 @@ Scope completed:
 - treated `D:\Project\b3_mcp`, `D:\Project\Project_B`, and `D:\Project\Tuvi_B` as optional local candidates; missing or unindexed paths warn and skip
 - added branch-safety reporting as benchmark/docs warnings only; full Git Intelligence remains Phase 21
 - documented current benchmark methodology, limitations, target comparisons, and offline/free behavior
+- clarified that Phase 11.7 is local fixture/local-repo benchmarking only, not a 31 public real-world repository claim
 
 Current measured fixture/local run:
 
@@ -1361,6 +1376,7 @@ Current measured fixture/local run:
 - services: 4
 - architecture target comparison in the local fixture run: token reduction `25.42x` against `10.0x`, tool-call reduction `2.57x` against `2.1x`, deterministic task quality `1.000` against `0.8`
 - warnings reported for optional local benchmark DBs that were not present: `D:\Project\Project_B\.b3\b3.db` and `D:\Project\Tuvi_B\.b3\b3.db`
+- after switching branches, users should reindex before comparing results until branch-aware indexing is implemented
 
 Rules:
 
@@ -1476,7 +1492,8 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Three.js / WebGL | Deferred |
 | Registry Web UI | Deferred |
 | Control registry APIs | Deferred |
-| Refactor assistant | Phase 12 / 13 |
+| Symbolic editing preview/apply | Usable now, local Control API MVP |
+| Refactor assistant | Phase 13 |
 | Local embeddings / vector search | Phase 10.0-10.5 |
 | Cross-project architecture contracts | Usable now, model/status only |
 | Cross-project group federation | Usable now, read-only summaries |

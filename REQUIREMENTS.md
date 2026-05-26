@@ -990,7 +990,8 @@ MCP architecture tools, or implement graph UI. Cross-project benchmark/docs
 expansion remains Phase 11.7.
 
 Phase 11.7 adds local cross-project benchmark coverage and documentation for
-Phase 11 architecture intelligence. It may benchmark group federation,
+Phase 11 architecture intelligence. It is local fixture/local-repo benchmark
+coverage only, not a 31 public real-world repository claim. It may benchmark group federation,
 route/API matching, messaging matching, package/contract/infra matching, group
 impact, cross-repo context packs, architecture graph API, and service map API
 through local fixture data and optional local repository candidates. It must
@@ -999,7 +1000,8 @@ global graph, and must not merge project DBs globally, execute HTTP requests,
 connect to brokers, run package managers, run Docker/Kubernetes/Terraform/cloud
 CLIs, call external APIs, add telemetry, add MCP tools, implement graph UI,
 implement symbolic editing, implement rename/refactor, or implement full Git
-Intelligence. `D:\Project\Project_B` and `D:\Project\Tuvi_B` are optional
+Intelligence. After switching branches, users should reindex before comparing
+results until branch-aware indexing is implemented. `D:\Project\Project_B` and `D:\Project\Tuvi_B` are optional
 benchmark candidates; missing paths or DBs must warn and skip, not fail normal
 builds/tests/benchmarks.
 
@@ -1013,6 +1015,18 @@ vector databases, cloud embeddings, brokers, database servers, or paid
 dependencies, and must preserve one repo-local `.b3/b3.db` per project without
 merging benchmark databases into a global DB.
 
+Phase 12 adds the Symbolic Editing MVP. It may define editing contracts,
+resolve explicit file ranges and indexed symbols, produce dry-run edit previews,
+validate bounded single-file edits, apply only with explicit `mode=apply` and
+`dry_run=false`, create local backups by default, and expose local Control API
+endpoints for preview/apply. It must not implement rename/refactor workflows,
+update-all-references, move/extract refactors, broad automatic refactoring, MCP
+editing tools by default, UI editing, compiler/formatter execution, package
+manager execution, generated code execution, Git Intelligence, cloud services,
+external APIs, telemetry, paid dependencies, or internet requirements. After
+apply, it should warn that reindex is recommended rather than silently updating
+the index.
+
 ### Roadmap
 
 Completed:
@@ -1021,13 +1035,19 @@ Completed:
 - Phase 11.5: Group-Level Impact + Context Pack
 - Phase 11.6: Architecture Graph / Service Map API
 - Phase 11.7: Cross-Project Benchmark + Docs
+- Phase 12: Symbolic Editing MVP
 
 Current / Next:
 
-- Phase 12: Symbolic Editing MVP
+- Phase 13: Rename / Refactor MVP
 
 Upcoming:
 
-- Phase 13: Rename / Refactor MVP
 - Phase 14: Additional Backend Language Support
 - Phase 15: Systems / Mobile Language Support
+- Phase 16: Config / Data / Web File Support
+- Phase 17: Language and Technology Quality Audit
+- Phase 18: Refactor Checkpoint D
+- Phase 19: Performance Optimization Pass B
+- Phase 20: Web UI Developer Console Refresh
+- Phase 21: Git Intelligence

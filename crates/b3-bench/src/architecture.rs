@@ -701,7 +701,7 @@ pub fn run_cross_project_benchmark(
             projects_skipped,
             warnings,
             limitations: vec![
-                "fixture/local-repo benchmark only; not a public real-world corpus claim"
+                "fixture/local-repo benchmark only; not a 31 public real-world repository claim"
                     .to_string(),
                 "quality is deterministic task coverage, not human or LLM grading".to_string(),
                 "architecture graph UI is not implemented".to_string(),
@@ -728,14 +728,15 @@ pub fn run_cross_project_benchmark(
 
 pub fn format_cross_project_summary(report: &CrossProjectBenchmarkReport) -> String {
     let mut lines = Vec::new();
-    lines.push("cross-project architecture benchmark".to_string());
+    lines.push("Phase 11 cross-project architecture benchmark".to_string());
     lines.push(format!(
         "projects used={} skipped={} warnings={}",
         report.projects_used.len(),
         report.projects_skipped.len(),
         report.warnings.len()
     ));
-    lines.push("readiness | ready".to_string());
+    lines.push(String::new());
+    lines.push("Phase 11 readiness | ready".to_string());
     lines.push("--- | ---".to_string());
     lines.push(format!(
         "group federation | {}",
@@ -763,7 +764,7 @@ pub fn format_cross_project_summary(report: &CrossProjectBenchmarkReport) -> Str
         report.readiness.service_map_ready
     ));
     lines.push(String::new());
-    lines.push("architecture counts | value".to_string());
+    lines.push("match count | value".to_string());
     lines.push("--- | ---:".to_string());
     lines.push(format!(
         "route matches | {}",
@@ -778,9 +779,49 @@ pub fn format_cross_project_summary(report: &CrossProjectBenchmarkReport) -> Str
         report.group_results.dependency_match_count
     ));
     lines.push(format!(
+        "package matches | {}",
+        report.group_results.package_match_count
+    ));
+    lines.push(format!(
+        "contract matches | {}",
+        report.group_results.contract_match_count
+    ));
+    lines.push(format!(
+        "infrastructure matches | {}",
+        report.group_results.infra_match_count
+    ));
+    lines.push(String::new());
+    lines.push("impact/context-pack | value".to_string());
+    lines.push("--- | ---:".to_string());
+    lines.push(format!(
         "impact successes | {}",
         report.group_results.impact_result_count
     ));
+    lines.push(format!(
+        "context pack chars | {}",
+        report.metrics.context_pack_chars
+    ));
+    lines.push(format!(
+        "estimated context tokens | {}",
+        report.metrics.estimated_tokens
+    ));
+    for task in &report.task_results {
+        if matches!(
+            task.category.as_str(),
+            "route_impact" | "message_impact" | "package_contract" | "context_pack"
+        ) {
+            lines.push(format!(
+                "{} | entities={} relationships={} warnings={}",
+                task.id,
+                task.expected_entity_hits,
+                task.expected_relationship_hits,
+                task.warning_count
+            ));
+        }
+    }
+    lines.push(String::new());
+    lines.push("graph/service-map | value".to_string());
+    lines.push("--- | ---:".to_string());
     lines.push(format!(
         "graph nodes | {}",
         report.group_results.graph_node_count
@@ -790,22 +831,69 @@ pub fn format_cross_project_summary(report: &CrossProjectBenchmarkReport) -> Str
         report.group_results.graph_edge_count
     ));
     lines.push(format!("services | {}", report.group_results.service_count));
+    if let Some(graph_task) = report
+        .task_results
+        .iter()
+        .find(|task| task.category == "architecture_graph")
+    {
+        lines.push(format!(
+            "architecture graph warnings | {}",
+            graph_task.warning_count
+        ));
+    }
+    if let Some(service_task) = report
+        .task_results
+        .iter()
+        .find(|task| task.category == "service_map")
+    {
+        lines.push(format!(
+            "service map warnings | {}",
+            service_task.warning_count
+        ));
+    }
     lines.push(String::new());
+    lines.push("current measured results vs targets | actual | target | met".to_string());
+    lines.push("--- | ---: | ---: | ---".to_string());
     lines.push(format!(
-        "targets: token_x={:.2}/{:.1} tool_x={:.2}/{:.1} quality={:.3}/{:.1}",
+        "token reduction | {:.2}x | {:.1}x | {}",
         report.target_comparisons.token_reduction_multiplier_actual,
         report.target_comparisons.token_reduction_multiplier_target,
+        report.target_comparisons.token_reduction_multiplier_met
+    ));
+    lines.push(format!(
+        "tool-call reduction | {:.2}x | {:.1}x | {}",
         report
             .target_comparisons
             .tool_call_reduction_multiplier_actual,
         report
             .target_comparisons
             .tool_call_reduction_multiplier_target,
-        report.target_comparisons.answer_quality_actual,
-        report.target_comparisons.answer_quality_target
+        report.target_comparisons.tool_call_reduction_multiplier_met
     ));
+    lines.push(format!(
+        "answer quality approximation | {:.3} | {:.1} | {}",
+        report.target_comparisons.answer_quality_actual,
+        report.target_comparisons.answer_quality_target,
+        report.target_comparisons.answer_quality_met
+    ));
+    lines.push(String::new());
+    lines.push(format!(
+        "branch safety: requested={} used={} full_git_intelligence_ready={}",
+        report.branch_safety.requested_branch,
+        report.branch_safety.branch_used,
+        report.branch_safety.full_git_intelligence_ready
+    ));
+    if !report.branch_safety.warnings.is_empty() {
+        lines.push(format!(
+            "branch warnings: {}",
+            report.branch_safety.warnings.join(" | ")
+        ));
+    }
     if !report.warnings.is_empty() {
         lines.push(format!("warnings: {}", report.warnings.join(" | ")));
+    }
+    if !report.limitations.is_empty() {
+        lines.push(format!("limitations: {}", report.limitations.join(" | ")));
     }
     lines.push("offline/free: local registry/project DBs only; no network, telemetry, cloud graph/vector DB, package manager, Docker/Kubernetes/Terraform, broker, or runtime HTTP calls".to_string());
     lines.join("\n")

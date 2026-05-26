@@ -37,12 +37,20 @@ Completed:
 - Phase 11.5 - Group-Level Impact + Context Pack
 - Phase 11.6 - Architecture Graph / Service Map API
 - Phase 11.7 - Cross-Project Benchmark + Docs
-
-Current / Next:
 - Phase 12 - Symbolic Editing MVP
 
+Current / Next:
+- Phase 13 - Rename / Refactor MVP
+
 Upcoming (major):
-- Phase 13 — Rename / Refactor MVP
+- Phase 14 - Additional Backend Language Support
+- Phase 15 - Systems / Mobile Language Support
+- Phase 16 - Config / Data / Web File Support
+- Phase 17 - Language and Technology Quality Audit
+- Phase 18 - Refactor Checkpoint D
+- Phase 19 - Performance Optimization Pass B
+- Phase 20 - Web UI Developer Console Refresh
+- Phase 21 - Git Intelligence
 
 See `PLAN.md` for the full, authoritative roadmap and phase details.
 
@@ -94,6 +102,11 @@ Cross-project architecture foundation:
 - Phase 11.7 benchmarks Phase 11 architecture capabilities locally and documents current limits.
 - B3 still preserves `1 project = 1 repo-local .b3/b3.db`; architecture graph UI is deferred.
 
+Symbolic editing foundation:
+- Phase 12 adds local/offline symbolic edit preview and explicit apply endpoints: `POST /api/edit/preview` and `POST /api/edit/apply`.
+- Preview is dry-run by default. Apply requires explicit `mode=apply` and `dry_run=false`, creates backups by default, and recommends reindex after writing.
+- Phase 12 supports bounded single-file file/range and indexed-symbol edits only. Rename/refactor remains Phase 13.
+
 ---
 
 ## Current Limitations
@@ -108,8 +121,8 @@ Cross-project architecture foundation:
 - Cross-project package/contract/infra matching is static and conservative. It does not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote schema fetches, or schema compatibility validation.
 - Group impact/context packs are static and bounded. They do not execute HTTP requests, connect to brokers, run package managers, run Docker/Kubernetes/Terraform, or merge DBs.
 - Architecture graph/service map APIs are static, local, read-only, and built on demand from existing match candidates. They do not persist a global graph, merge DBs, execute runtime discovery, or include a graph UI.
-- Cross-project benchmark results are fixture/local-repo measurements only, not a public corpus claim. Branch assumptions are reported as warnings; after switching branches, reindex before comparing results until branch-aware hardening and full Git Intelligence arrive later.
-- Symbolic editing / rename & refactor: Phase 12 / Phase 13.
+- Cross-project benchmark results are fixture/local-repo measurements only. They are not a 31 public real-world repository claim. Branch assumptions are reported as warnings; after switching branches, reindex before comparing results until branch-aware indexing and full Git Intelligence arrive later.
+- Symbolic editing is a bounded Control API MVP; MCP edit tools and rename/refactor remain deferred.
 - B3 does not execute code or run cloud/broker/database/package-manager commands by default.
 
 ---
@@ -147,7 +160,8 @@ Cross-project architecture foundation:
 | Group impact/context pack | Usable now, local/static/read-only |
 | Architecture graph/service map API | Usable now, local/static/read-only |
 | Cross-project architecture benchmark | Usable now, local fixture/optional repo baseline |
-| Refactor assistant / rename & refactor | Phase 12 / Phase 13 |
+| Symbolic editing preview/apply | Usable now, local Control API MVP |
+| Refactor assistant / rename & refactor | Phase 13 |
 
 Refer to `PLAN.md` for complete phase definitions and caveats.
 

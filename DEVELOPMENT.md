@@ -201,10 +201,24 @@ Phase 11.7 adds cross-project benchmark coverage and documentation in
 `cross_project_benchmark` JSON section and prints a human-readable Phase 11
 architecture summary. It benchmarks a deterministic local fixture group and
 inspects optional local candidates from `benchmarks/b3.benchmark.toml`; missing
-`Project_B` or `Tuvi_B` paths/DBs warn and skip. It does not index optional real
-repos automatically, merge DBs, call external services, run package managers,
-run Docker/Kubernetes/Terraform, connect to brokers, execute HTTP requests, or
-implement graph UI, symbolic editing, rename/refactor, or full Git Intelligence.
+`Project_B` or `Tuvi_B` paths/DBs warn and skip. It is local fixture/local-repo
+coverage only, not a 31 public real-world repository claim. It does not index
+optional real repos automatically, merge DBs, call external services, run package
+managers, run Docker/Kubernetes/Terraform, connect to brokers, execute HTTP
+requests, or implement graph UI, symbolic editing, rename/refactor, or full Git
+Intelligence. After switching branches, reindex before comparing benchmark
+results until branch-aware indexing is implemented.
+
+Phase 12 adds the local Symbolic Editing MVP. Editing contracts live in
+`b3-core`, planning/apply logic lives in `b3-query::editing`, and `b3-control`
+only exposes thin local adapters at `POST /api/edit/preview` and
+`POST /api/edit/apply`. Preview never mutates files. Apply requires
+`mode=apply` and `dry_run=false`, revalidates the planned text/hash, writes a
+local backup by default, and returns a reindex-recommended warning. The MVP is
+single-file and bounded; rename/refactor, update-all-references, MCP edit tools,
+UI editing, formatter/compiler execution, package manager execution, generated
+code execution, external APIs, telemetry, and full Git Intelligence remain
+deferred.
 
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that

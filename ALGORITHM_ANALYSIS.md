@@ -943,6 +943,8 @@ existing `semantic_quality` and `efficiency_metrics` sections. It does not
 upload results, call external APIs, run package managers, run
 Docker/Kubernetes/Terraform, connect to brokers, execute runtime HTTP calls,
 merge databases, or require hosted graph/vector databases.
+It is local fixture/local-repo benchmark reporting only, not a 31 public
+real-world repository claim.
 
 The architecture benchmark creates a deterministic local fixture group with
 frontend, API, worker, and shared-package projects. It measures group
@@ -964,6 +966,24 @@ Branch safety is warning-only. The benchmark reports requested/used branch
 assumptions and notes that after switching branches users should reindex before
 comparing results. Full Git history, blame, branch diff, PR, remote, and GitHub
 API intelligence remain Phase 21.
+
+### Phase 12 Symbolic Editing MVP
+
+Phase 12 adds deterministic local edit planning. The edit planner resolves an
+explicit file range, whole file target, indexed symbol name, or symbol ID to one
+file under the configured project root. It reads the file as UTF-8 text, rejects
+binary/invalid UTF-8 content, validates 1-based line/column ranges, checks
+optional `expected_current_text`, computes before/after text, and returns a
+bounded unified diff preview. Preview is the default and never mutates files.
+
+Apply is explicit only. The caller must send `mode=apply` and `dry_run=false`.
+The planner re-reads the file, verifies the planned old text/hash, creates a
+local backup by default under `.b3/backups/edits`, writes through a temporary
+file in the same directory, and returns changed files, backup paths, patch text,
+and a reindex-recommended warning. Phase 12 does not run formatters, compilers,
+package managers, generated code, external APIs, telemetry, or cloud services.
+It does not implement rename/refactor, update-all-references, broad multi-file
+edits, MCP edit tools, UI editing, or Git Intelligence.
 
 ## Additional Planned Algorithms
 

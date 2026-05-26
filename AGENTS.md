@@ -516,6 +516,9 @@ local benchmark coverage for Phase 11 federation, matching, group impact,
 context packs, architecture graph API, and service map API; parse
 `benchmarks/b3.benchmark.toml`; report optional local project warnings; write
 benchmark JSON; and document current capability/limitations.
+It is local fixture/local-repo benchmark coverage only, not a 31 public
+real-world repository claim. After switching branches, users should reindex
+before comparing results until branch-aware indexing is implemented.
 
 It must not implement architecture graph UI, symbolic editing, rename/refactor,
 full Git Intelligence, package manager execution, Docker/Kubernetes/Terraform/
@@ -524,6 +527,18 @@ merges, persisted global architecture graphs, cloud graph databases, hosted
 vector databases, cloud embeddings, external APIs, telemetry, paid
 dependencies, model downloads, or internet requirements. `Project_B` and
 `Tuvi_B` benchmark paths must remain optional.
+
+Phase 12 is completed as Symbolic Editing MVP only. It may define local edit
+contracts, resolve explicit file ranges and indexed symbols, preview bounded
+single-file edits, validate safety constraints, apply only with explicit
+`mode=apply` and `dry_run=false`, create local backups by default, emit
+unified-diff-style patches, and expose local Control API preview/apply
+endpoints. It must not implement rename/refactor, update-all-references, broad
+automatic refactoring, multi-file rename workflows, MCP editing tools, UI
+editing, architecture graph UI, full Git Intelligence, formatter/compiler
+execution, package manager execution, generated code execution, cloud services,
+external APIs, telemetry, paid dependencies, model downloads, or internet
+requirements. Reindex after apply is recommended, not hidden or automatic.
 
 ## Local Benchmark Config Boundaries
 

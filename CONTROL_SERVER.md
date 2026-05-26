@@ -117,6 +117,19 @@ Dry-run responses include matched file counts, sample files, matched languages,
 matched frameworks, existing metadata targets when available, warnings, and
 skipped reasons. Dry-run does not mutate SQLite.
 
+Symbolic editing:
+
+- `POST /api/edit/preview`
+- `POST /api/edit/apply`
+
+`POST /api/edit/preview` accepts a local edit request and returns a deterministic
+plan, compact snippets, warnings, and unified diff text without mutating files.
+`POST /api/edit/apply` uses the same request shape, but mutates only when
+`mode` is `apply` and `dry_run` is `false`. Apply re-reads the target file,
+checks the planned text/hash, creates a local backup by default, and returns a
+reindex-recommended warning. Phase 12 is single-file only; rename/refactor and
+MCP edit tools remain deferred.
+
 Query adapter endpoints:
 
 - `POST /api/query/find-symbol`
