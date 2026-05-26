@@ -137,10 +137,10 @@ architecture contracts are available.
 Phase 11.1 adds local group query federation in `b3-query::architecture`.
 Federation reads registry-defined project groups, opens existing project DBs
 read-only, returns partial project status/warnings, and aggregates metadata
-  summaries without merging databases. Route/API, messaging, and
-  package/contract/infra matching are now local/read-only query features; group
-  impact and service maps remain pending. The local storage model remains one
-  repo-local `.b3/b3.db` per project.
+  summaries without merging databases. Route/API, messaging,
+  package/contract/infra matching, and group impact/context packs are now
+  local/read-only query features; service maps remain pending. The local storage
+  model remains one repo-local `.b3/b3.db` per project.
 
 Phase 11.1.1 adds context efficiency and tool-call reduction measurements to
 the same local baseline. The JSON output includes `efficiency_metrics` with
@@ -178,6 +178,14 @@ through `GET /api/architecture/groups/{group_id}/dependency-matches`. It does
 not run package managers, Docker, Kubernetes, Terraform, cloud CLIs, remote
 schema fetches, schema validators, merge databases, add MCP tools, or add group
 impact/service-map APIs.
+
+Phase 11.5 adds local group impact and cross-repo context packs in
+`b3-query::architecture`. It resolves seeds against existing route/message/
+dependency match candidates, traverses them with bounded depth/limit settings,
+and returns results through `POST /api/architecture/groups/{group_id}/impact`.
+It does not execute HTTP requests, connect to brokers, run package managers,
+run Docker/Kubernetes/Terraform/cloud CLIs, merge databases, add MCP tools, or
+add service-map APIs.
 
 The watcher debounce benchmark measures event coalescing overhead. It does not
 include an intentional sleep for the configured debounce wait, because that

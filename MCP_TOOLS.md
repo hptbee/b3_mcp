@@ -71,6 +71,11 @@ profiles, or change tool counts. Matching lives in `b3-query::architecture`
 and never runs package managers, Docker, Kubernetes, Terraform, cloud CLIs, or
 remote schema fetches.
 
+Phase 11.5 adds group impact and cross-repo context packs through the local
+Control API only. It does not add an MCP group-impact tool, change MCP profiles,
+or change tool counts. Existing MCP `impact_analysis` and `get_context_pack`
+remain per-project query tools.
+
 ## Local Stdio Server
 
 Run the local stdio server with:

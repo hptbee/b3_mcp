@@ -873,8 +873,35 @@ Output is an `ArchitectureMatchCandidate` plus `ArchitectureNode` and
 `ArchitectureEdge` records for `DependsOnPackage`, `ImportsPackage`,
 `SharesContract`, `UsesContract`, `DependsOnInfrastructure`, `DeploysService`,
 and `SelectsService`, with compact evidence, warnings, deterministic IDs,
-deterministic sorting, and dedupe. Group impact/context pack and service-map
-APIs remain deferred.
+deterministic sorting, and dedupe. Group impact/context pack is added in Phase
+11.5; service-map APIs remain deferred.
+
+### Phase 11.5 Group-Level Impact + Context Pack
+
+Phase 11.5 builds a bounded local impact graph from existing Phase 11.2 route
+matches, Phase 11.3 messaging matches, and Phase 11.4 dependency matches. It
+does not extract new runtime facts, merge project DBs, perform service
+discovery, execute HTTP requests, connect to brokers, run package managers,
+run Docker/Kubernetes/Terraform/cloud CLIs, call external APIs, or use hosted
+graph/vector databases.
+
+Impact requests support route, message, package, contract, infrastructure,
+file, symbol, and query seeds. Seed paths must be relative and traversal is
+bounded by clamped depth and limit values. Ambiguous seeds become multiple
+deterministically sorted seed nodes; missing seeds return structured errors.
+
+Traversal uses architecture nodes and edges from match candidates. Upstream
+follows outgoing dependency edges, downstream follows dependent edges and
+safe publish/share/deploy relationships, and both combines the two. Paths
+dedupe nodes and edges, preserve evidence summaries, and aggregate confidence
+conservatively by taking the weakest hop with a small depth penalty.
+
+Context packs are generated from the impact result with `minimal`, `balanced`,
+and `deep` profiles. Each profile has a fixed char budget, includes seed and
+impact summaries, top relationship paths, key files/symbols, compact snippets,
+warnings, skipped items, truncation reason, and chars/4 token estimates. File
+content is read from existing local project DBs only, snippets are capped, and
+full-file dumps are avoided.
 
 ## Additional Planned Algorithms
 

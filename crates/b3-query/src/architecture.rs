@@ -8,6 +8,8 @@
 pub mod contract_matching;
 #[path = "architecture/dependency_keys.rs"]
 pub mod dependency_keys;
+#[path = "architecture/group_impact.rs"]
+pub mod group_impact;
 #[path = "architecture/http_clients.rs"]
 pub mod http_clients;
 #[path = "architecture/infra_matching.rs"]
@@ -36,6 +38,10 @@ use b3_storage::{
 };
 use serde::{Deserialize, Serialize};
 
+pub use group_impact::{
+    ContextPackProfile, GroupContextPack, GroupImpactDirection, GroupImpactRequest,
+    GroupImpactResult, GroupImpactSeedType,
+};
 pub use messaging_matching::{GroupMessageMatchReport, MessageMatch, MessageMatchOptions};
 pub use package_matching::{DependencyMatch, DependencyMatchOptions, GroupDependencyMatchReport};
 pub use route_matching::{GroupRouteMatchReport, RouteMatch, RouteMatchOptions};

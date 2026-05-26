@@ -965,6 +965,17 @@ fetch remote schemas, validate schema compatibility, call external APIs, add
 telemetry, or add MCP architecture tools. Group impact/context packs and service
 map APIs remain deferred.
 
+Phase 11.5 adds static/read-only group impact and cross-repo context pack
+generation inside local registry project groups. It may resolve local seeds,
+traverse existing route/message/dependency match candidates with bounded
+depth/limit settings, produce impact nodes, edges, paths, confidence, evidence,
+warnings, project summaries, and bounded context packs. It must preserve one
+repo-local `.b3/b3.db` per project and must not merge project DBs globally,
+execute HTTP requests, connect to brokers, run package managers, run
+Docker/Kubernetes/Terraform/cloud CLIs, fetch remote schemas, validate schema
+compatibility, call external APIs, add telemetry, or add MCP architecture tools.
+Service map APIs and graph UI remain deferred.
+
 `benchmarks/b3.benchmark.toml` is the default local benchmark configuration
 path for broader Phase 11.7 real-local benchmarks. It may reference optional
 local repositories such as `D:\Project\b3_mcp`, `D:\Project\Project_B`, and
@@ -980,14 +991,14 @@ merging benchmark databases into a global DB.
 Completed:
 
 - Phase 11.4: Cross-Repo Package / Contract / Infra Matching
+- Phase 11.5: Group-Level Impact + Context Pack
 
 Current / Next:
 
-- Phase 11.5: Group-Level Impact + Context Pack
+- Phase 11.6: Architecture Graph / Service Map API
 
 Upcoming:
 
-- Phase 11.6: Architecture Graph / Service Map API
 - Phase 11.7: Cross-Project Benchmark + Docs
 - Phase 12: Symbolic Editing MVP
 - Phase 13: Rename / Refactor MVP

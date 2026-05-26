@@ -468,6 +468,7 @@ pub struct ArchitectureCapabilityStatus {
     pub messaging_matching_ready: bool,
     pub package_contract_infra_matching_ready: bool,
     pub group_impact_ready: bool,
+    pub group_context_pack_ready: bool,
     pub service_map_ready: bool,
     pub local_only: bool,
     pub global_db_merge_required: bool,
@@ -485,7 +486,8 @@ impl Default for ArchitectureCapabilityStatus {
             route_matching_ready: true,
             messaging_matching_ready: true,
             package_contract_infra_matching_ready: true,
-            group_impact_ready: false,
+            group_impact_ready: true,
+            group_context_pack_ready: true,
             service_map_ready: false,
             local_only: true,
             global_db_merge_required: false,
@@ -818,7 +820,8 @@ mod tests {
         assert!(status.route_matching_ready);
         assert!(status.messaging_matching_ready);
         assert!(status.package_contract_infra_matching_ready);
-        assert!(!status.group_impact_ready);
+        assert!(status.group_impact_ready);
+        assert!(status.group_context_pack_ready);
         assert!(!status.service_map_ready);
         assert!(status.local_only);
         assert!(!status.global_db_merge_required);

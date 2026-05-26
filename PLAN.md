@@ -58,12 +58,12 @@ Completed:
 - Phase 11.2 Cross-Repo Route / API Matching
 - Phase 11.3 Cross-Repo Messaging Matching
 - Phase 11.4 Cross-Repo Package / Contract / Infra Matching
-
-Current/Next:
 - Phase 11.5 Group-Level Impact + Context Pack
 
-Upcoming:
+Current/Next:
 - Phase 11.6 Architecture Graph / Service Map API
+
+Upcoming:
 - Phase 11.7 Cross-Project Benchmark + Docs
 - Phase 12 Symbolic Editing MVP
 - Phase 13 Rename / Refactor MVP
@@ -1292,15 +1292,30 @@ Rules:
 
 ## Phase 11.5 - Group-Level Impact + Context Pack
 
-Status: Current / Next.
+Status: Completed.
 
-Scope:
+Scope completed:
 
-- add group-level impact and context-pack queries over federated local project results
+- added `b3-query::architecture::group_impact` for static/read-only group impact traversal
+- added request validation for seed type, relative paths, direction, depth, limit, context profile, optional confidence threshold, and context-pack inclusion
+- resolved seeds for route, message, package, contract, infrastructure, file, symbol, and query against local architecture nodes from existing match candidates
+- reused Phase 11.2 route matches, Phase 11.3 messaging matches, and Phase 11.4 dependency matches without adding extraction or runtime discovery
+- added bounded deterministic traversal over existing cross-project match candidates, with deduped nodes/edges/paths, confidence propagation, evidence summaries, warnings, and project summaries
+- added minimal, balanced, and deep cross-repo context pack profiles with bounded char budgets, chars/4 token estimates, sectioned summaries, deduped snippets, skipped-item reporting, and truncation reasons
+- added read-only Control endpoint `POST /api/architecture/groups/{group_id}/impact`
+- updated architecture status/capabilities so group impact and group context pack are ready while service maps remain false
+- preserved one repo-local `.b3/b3.db` per project and avoided global database merging
+
+Rules:
+
+- no architecture graph UI or service map API
+- no Phase 11.7 cross-project benchmark/docs expansion
+- no symbolic editing or rename/refactor
+- no package manager execution, Docker/Kubernetes/Terraform/cloud CLI execution, runtime HTTP calls, broker connections, cloud APIs, schema compatibility validation, telemetry, hosted vector database, cloud graph database, external API, paid dependency, model download, or internet requirement
 
 ## Phase 11.6 - Architecture Graph / Service Map API
 
-Status: Planned.
+Status: Current / Next.
 
 Scope:
 
@@ -1431,13 +1446,14 @@ Note: Basic local agent install helpers already exist from Phase 8.7. This phase
 | Cross-project route/API matching | Usable now, local/static/read-only |
 | Cross-project messaging matching | Usable now, local/static/read-only |
 | Cross-project package/contract/infra matching | Usable now, local/static/read-only |
+| Group impact/context pack | Usable now, local/static/read-only |
 | Full memory/context platform | Later phase |
 | Release-grade packaging | Phase 24 |
 
 B3 can run today as a local MCP/runtime/control/UI platform with Rust, basic JS/TS/JSX/TSX indexing, basic static Node.js REST route intelligence, basic static React/TSX component intelligence, basic static Next.js route/boundary intelligence, basic static Angular metadata, basic static ASP.NET Core / C# Web API route intelligence, basic static ORM/database access metadata, basic static realtime/socket metadata, basic static messaging/event-driven metadata, basic static cloud/infrastructure metadata, basic static Go language support, scoped indexing, and basic static WPF/XAML intelligence.
 
 Local embeddings and vector search progress through Phase 10.0-10.5.
-Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4. Group impact/context packs and service maps remain later Phase 11 work.
+Cross-project architecture contracts begin in Phase 11.0; read-only group federation begins in Phase 11.1; local route/API matching begins in Phase 11.2; local messaging matching begins in Phase 11.3; local package/contract/infra matching begins in Phase 11.4; local group impact/context pack begins in Phase 11.5. Service maps remain later Phase 11 work.
 
 ---
 

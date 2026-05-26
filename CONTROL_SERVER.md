@@ -228,8 +228,8 @@ Current truth:
 - Phase 11.0 architecture contracts are available locally. Phase 11.1 adds
   local group federation endpoints. `GET /api/architecture/status` reports
   architecture contracts, group federation, route matching, messaging matching,
-  and package/contract/infra matching ready, while group impact and service
-  maps are not ready yet. Group endpoints read the local registry and
+  package/contract/infra matching, group impact, and group context packs ready,
+  while service maps are not ready yet. Group endpoints read the local registry and
   existing repo-local project DBs only; no global database merge, cloud graph
   database, hosted vector database, telemetry, or remote lookup is required.
 - Phase 11.1.1 adds benchmark-only efficiency checks for the existing
@@ -258,6 +258,13 @@ Current truth:
   `dependency_matching_ready = true`. It does not run package managers, Docker,
   Kubernetes, Terraform, cloud CLIs, remote schema fetches, schema validation,
   cloud APIs, DB merges, or service-map/group impact APIs.
+- Phase 11.5 adds read-only
+  `POST /api/architecture/groups/{group_id}/impact`. The endpoint resolves a
+  local seed, traverses existing route/message/dependency match candidates
+  within bounded depth/limit settings, and can return a bounded cross-repo
+  context pack. It does not run package managers, Docker, Kubernetes,
+  Terraform, cloud CLIs, brokers, runtime HTTP calls, cloud APIs, DB merges,
+  service-map APIs, or graph UI behavior.
 
 LSP endpoints are metadata-only in Phase 9.1. They report the local LSP backend foundation, disabled-by-default config, and configured server availability; they do not install language servers, contact cloud services, or add MCP tools.
 

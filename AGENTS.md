@@ -485,6 +485,19 @@ schema fetching, schema compatibility validation, global database merges, cloud
 graph databases, hosted vector databases, external APIs, telemetry, paid
 dependencies, model downloads, or internet requirements.
 
+Phase 11.5 is completed as group-level impact and cross-repo context pack only.
+It may resolve local seeds, traverse existing route/message/dependency match
+candidates inside a registry project group, produce impact nodes/edges/paths,
+confidence, evidence, warnings, bounded context packs, and expose a read-only
+local Control API endpoint.
+
+It must not implement architecture graph UI, service map APIs, Phase 11.7
+benchmark/docs expansion, symbolic editing, rename/refactor, package manager
+execution, Docker/Kubernetes/Terraform/cloud CLI execution, runtime HTTP calls,
+broker connections, global database merges, cloud graph databases, hosted vector
+databases, external APIs, telemetry, paid dependencies, model downloads, or
+internet requirements.
+
 ## Local Benchmark Config Boundaries
 
 `benchmarks/b3.benchmark.toml` is the default local benchmark config path for

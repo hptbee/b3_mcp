@@ -39,7 +39,7 @@ use b3_indexer::{
 use b3_mcp_runtime::{runtime_info, RuntimeResponsibility};
 use b3_query::architecture::{
     package_matching::DependencyMatchKindFilter, DependencyMatchOptions, GroupFederation,
-    MessageMatchOptions, RouteMatchOptions,
+    GroupImpactRequest, MessageMatchOptions, RouteMatchOptions,
 };
 use b3_query::hybrid::{HybridRankingExplanation, HybridSearchEngine, HybridSearchRequest};
 use b3_storage::{
@@ -329,6 +329,10 @@ pub fn app(state: ControlState) -> Router {
         .route(
             "/api/architecture/groups/:group_id/dependency-matches",
             get(architecture_group_dependency_matches),
+        )
+        .route(
+            "/api/architecture/groups/:group_id/impact",
+            post(architecture_group_impact),
         )
         .route("/api/vector/status", get(vector_status))
         .route("/api/vector/providers", get(vector_providers))
@@ -1600,6 +1604,7 @@ async fn capabilities(State(state): State<ControlState>) -> Json<Value> {
             "architecture_group_route_matches": true,
             "architecture_group_message_matches": true,
             "architecture_group_dependency_matches": true,
+            "architecture_group_impact": true,
             "events": "sse"
         },
         "language_backends": language_registry
@@ -1624,7 +1629,10 @@ async fn architecture_groups(
         "matching_ready": true,
         "route_matching_ready": true,
         "messaging_matching_ready": true,
-        "package_contract_infra_matching_ready": true
+        "package_contract_infra_matching_ready": true,
+        "group_impact_ready": true,
+        "group_context_pack_ready": true,
+        "service_map_ready": false
     })))
 }
 
@@ -1645,6 +1653,8 @@ async fn architecture_group_status(
         "route_matching_ready": true,
         "messaging_matching_ready": true,
         "package_contract_infra_matching_ready": true,
+        "group_impact_ready": true,
+        "group_context_pack_ready": true,
         "local_only": true
     })))
 }
@@ -1664,8 +1674,26 @@ async fn architecture_group_summary(
         "route_matching_ready": true,
         "messaging_matching_ready": true,
         "package_contract_infra_matching_ready": true,
+        "group_impact_ready": true,
+        "group_context_pack_ready": true,
         "local_only": true
     })))
+}
+
+async fn architecture_group_impact(
+    State(state): State<ControlState>,
+    Path(group_id): Path<String>,
+    payload: Result<Json<GroupImpactRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<Value>, ControlError> {
+    let request = payload
+        .map_err(|rejection| ControlError::bad_request(rejection.body_text()))?
+        .0;
+    let federation = GroupFederation::from_registry_path((*state.registry_path).clone())
+        .map_err(ControlError::internal)?;
+    let report = federation
+        .group_impact(&group_id, request)
+        .map_err(federation_error)?;
+    Ok(Json(json!(report)))
 }
 
 async fn architecture_group_dependency_matches(
@@ -4912,7 +4940,8 @@ mod tests {
             body["architecture"]["package_contract_infra_matching_ready"],
             true
         );
-        assert_eq!(body["architecture"]["group_impact_ready"], false);
+        assert_eq!(body["architecture"]["group_impact_ready"], true);
+        assert_eq!(body["architecture"]["group_context_pack_ready"], true);
         assert_eq!(body["architecture"]["service_map_ready"], false);
         assert_eq!(body["architecture"]["local_only"], true);
         assert_eq!(body["architecture"]["global_db_merge_required"], false);
@@ -4937,6 +4966,7 @@ mod tests {
             body["control_api"]["architecture_group_dependency_matches"],
             true
         );
+        assert_eq!(body["control_api"]["architecture_group_impact"], true);
         assert_eq!(body["vector_search"]["local_only"], true);
         assert_eq!(body["vector_search"]["external_plugins_enabled"], false);
         assert_eq!(body["language_backends"]["lsp_enabled"], false);
@@ -4961,7 +4991,8 @@ mod tests {
         assert_eq!(body["route_matching_ready"], true);
         assert_eq!(body["messaging_matching_ready"], true);
         assert_eq!(body["package_contract_infra_matching_ready"], true);
-        assert_eq!(body["group_impact_ready"], false);
+        assert_eq!(body["group_impact_ready"], true);
+        assert_eq!(body["group_context_pack_ready"], true);
         assert_eq!(body["service_map_ready"], false);
         assert_eq!(body["local_only"], true);
         assert_eq!(body["global_db_merge_required"], false);
@@ -5029,6 +5060,8 @@ mod tests {
         assert_eq!(status["matching_ready"], true);
         assert_eq!(status["route_matching_ready"], true);
         assert_eq!(status["messaging_matching_ready"], true);
+        assert_eq!(status["group_impact_ready"], true);
+        assert_eq!(status["group_context_pack_ready"], true);
 
         let summary_response = app
             .clone()
@@ -5113,6 +5146,62 @@ mod tests {
             body["matches"][0]["candidate"]["relationship_kind"],
             "CallsHttpRoute"
         );
+    }
+
+    #[tokio::test]
+    async fn architecture_group_impact_endpoint_returns_context_pack() {
+        let dir = tempdir().expect("tempdir");
+        let registry_path = dir.path().join("registry.json");
+        let web_db = dir.path().join("web").join(".b3").join("b3.db");
+        let api_db = dir.path().join("api").join(".b3").join("b3.db");
+        seed_route_match_database(
+            &web_db,
+            "web",
+            r#"fetch("/api/orders");"#,
+            &[("GET", "/dashboard")],
+        );
+        seed_route_match_database(
+            &api_db,
+            "api",
+            "app.get('/api/orders', handler);",
+            &[("GET", "/api/orders")],
+        );
+        write_group_registry(
+            &registry_path,
+            &[("web", "Web", &web_db), ("api", "API", &api_db)],
+            &["web", "api"],
+        );
+
+        let app = app(ControlState::from_storage_with_registry_path(
+            PathBuf::from("."),
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("control storage"),
+            registry_path,
+        ));
+        let response = post_json(
+            app,
+            "/api/architecture/groups/suite/impact",
+            r#"{"seed_type":"route","method":"GET","route_path":"/api/orders","direction":"downstream","max_depth":2,"limit":20,"context_profile":"minimal","include_context_pack":true}"#,
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["local_only"], true);
+        assert_eq!(body["seed"]["seed_type"], "route");
+        assert_eq!(body["direction"], "downstream");
+        assert!(body["impacted_project_count"].as_u64().unwrap_or_default() >= 2);
+        assert!(
+            body["context_pack"]["returned_chars"]
+                .as_u64()
+                .unwrap_or_default()
+                > 0
+        );
+        assert_eq!(body["context_pack"]["profile"], "minimal");
+        assert!(body["edges"].as_array().expect("edges").iter().any(|edge| {
+            edge["relationship_kind"] == "CallsHttpRoute"
+                && edge["source_phase"] == "route_matching"
+        }));
     }
 
     #[tokio::test]
