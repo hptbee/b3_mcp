@@ -34,8 +34,9 @@ pub(crate) use dispatch::{
 };
 pub use dispatch::{DefaultLanguagePack, NoopTreeSitterParser, RustLanguagePack, WebLanguagePack};
 pub(crate) use metadata_helpers::{
-    edge_kind_name, edge_provenance_name, node_kind_name, parse_edge_kind, parse_edge_provenance,
-    parse_node_kind, to_contract_error,
+    edge_kind_name, edge_provenance_name, escape_metadata, escape_metadata_semicolon,
+    node_kind_name, parse_edge_kind, parse_edge_provenance, parse_node_kind,
+    prefixed_metadata_value, prefixed_metadata_value_semicolon, to_contract_error,
 };
 pub use parser_worker::{
     parse_worker_json_line, ParserErrorDto, ParserFailure, ParserFailureKind, ParserJobRequest,

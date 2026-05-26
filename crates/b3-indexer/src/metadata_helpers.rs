@@ -108,3 +108,37 @@ pub(crate) fn parse_edge_provenance(value: &str) -> EdgeProvenance {
 pub(crate) fn to_contract_error(error: impl std::fmt::Display) -> ContractError {
     ContractError::new(error.to_string())
 }
+
+pub(crate) fn escape_metadata(value: &str) -> String {
+    value.replace(';', "%3B").replace('\n', "\\n")
+}
+
+pub(crate) fn unescape_metadata(value: &str) -> String {
+    value.replace("%3B", ";").replace("\\n", "\n")
+}
+
+pub(crate) fn escape_metadata_semicolon(value: &str) -> String {
+    value.replace(';', "%3B")
+}
+
+pub(crate) fn unescape_metadata_semicolon(value: &str) -> String {
+    value.replace("%3B", ";")
+}
+
+pub(crate) fn prefixed_metadata_value(metadata: &str, prefix: &str, key: &str) -> Option<String> {
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&format!("{prefix}.{key}="))
+            .map(unescape_metadata)
+    })
+}
+
+pub(crate) fn prefixed_metadata_value_semicolon(
+    metadata: &str,
+    prefix: &str,
+    key: &str,
+) -> Option<String> {
+    metadata.split(';').find_map(|part| {
+        part.strip_prefix(&format!("{prefix}.{key}="))
+            .map(unescape_metadata_semicolon)
+    })
+}

@@ -83,7 +83,9 @@ pub(super) fn encode_route_metadata(metadata: &RouteMetadata) -> String {
         ("route.source", Some(metadata.source_kind.as_str())),
     ]
     .into_iter()
-    .filter_map(|(key, value)| value.map(|value| format!("{key}={}", value.replace(';', "%3B"))))
+    .filter_map(|(key, value)| {
+        value.map(|value| format!("{key}={}", escape_metadata_semicolon(value)))
+    })
     .chain([
         format!("route.line_start={}", metadata.line_start),
         format!("route.line_end={}", metadata.line_end),
@@ -94,9 +96,5 @@ pub(super) fn encode_route_metadata(metadata: &RouteMetadata) -> String {
 }
 
 pub(crate) fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    let full_key = format!("route.{key}=");
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&full_key)
-            .map(|value| value.replace("%3B", ";"))
-    })
+    prefixed_metadata_value_semicolon(metadata, "route", key)
 }

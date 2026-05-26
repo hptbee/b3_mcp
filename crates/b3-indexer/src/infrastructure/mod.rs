@@ -200,19 +200,7 @@ pub(crate) fn scalar_name(line: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn escape_metadata(value: &str) -> String {
-    value.replace(';', "%3B").replace('\n', "\\n")
-}
-
-#[cfg(test)]
-fn unescape_metadata(value: &str) -> String {
-    value.replace("%3B", ";").replace("\\n", "\n")
-}
-
 #[cfg(test)]
 pub(crate) fn infrastructure_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("infrastructure.{key}="))
-            .map(unescape_metadata)
-    })
+    prefixed_metadata_value(metadata, "infrastructure", key)
 }

@@ -755,18 +755,12 @@ fn encode_route_metadata(metadata: &RouteMetadata) -> String {
 }
 
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("route.{key}="))
-            .map(|value| value.replace("%3B", ";"))
-    })
+    prefixed_metadata_value_semicolon(metadata, "route", key)
 }
 
 #[cfg(test)]
 pub(crate) fn aspnet_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("aspnet.{key}="))
-            .map(|value| value.replace("%3B", ";"))
-    })
+    prefixed_metadata_value_semicolon(metadata, "aspnet", key)
 }
 
 fn append_metadata(metadata: &mut String, key: &str, value: &str) {
@@ -775,7 +769,7 @@ fn append_metadata(metadata: &mut String, key: &str, value: &str) {
     }
     metadata.push_str(key);
     metadata.push('=');
-    metadata.push_str(&value.replace(';', "%3B"));
+    metadata.push_str(&escape_metadata_semicolon(value));
 }
 
 fn bool_str(value: bool) -> &'static str {

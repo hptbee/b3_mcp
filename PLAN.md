@@ -419,7 +419,19 @@ Completed scope:
 - did not change database schema, migration numbers, control APIs, storage APIs, MCP tools/profiles, benchmark targets, language support levels, frontend files, or feature behavior
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
 
-Next: Phase 18.5 Shared Helper Consolidation.
+### Phase 18.5 Shared Helper Consolidation
+
+Status: Completed.
+
+Completed scope:
+
+- consolidated duplicated indexer metadata escaping and prefixed metadata lookup helpers into `crates/b3-indexer/src/metadata_helpers.rs`
+- consolidated duplicated SQL/ksqlDB line-comment stripping and statement line lookup helpers into `crates/b3-indexer/src/data_files/mod.rs`
+- kept existing local metadata accessor wrapper names for test and module compatibility
+- preserved metadata formats, escaping/unescaping semantics, redaction/value classification behavior, comment stripping behavior, literal extraction behavior, confidence values, language support levels, APIs, schema, migrations, MCP tools/profiles, and benchmark targets
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, browser/WebGL runtime, or frontend checks required
+
+Next: Phase 18.6 Optional Core / Query Architecture Split Review.
 
 ---
 
@@ -1163,14 +1175,14 @@ Completed:
 - Phase 18.2 - Control Server Route Module Split
 - Phase 18.3 - Storage Module Split
 - Phase 18.4 - Indexer Pipeline / Dispatch Split
+- Phase 18.5 - Shared Helper Consolidation
 
 Current/Next:
 
-- Phase 18.5 - Shared Helper Consolidation
+- Phase 18.6 - Optional Core / Query Architecture Split Review
 
 Upcoming:
 
-- Phase 18.6 - Optional Core / Query Architecture Split Review
 - Phase 18.7 - Final Refactor Checkpoint Verification
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh

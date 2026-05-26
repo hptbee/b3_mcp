@@ -669,10 +669,7 @@ pub(crate) fn encode_data_access_metadata(metadata: &DataAccessMetadata) -> Stri
 
 #[cfg(test)]
 pub(crate) fn data_access_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("data_access.{key}="))
-            .map(unescape_metadata)
-    })
+    prefixed_metadata_value(metadata, "data_access", key)
 }
 
 fn containing_symbol_id(symbols: &[ExtractedSymbol], line: usize) -> Option<SymbolId> {
@@ -758,15 +755,6 @@ fn next_class_name(lines: &[&str], start: usize) -> Option<String> {
 
 fn normalized_file(input: &ParseInput) -> String {
     input.path.to_string_lossy().replace('\\', "/")
-}
-
-fn escape_metadata(value: &str) -> String {
-    value.replace(';', "%3B").replace('\n', "\\n")
-}
-
-#[cfg(test)]
-fn unescape_metadata(value: &str) -> String {
-    value.replace("%3B", ";").replace("\\n", "\n")
 }
 
 fn is_identifier(value: &str) -> bool {

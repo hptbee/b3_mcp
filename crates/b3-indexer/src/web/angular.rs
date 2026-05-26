@@ -722,15 +722,11 @@ fn angular_pair(key: &str, value: Option<&str>) -> Option<String> {
     value.map(|value| {
         format!(
             "{ANGULAR_METADATA_PREFIX}{key}={}",
-            value.replace(';', "%3B")
+            escape_metadata_semicolon(value)
         )
     })
 }
 
 pub(crate) fn angular_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    let full_key = format!("{ANGULAR_METADATA_PREFIX}{key}=");
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&full_key)
-            .map(|value| value.replace("%3B", ";"))
-    })
+    prefixed_metadata_value_semicolon(metadata, "angular", key)
 }

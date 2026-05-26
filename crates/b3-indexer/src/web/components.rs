@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 pub(super) fn collect_component_relationships(
     symbols: &[ExtractedSymbol],
@@ -68,7 +68,9 @@ pub(super) fn encode_component_metadata(metadata: &ComponentMetadata) -> String 
         ("component.source", Some(metadata.source_kind.as_str())),
     ]
     .into_iter()
-    .filter_map(|(key, value)| value.map(|value| format!("{key}={}", value.replace(';', "%3B"))))
+    .filter_map(|(key, value)| {
+        value.map(|value| format!("{key}={}", escape_metadata_semicolon(value)))
+    })
     .chain([
         format!("component.hooks={}", metadata.hooks.join(",")),
         format!("component.usages={}", metadata.usages.join(",")),
@@ -81,11 +83,7 @@ pub(super) fn encode_component_metadata(metadata: &ComponentMetadata) -> String 
 }
 
 pub(crate) fn component_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    let full_key = format!("component.{key}=");
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&full_key)
-            .map(|value| value.replace("%3B", ";"))
-    })
+    prefixed_metadata_value_semicolon(metadata, "component", key)
 }
 
 pub(super) fn merge_visibility(existing: Option<String>, metadata: String) -> Option<String> {

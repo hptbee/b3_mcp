@@ -599,16 +599,5 @@ pub(crate) fn backend_metadata_value(metadata: &str, prefix: &str, key: &str) ->
 }
 
 fn metadata_value(metadata: &str, prefix: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("{prefix}.{key}="))
-            .map(unescape_metadata)
-    })
-}
-
-fn escape_metadata(value: &str) -> String {
-    value.replace(';', "%3B").replace('\n', "\\n")
-}
-
-fn unescape_metadata(value: &str) -> String {
-    value.replace("%3B", ";").replace("\\n", "\n")
+    prefixed_metadata_value(metadata, prefix, key)
 }

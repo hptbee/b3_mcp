@@ -131,25 +131,3 @@ fn words_after_all(upper: &str, original: &str, marker: &str) -> Vec<String> {
     names.dedup();
     names
 }
-
-fn line_for_statement(source: &str, statement: &str) -> Option<usize> {
-    let offset = source.find(statement.trim())?;
-    Some(source[..offset].lines().count().max(1))
-}
-
-fn strip_sql_comments(source: &str) -> String {
-    source
-        .lines()
-        .map(|line| {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("--") {
-                ""
-            } else if let Some(index) = line.find("--") {
-                &line[..index]
-            } else {
-                line
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}

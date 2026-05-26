@@ -718,18 +718,12 @@ fn encode_route_metadata(metadata: &RouteMetadata) -> String {
 }
 
 fn route_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("route.{key}="))
-            .map(unescape_metadata)
-    })
+    prefixed_metadata_value_semicolon(metadata, "route", key)
 }
 
 #[cfg(test)]
 pub(crate) fn go_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("go.{key}="))
-            .map(unescape_metadata)
-    })
+    prefixed_metadata_value_semicolon(metadata, "go", key)
 }
 
 fn go_mod_module_path(source: &str) -> Option<String> {
@@ -905,15 +899,11 @@ fn append_metadata(metadata: &mut String, key: &str, value: &str) {
     }
     metadata.push_str(key);
     metadata.push('=');
-    metadata.push_str(&escape_metadata(value));
+    metadata.push_str(&escape_metadata_semicolon(value));
 }
 
 fn escape_metadata(value: &str) -> String {
-    value.replace(';', "%3B")
-}
-
-fn unescape_metadata(value: &str) -> String {
-    value.replace("%3B", ";")
+    escape_metadata_semicolon(value)
 }
 
 fn line_offsets(source: &str) -> Vec<usize> {

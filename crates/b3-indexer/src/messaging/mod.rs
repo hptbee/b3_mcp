@@ -308,19 +308,7 @@ fn containing_symbol<'a>(
         .min_by_key(|symbol| symbol.end_line.saturating_sub(symbol.start_line))
 }
 
-fn escape_metadata(value: &str) -> String {
-    value.replace(';', "%3B").replace('\n', "\\n")
-}
-
-#[cfg(test)]
-fn unescape_metadata(value: &str) -> String {
-    value.replace("%3B", ";").replace("\\n", "\n")
-}
-
 #[cfg(test)]
 pub(crate) fn messaging_metadata_value(metadata: &str, key: &str) -> Option<String> {
-    metadata.split(';').find_map(|part| {
-        part.strip_prefix(&format!("messaging.{key}="))
-            .map(unescape_metadata)
-    })
+    prefixed_metadata_value(metadata, "messaging", key)
 }
