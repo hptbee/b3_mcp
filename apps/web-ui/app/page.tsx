@@ -214,11 +214,18 @@ export default function Home() {
   }
 
   return (
-    <main className="shell">
+    <main className="shell bg-zinc-950 text-zinc-100">
       <aside className="sidebar">
         <div>
           <p className="eyebrow">B3 Control</p>
           <h1>Local MCP Intelligence</h1>
+        </div>
+        <div className="button-row">
+          <StatusChip label={health?.status ?? "unknown"} tone={statusTone(health?.status)} />
+          <StatusChip
+            label={eventStatus}
+            tone={eventStatus === "connected" ? "green" : eventStatus === "connecting" ? "blue" : "amber"}
+          />
         </div>
         <nav aria-label="Sections">
           <a href="#dashboard">Dashboard</a>
@@ -254,6 +261,11 @@ export default function Home() {
               value={health?.telemetry_enabled ? "enabled" : "disabled"}
             />
             <Metric label="API Base URL" value={API_BASE_URL} />
+          </div>
+          <div className="button-row">
+            <StatusChip label={state.health?.ok ? "api online" : "api offline"} tone={state.health?.ok ? "green" : "rose"} />
+            <StatusChip label={health?.offline_mode ?? status?.offline_mode ? "offline mode" : "online capable"} tone={health?.offline_mode ?? status?.offline_mode ? "green" : "amber"} />
+            <StatusChip label={health?.telemetry_enabled ? "telemetry enabled" : "telemetry disabled"} tone={health?.telemetry_enabled ? "rose" : "green"} />
           </div>
           <ErrorLine result={state.health} />
         </section>
@@ -457,7 +469,10 @@ export default function Home() {
             <p className="eyebrow">Logs / Events</p>
             <h2>SSE Feed</h2>
           </div>
-          <p className="status-line">Connection: {eventStatus}</p>
+          <StatusChip
+            label={`SSE ${eventStatus}`}
+            tone={eventStatus === "connected" ? "green" : eventStatus === "connecting" ? "blue" : "amber"}
+          />
           {events.length === 0 ? (
             <p className="note">Waiting for control server events.</p>
           ) : (
@@ -484,6 +499,26 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+type ChipTone = "green" | "blue" | "amber" | "rose";
+
+function StatusChip({ label, tone }: { label: string; tone: ChipTone }) {
+  return <span className={`status-chip ${tone}`}>{label}</span>;
+}
+
+function statusTone(status?: string): ChipTone {
+  const normalized = status?.toLowerCase() ?? "";
+  if (["ok", "ready", "healthy", "running"].some((value) => normalized.includes(value))) {
+    return "green";
+  }
+  if (["loading", "indexing", "connecting"].some((value) => normalized.includes(value))) {
+    return "blue";
+  }
+  if (["error", "failed", "offline"].some((value) => normalized.includes(value))) {
+    return "rose";
+  }
+  return "amber";
 }
 
 function Field({

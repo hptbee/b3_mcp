@@ -732,9 +732,11 @@ function layoutNodes(records: GraphNodeRecord[]): ExplorerNode[] {
       position: { x: column * 220, y: row * 130 },
       type: "default",
       style: {
-        border: "1px solid #146c94",
+        background: "rgba(24, 24, 27, 0.92)",
+        border: "1px solid rgba(125, 211, 252, 0.35)",
         borderRadius: 8,
-        color: "#17202a",
+        boxShadow: "0 12px 28px rgba(0, 0, 0, 0.35)",
+        color: "#e4e4e7",
         padding: 10,
         width: 180
       }
@@ -750,7 +752,7 @@ function layoutEdges(records: GraphEdgeRecord[]): ExplorerEdge[] {
     label: record.edge_type,
     data: record,
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#6f7f90" }
+    style: { stroke: "#7dd3fc" }
   }));
 }
 

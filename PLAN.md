@@ -77,12 +77,12 @@ Completed:
 - Phase 18.8 b3-indexer Deep Restructure
 - Phase 18.9 Final Phase 18 Verification
 - Phase 19 Performance Optimization Pass B
-
-Current/Next:
 - Phase 20 Web UI Developer Console Refresh
 
-Upcoming:
+Current/Next:
 - Phase 21 Git Intelligence
+
+Upcoming:
 - Phase 22 Duplicate / Similarity Detection
 - Phase 23 Real Plugin System
 - Phase 24 Packaging + Installers
@@ -515,7 +515,18 @@ Rules:
 ---
 
 ## Phase 20 Web UI Developer Console Refresh
-Status: Planned.
+Status: Completed.
+
+Completed scope:
+
+- refreshed the local Next.js Web UI as a compact dark glass developer console with dense panels, smaller controls, monospace JSON/path surfaces, and semantic green/blue/amber/rose status chips
+- updated the dashboard, project/index status, query playground, query trace, graph explorer, config/capabilities, and events surfaces without changing backend API behavior
+- kept graph UI claims truthful: existing graph explorer/debug APIs remain available, but Git Intelligence, duplicate/similarity detection, plugin system, and architecture graph editing remain deferred
+- used local CSS with Tailwind-style utility class names and no new frontend dependency, telemetry, SaaS auth, cloud service, external API, or paid UI service
+- preserved backend endpoints, response DTOs, schema, migrations, MCP tool/profile counts, benchmark targets, and offline/free behavior
+- ran frontend and backend verification after the refresh
+
+Next: Phase 21 Git Intelligence.
 
 ### Scope:
 
@@ -552,7 +563,10 @@ Web UI:
 http://127.0.0.1:8888
 ```
 
-The current UI is a local single-project developer console. Dedicated views for routes, components, data access, realtime, messaging, infrastructure, registry, and project groups are deferred until the data model is mature enough.
+The current UI is a local single-project dark developer console. Dedicated
+deep-dive views for routes, components, data access, realtime, messaging,
+infrastructure, registry, and project groups remain deferred until the data
+model and UI workflows are mature enough.
 
 ---
 
@@ -1247,14 +1261,14 @@ Completed:
 - Phase 18.8 - b3-indexer Deep Restructure
 - Phase 18.9 - Final Phase 18 Verification
 - Phase 19 - Performance Optimization Pass B
+- Phase 20 - Web UI Developer Console Refresh
 
 Current/Next:
 
-- Phase 20 - Web UI Developer Console Refresh
+- Phase 21 - Git Intelligence
 
 Upcoming:
 
-- Phase 21 - Git Intelligence
 - Phase 22 - Duplicate / Similarity Detection
 - Phase 23 - Real Plugin System
 - Phase 24 - Packaging + Installers

@@ -4,6 +4,13 @@ The web UI is a local-only Next.js frontend for inspecting and controlling the B
 
 It does not access SQLite directly, own indexing logic, generate embeddings, upload source code, use SaaS auth, or emit telemetry. The UI can trigger local indexing through the control server.
 
+Phase 20 refreshed the UI as a compact dark glass developer console. The
+refresh uses local CSS and Tailwind-style utility class names for the dark
+zinc/slate surface, glass panels, dense controls, monospace JSON/path display,
+and semantic green/blue/amber/rose status chips. It did not change backend
+endpoint paths, response DTOs, schema, migrations, MCP tools/profile counts, or
+runtime behavior.
+
 ## Run the Control Server
 
 ```powershell
@@ -64,6 +71,11 @@ npm run dev
 - Config Viewer
 - Capabilities
 - Logs / Events
+
+The dashboard is intentionally a dev-tool surface rather than a marketing
+landing page. It favors compact metric cards, dense forms, raw JSON panels,
+status chips, and graceful offline/empty/error states for local control-server
+workflows.
 
 The Project Status section shows the current project path, database path,
 indexed file/symbol/edge counts, last index status, parse failures, and local
