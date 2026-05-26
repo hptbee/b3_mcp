@@ -75,12 +75,12 @@ Completed:
 - Phase 18.6 Optional Core / Query Architecture Split Review
 - Phase 18.7 Preliminary Refactor Checkpoint Verification
 - Phase 18.8 b3-indexer Deep Restructure
-
-Current/Next:
 - Phase 18.9 Final Phase 18 Verification
 
-Upcoming:
+Current/Next:
 - Phase 19 Performance Optimization Pass B
+
+Upcoming:
 - Phase 20 Web UI Developer Console Refresh
 - Phase 21 Git Intelligence
 ```
@@ -357,7 +357,7 @@ This is static/local/offline intelligence only. It must preserve B3's offline-fi
 
 ## Phase 18 Refactor Checkpoint D
 
-Status: In progress.
+Status: Completed.
 
 This checkpoint is named **D** because:
 
@@ -469,13 +469,27 @@ Completed scope:
 - preserved extraction behavior, language/path detection, dispatch order, parser isolation, scoped indexing, metadata formats, confidence values, API behavior, schema, MCP tools/profiles, benchmark targets, and feature scope
 - preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, mandatory LSP, or frontend checks required
 
-Next: Phase 18.9 Final Phase 18 Verification.
+### Phase 18.9 Final Phase 18 Verification
+
+Status: Completed.
+
+Completed scope:
+
+- ran final Phase 18 verification after the Phase 18.8 b3-indexer test restructure across formatting, workspace compilation, workspace tests, and the benchmark baseline
+- confirmed Phase 18 was behavior-preserving: no schema migration, endpoint behavior change, metadata format change, MCP tool/profile change, language support-level change, benchmark target change, or feature expansion
+- confirmed storage schema, migration numbers, SQL definitions, metadata formats, and vector storage formats were unchanged
+- confirmed indexing behavior remained unchanged for language/path detection, dispatch order, parser isolation, scoped indexing, invalid UTF-8/binary skip behavior, and metadata/extraction behavior
+- kept the Phase 18.6 core/query architecture split deferred for a later contract-aware review if needed
+- kept production extraction-heavy b3-indexer modules such as `data_access/mod.rs`, `web/angular.rs`, `backend_languages/mod.rs`, `go.rs`, and `csharp.rs` deferred for a later targeted behavior-preserving pass
+- preserved offline/free behavior: no package managers, external APIs, telemetry, Docker/Kubernetes/Terraform, brokers, databases, Kafka/ksqlDB/RabbitMQ, mandatory LSP, or frontend checks required
+
+Next: Phase 19 Performance Optimization Pass B.
 
 ---
 
 ## Phase 19 Performance Optimization Pass B
 
-Status: Planned.
+Status: Current / Next.
 
 Rules:
 
@@ -1217,14 +1231,14 @@ Completed:
 - Phase 18.6 - Optional Core / Query Architecture Split Review
 - Phase 18.7 - Preliminary Refactor Checkpoint Verification
 - Phase 18.8 - b3-indexer Deep Restructure
+- Phase 18.9 - Final Phase 18 Verification
 
 Current/Next:
 
-- Phase 18.9 - Final Phase 18 Verification
+- Phase 19 - Performance Optimization Pass B
 
 Upcoming:
 
-- Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
 - Phase 21 - Git Intelligence
 
