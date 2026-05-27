@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 b3-core = { path = "../b3-core" }
 b3-embeddings = { path = "../b3-embeddings" }
+b3-git = { path = "../b3-git" }
 b3-indexer = { path = "../b3-indexer" }
 b3-mcp-runtime = { path = "../b3-mcp-runtime" }
 b3-query = { path = "../b3-query" }

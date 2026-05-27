@@ -4,9 +4,10 @@ Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
 
 ## Phase 21 Git Intelligence MCP Plan
 
-Phase 21.6 adds internal branch comparison / baseline diff support only. Phase
-21.5 adds internal diff-aware impact analysis only. Phase 21.4.1 adds
-Cursor/Codex setup helpers in `b3-cli` only. These phases do not add MCP tools,
+Phase 21.7 exposes Git Intelligence through local read-only Control Server APIs
+only. Phase 21.6 adds internal branch comparison / baseline diff support, Phase
+21.5 adds internal diff-aware impact analysis, and Phase 21.4.1 adds
+Cursor/Codex setup helpers in `b3-cli`. These phases do not add MCP tools,
 change MCP profile membership, or change tool counts.
 
 Planned future Git MCP tools are:

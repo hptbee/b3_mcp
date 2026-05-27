@@ -142,6 +142,36 @@ pub(crate) async fn capabilities(State(state): State<ControlState>) -> Json<Valu
             "telemetry_enabled": false,
             "mandatory_lsp_required": false
         },
+        "git_intelligence": {
+            "phase": "21.7",
+            "support_level": "Basic",
+            "local_only": true,
+            "read_only_git": true,
+            "no_remote_api": true,
+            "no_mutating_git_commands": true,
+            "status_detection": "available",
+            "branch_aware_index_metadata": "available",
+            "stale_index_detection": "available",
+            "changed_files": "available",
+            "diff_summary": "available",
+            "branch_compare": "available",
+            "diff_impact": "available",
+            "auto_index_policy": "available",
+            "auto_index_execution": "disabled",
+            "mcp_tools": "planned",
+            "web_ui_panel": "planned",
+            "full_patch_analysis": false,
+            "file_contents_from_git_diff": false,
+            "endpoints": {
+                "status": "/api/git/status",
+                "freshness": "/api/git/freshness",
+                "changed_files": "/api/git/changed-files",
+                "diff_summary": "/api/git/diff-summary",
+                "branches": "/api/git/branches",
+                "compare": "/api/git/compare",
+                "impact": "/api/git/impact"
+            }
+        },
         "mcp_runtime": RuntimeSummary::default(),
         "language_backend": {
             "tree_sitter": {
@@ -442,6 +472,13 @@ pub(crate) async fn capabilities(State(state): State<ControlState>) -> Json<Valu
             "architecture_group_impact": true,
             "architecture_group_graph": true,
             "architecture_group_service_map": true,
+            "git_status": true,
+            "git_freshness": true,
+            "git_changed_files": true,
+            "git_diff_summary": true,
+            "git_branches": true,
+            "git_compare": true,
+            "git_impact": true,
             "events": "sse"
         },
         "language_backends": language_registry

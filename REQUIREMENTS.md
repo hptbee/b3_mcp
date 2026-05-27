@@ -1183,7 +1183,19 @@ candidates, defaults head to `HEAD`, supports merge-base triple-dot and direct
 double-dot diff modes, and returns bounded name-status/numstat summaries. It
 does not expose Control APIs, MCP tools, Web UI panels, full patches, file
 contents, schema changes, persisted compare results, or live capability changes.
-Phase 21.7 is next for Git APIs + Control Server integration.
+
+Phase 21.7 is completed as local read-only Git Control API integration. It
+exposes `GET /api/git/status`, `GET /api/git/freshness`,
+`GET /api/git/changed-files`, `GET /api/git/diff-summary`,
+`GET /api/git/branches`, `POST /api/git/compare`, and
+`POST /api/git/impact`. These endpoints are bounded, no-git safe, and do not
+return full patches or Git file contents by default. `/api/capabilities`
+truthfully reports Basic Git Intelligence, read-only/local-only behavior,
+available status/freshness/changed-file/diff/compare/impact APIs, disabled
+auto-index execution, planned MCP tools, and planned Web UI panel. Phase 21.7
+does not add MCP tools, Web UI panels, schema changes, auto-reindex execution,
+Git mutation, remote APIs, telemetry, or package-manager requirements. Phase
+21.8 is next for the Web UI Git Intelligence panel.
 
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be

@@ -79,17 +79,17 @@ workflows.
 
 ## Phase 21 Git Intelligence Panel Plan
 
-Phase 21.6 adds internal branch comparison / baseline diff support only. The
-Web UI does not render a Git Intelligence panel yet and does not execute Git
-directly.
+Phase 21.7 adds local read-only Git Control APIs. The Web UI does not render a
+Git Intelligence panel yet and does not execute Git directly.
 
 The planned Phase 21.8 panel should display local read-only Git data from
-future control-server APIs only: branch chip, HEAD short hash, dirty status,
-staged/unstaged/untracked/conflict counts, stale index warnings, changed files,
-diff impact summary, and reindex recommendation callouts. It must not call
-remote hosting APIs, run Git commands in the browser, mutate Git state, modify
-the working tree, checkout branches, commit, merge, rebase, reset, clean, push,
-pull, fetch, stash, or auto-reindex.
+the Phase 21.7 control-server APIs only: branch chip, HEAD short hash, dirty
+status, staged/unstaged/untracked/conflict counts, stale index warnings,
+changed files, local branch/ref compare summaries, diff impact summary, and
+reindex recommendation callouts. It must not call remote hosting APIs, run Git
+commands in the browser, mutate Git state, modify the working tree, checkout
+branches, commit, merge, rebase, reset, clean, push, pull, fetch, stash, or
+auto-reindex.
 
 Future manual actions may include preview reindex, reindex current branch, and
 reindex changed files only. A future auto-index toggle must be off or
@@ -98,7 +98,7 @@ change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
 changed files, unsafe delete/rename batches, indexed branch mismatch, or
 indexed commit mismatch.
 
-Phase 21.6 does not add Web UI controls, changed-file tables, branch-compare
+Phase 21.7 does not add Web UI controls, changed-file tables, branch-compare
 views, diff impact views, or auto-index execution. Future UI may display
 freshness, bounded changed files, line-count summaries, conservative impact
 evidence, local base/head comparisons, context seeds, and reindex

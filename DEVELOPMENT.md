@@ -635,6 +635,14 @@ with read-only `rev-parse`, `merge-base`, `diff --name-status`,
 remote APIs. Control endpoints, MCP tools, Web UI surfaces, full patches, file
 content reads from Git, persistence, and auto-reindex remain deferred.
 
+Phase 21.7 wires the Git Intelligence foundation into `b3-control` as
+local-only read-only APIs: status, freshness, changed files, diff summary,
+branches, compare, and impact. Handlers remain adapters over `b3-git`,
+`b3-query::git_impact`, and storage snapshot reads. They enforce bounded
+defaults, return warnings for no-git/unknown states, do not expose full patches
+or Git file contents by default, and do not execute auto-reindex. MCP Git tools
+and the Web UI Git panel remain planned for later phases.
+
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must
 be off or conservative by default and must never run on branch change, commit

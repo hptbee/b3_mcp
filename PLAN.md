@@ -86,12 +86,12 @@ Completed:
 - Phase 21.4.1 Cursor/Codex MCP Setup Helper
 - Phase 21.5 Diff-Aware Impact Analysis
 - Phase 21.6 Branch Comparison / Baseline Diff
-
-Current/Next:
 - Phase 21.7 Git APIs + Control Server Integration
 
-Upcoming:
+Current/Next:
 - Phase 21.8 Web UI Git Intelligence Panel
+
+Upcoming:
 - Phase 21.9 Git Intelligence Benchmark + Final Verification
 - Phase 22 Duplicate / Similarity Detection
 - Phase 23 Real Plugin System
@@ -1724,8 +1724,8 @@ Subroadmap:
 - 21.4.1 Cursor/Codex MCP Setup Helper - Completed.
 - 21.5 Diff-Aware Impact Analysis - Completed.
 - 21.6 Branch Comparison / Baseline Diff - Completed.
-- 21.7 Git APIs + Control Server Integration - Current / Next.
-- 21.8 Web UI Git Intelligence Panel - Planned.
+- 21.7 Git APIs + Control Server Integration - Completed.
+- 21.8 Web UI Git Intelligence Panel - Current / Next.
 - 21.9 Git Intelligence Benchmark + Final Verification - Planned.
 
 ### Phase 21.0 Git Intelligence Design / Safety Plan
@@ -2095,7 +2095,41 @@ Phase 21.6 adds internal local branch/ref comparison support:
   endpoint, live capability change, MCP tool/profile change, Web UI panel,
   schema migration, persisted compare result, full patch exposure, file-content
   read from Git, branch mutation, or auto-reindex execution was added
-- Phase 21.7 is next for Git APIs + Control Server integration
+- Phase 21.7 follows with Git APIs + Control Server integration
+
+### Phase 21.7 Git APIs + Control Server Integration
+
+Status: Completed.
+
+Phase 21.7 exposes the existing local Git Intelligence foundation through
+bounded read-only Control Server APIs:
+
+- added `GET /api/git/status` for local repository status, branch/HEAD, dirty
+  counts, and no-git warnings
+- added `GET /api/git/freshness` for indexed snapshot comparison, reindex
+  recommendations, and conservative auto-index policy decisions with execution
+  disabled
+- added `GET /api/git/changed-files` and `GET /api/git/diff-summary` for
+  bounded working-tree changed-file summaries and optional numstat line counts
+  without full patches or file contents
+- added `GET /api/git/branches` for local branch listing without fetch or
+  remote access
+- added `POST /api/git/compare` for local ref/baseline comparison using the
+  Phase 21.6 read-only compare engine
+- added `POST /api/git/impact` for bounded diff-aware impact over existing
+  indexed evidence using the Phase 21.5 mapper
+- updated `/api/capabilities` with a truthful `git_intelligence` block:
+  Basic, local-only, read-only Git, no remote API, no mutating Git commands,
+  status/freshness/changed-files/diff-summary/branch-compare/diff-impact
+  available, auto-index execution disabled, MCP tools planned, and Web UI panel
+  planned
+- kept `GET /api/index/status` unchanged; Git freshness is exposed through
+  `/api/git/freshness`
+- no schema migration, persisted Git API response, MCP Git tool/profile change,
+  Web UI panel, auto-reindex execution, full patch exposure, file-content read
+  from Git, Git mutation, remote API, telemetry, package-manager requirement,
+  or backend extraction behavior change was added
+- Phase 21.8 is next for the Web UI Git Intelligence panel
 
 ---
 

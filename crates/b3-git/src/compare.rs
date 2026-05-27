@@ -161,6 +161,44 @@ pub fn read_branch_compare(project_root: &Path, request: GitCompareRequest) -> G
     }
 }
 
+pub fn read_local_branches(
+    project_root: &Path,
+    config: GitReaderConfig,
+) -> (bool, Option<String>, Vec<GitBranchInfo>, Vec<String>) {
+    let status = read_git_status(project_root, config);
+    if !status.is_git_repo {
+        return (false, None, Vec::new(), status.warnings);
+    }
+
+    let mut warnings = status.warnings;
+    let repo_root = status
+        .repo_root
+        .as_ref()
+        .map(|path| path.to_string_lossy().to_string());
+    match run_git(project_root, &["branch", "--list"], config) {
+        Ok(output) => {
+            let mut branches = parse_branch_list(&output);
+            if status.detached_head && branches.iter().all(|branch| !branch.is_detached) {
+                branches.push(GitBranchInfo {
+                    name: "HEAD".to_string(),
+                    full_ref: None,
+                    commit: status.head_commit.clone(),
+                    short_commit: status.short_head_commit.clone(),
+                    is_current: true,
+                    is_detached: true,
+                    is_remote_tracking: false,
+                    warnings: Vec::new(),
+                });
+            }
+            (true, repo_root, branches, warnings)
+        }
+        Err(error) => {
+            warnings.push(format!("branch list could not be read: {}", error.message));
+            (true, repo_root, Vec::new(), warnings)
+        }
+    }
+}
+
 pub fn parse_branch_list(output: &str) -> Vec<GitBranchInfo> {
     output
         .lines()

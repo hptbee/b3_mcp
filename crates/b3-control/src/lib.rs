@@ -3673,6 +3673,151 @@ mod tests {
         assert_eq!(body["quality_audit"]["full_git_intelligence_ready"], false);
         assert_eq!(body["quality_audit"]["local_only"], true);
         assert_eq!(body["editing"]["ide_grade_semantic_rename"], false);
+        assert_eq!(body["git_intelligence"]["support_level"], "Basic");
+        assert_eq!(body["git_intelligence"]["local_only"], true);
+        assert_eq!(body["git_intelligence"]["read_only_git"], true);
+        assert_eq!(body["git_intelligence"]["no_remote_api"], true);
+        assert_eq!(body["git_intelligence"]["no_mutating_git_commands"], true);
+        assert_eq!(body["git_intelligence"]["status_detection"], "available");
+        assert_eq!(body["git_intelligence"]["diff_impact"], "available");
+        assert_eq!(body["git_intelligence"]["auto_index_execution"], "disabled");
+        assert_eq!(body["git_intelligence"]["mcp_tools"], "planned");
+        assert_eq!(body["git_intelligence"]["web_ui_panel"], "planned");
+        assert_eq!(body["control_api"]["git_status"], true);
+        assert_eq!(body["control_api"]["git_impact"], true);
+    }
+
+    #[tokio::test]
+    async fn git_status_endpoint_returns_safe_no_git_json() {
+        let dir = tempdir().expect("tempdir");
+        let project = dir.path().join("project");
+        fs::create_dir_all(&project).expect("project dir");
+        let app = app(ControlState::from_storage(
+            project,
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("storage"),
+        ));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/git/status")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["is_git_repo"], false);
+        assert!(!body["warnings"].as_array().expect("warnings").is_empty());
+    }
+
+    #[tokio::test]
+    async fn git_freshness_endpoint_keeps_auto_index_execution_disabled() {
+        let dir = tempdir().expect("tempdir");
+        let project = dir.path().join("project");
+        fs::create_dir_all(&project).expect("project dir");
+        let app = app(ControlState::from_storage(
+            project,
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("storage"),
+        ));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/git/freshness?auto_index_mode=conservative")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["auto_reindex_allowed"], false);
+        assert_eq!(body["manual_action_required"], true);
+    }
+
+    #[tokio::test]
+    async fn git_changed_files_and_compare_endpoints_are_bounded_no_git_safe() {
+        let dir = tempdir().expect("tempdir");
+        let project = dir.path().join("project");
+        fs::create_dir_all(&project).expect("project dir");
+        let app = app(ControlState::from_storage(
+            project,
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("storage"),
+        ));
+
+        let changed_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/git/changed-files?max_changed_files=5000")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(changed_response.status(), StatusCode::OK);
+        let changed_body = response_json(changed_response).await;
+        assert_eq!(changed_body["is_git_repo"], false);
+        assert_eq!(changed_body["changed_files"].as_array().unwrap().len(), 0);
+
+        let branches_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/git/branches")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(branches_response.status(), StatusCode::OK);
+        let branches_body = response_json(branches_response).await;
+        assert_eq!(branches_body["is_git_repo"], false);
+        assert!(branches_body["branches"].as_array().unwrap().is_empty());
+
+        let compare_response = post_json(
+            app,
+            "/api/git/compare",
+            r#"{"base_ref":"main","head_ref":"HEAD","diff_mode":"merge_base_triple_dot","include_line_counts":true,"include_untracked":false,"max_changed_files":5000,"max_stdout_bytes":999999999,"command_timeout_ms":999999999}"#,
+        )
+        .await;
+        assert_eq!(compare_response.status(), StatusCode::OK);
+        let compare_body = response_json(compare_response).await;
+        assert_eq!(compare_body["is_git_repo"], false);
+        assert!(compare_body["diff_summary"].is_null());
+    }
+
+    #[tokio::test]
+    async fn git_impact_endpoint_returns_bounded_wrapper_without_git_patch() {
+        let dir = tempdir().expect("tempdir");
+        let project = dir.path().join("project");
+        fs::create_dir_all(&project).expect("project dir");
+        let app = app(ControlState::from_storage(
+            project,
+            PathBuf::from(":memory:"),
+            SqliteStorage::open_in_memory().expect("storage"),
+        ));
+
+        let response = post_json(
+            app,
+            "/api/git/impact",
+            r#"{"mode":"working_tree","max_changed_files":5,"max_impacted_items":5}"#,
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["mode"], "working_tree");
+        assert_eq!(body["impact"]["diff_summary"]["is_git_repo"], false);
+        assert!(body.get("patch").is_none());
+        assert!(body["impact"].get("patch").is_none());
     }
 
     #[tokio::test]

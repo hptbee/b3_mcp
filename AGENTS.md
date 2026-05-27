@@ -686,12 +686,17 @@ Phase 21.6 Branch Comparison / Baseline Diff is completed as internal
 local/read-only Git compare support only. It may resolve local refs, choose
 local `main` or `master` as conservative default base refs, compute local
 merge-base, parse bounded `diff --name-status` and `diff --numstat` summaries,
-and feed compare summaries into internal diff impact. It must not add Control
-Git APIs, Git MCP tools, Web UI Git panels, checkout/switch/fetch/pull/push,
-remote APIs, branch/tag/ref mutation, `.git` writes, working-tree writes, full
-patch/file-content reads from Git, auto-reindex, schema migrations, metadata
-format changes, extraction behavior changes, telemetry, or package-manager
-requirements. Phase 21.7 is next for Git APIs + Control Server integration.
+and feed compare summaries into internal diff impact.
+
+Phase 21.7 Git APIs + Control Server Integration is completed as local
+read-only Control API wiring only. It may expose bounded Git status, freshness,
+changed-files, diff-summary, branch-list, compare, and impact JSON through
+`b3-control`. It must not add Git MCP tools, Web UI Git panels,
+checkout/switch/fetch/pull/push, remote APIs, branch/tag/ref mutation, `.git`
+writes, working-tree writes, full patch/file-content reads from Git,
+auto-reindex execution, schema migrations, metadata format changes, extraction
+behavior changes, telemetry, or package-manager requirements. Phase 21.8 is
+next for the Web UI Git Intelligence panel.
 
 Manual reindex actions remain future work. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

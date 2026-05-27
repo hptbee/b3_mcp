@@ -6,6 +6,7 @@ pub(crate) mod config;
 pub(crate) mod domain;
 pub(crate) mod editing;
 pub(crate) mod events;
+pub(crate) mod git;
 pub(crate) mod graph;
 pub(crate) mod health;
 pub(crate) mod indexing;
@@ -97,4 +98,11 @@ pub(crate) fn router() -> Router<ControlState> {
         .route("/api/config", get(config::config))
         .route("/api/config/validate", post(config::validate_config))
         .route("/api/events", get(events::events))
+        .route("/api/git/status", get(git::git_status))
+        .route("/api/git/freshness", get(git::git_freshness))
+        .route("/api/git/changed-files", get(git::git_changed_files))
+        .route("/api/git/diff-summary", get(git::git_diff_summary))
+        .route("/api/git/branches", get(git::git_branches))
+        .route("/api/git/compare", post(git::git_compare))
+        .route("/api/git/impact", post(git::git_impact))
 }

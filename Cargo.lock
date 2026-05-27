@@ -145,6 +145,7 @@ dependencies = [
  "axum",
  "b3-core",
  "b3-embeddings",
+ "b3-git",
  "b3-indexer",
  "b3-mcp-runtime",
  "b3-query",

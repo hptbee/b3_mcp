@@ -1207,3 +1207,22 @@ It does not fetch, pull, push, checkout, switch, mutate refs, write `.git`, read
 full patches or file contents from Git, persist compare results, add Control
 APIs, add MCP tools, add Web UI panels, execute auto-reindex, or call remote
 hosting APIs.
+
+Phase 21.7 adds Control API adapter algorithms over the existing Git
+foundation. The handlers:
+
+1. clamp request/query bounds for changed files, stdout, timeouts, and impacted
+   items
+2. call `b3-git` read-only status, freshness, diff-summary, branch-list, or
+   compare readers
+3. read the latest indexed Git snapshot from storage only for freshness/impact
+4. call `b3-query::git_impact` for bounded working-tree or compare impact
+   mapping
+5. return JSON warnings for no-git, stale, unsafe, unknown, truncated, or
+   invalid-ref states
+
+They do not parse full patches, read Git file contents, persist API results,
+execute auto-reindex, mutate Git, call remote APIs, add MCP tools, or add Web UI
+surfaces. `/api/capabilities` reports Git Intelligence as Basic, local-only,
+read-only, available through Control APIs, with auto-index execution disabled
+and MCP/UI integration still planned.

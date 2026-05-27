@@ -17,7 +17,8 @@ pub use b3_core::{
     GitStatusErrorKind, GitWorkingTreeStatus,
 };
 pub use compare::{
-    parse_branch_list, parse_name_status, read_branch_compare, READ_ONLY_COMPARE_COMMANDS,
+    parse_branch_list, parse_name_status, read_branch_compare, read_local_branches,
+    READ_ONLY_COMPARE_COMMANDS,
 };
 pub use diff_summary::{
     parse_numstat, parse_porcelain_z_changed_files, read_diff_summary, READ_ONLY_DIFF_COMMANDS,

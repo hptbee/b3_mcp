@@ -324,26 +324,26 @@ Phase 16 config/data/web hardening is static/local/offline only. It adds shared 
 
 Phase 17 adds a quality-audit status block to `GET /api/capabilities`. It reports that the support matrix, capability truthfulness, fixture coverage, metadata consistency, secret redaction, false-positive guardrails, cross-surface integration, and benchmark claims were audited. The block explicitly keeps runtime validation, compiler-grade parsing, IDE-grade refactor, architecture graph UI, full Git Intelligence, mandatory LSP, external APIs, cloud services, and telemetry as false/deferred.
 
-## Phase 21 Git Intelligence API Plan
+## Phase 21 Git Intelligence APIs
 
-Phase 21.6 adds internal branch comparison / baseline diff support only. No Git endpoints are
-exposed yet and `GET /api/capabilities` is unchanged in this checkpoint.
-
-Planned Phase 21 Control API endpoints are:
+Phase 21.7 exposes local read-only Git Intelligence through the Control Server.
+The endpoints are bounded, return warnings for no-git/unknown states, and do
+not expose full patches or Git file contents by default.
 
 - `GET /api/git/status`
-- `GET /api/git/branches`
+- `GET /api/git/freshness`
 - `GET /api/git/changed-files`
 - `GET /api/git/diff-summary`
+- `GET /api/git/branches`
 - `POST /api/git/compare`
 - `POST /api/git/impact`
 
-Future Git endpoints must be local-only and read-only. They may report no-git,
-dirty worktree, detached HEAD, stale index, changed files, local branch, and
-local diff/compare information, but must not run mutating Git commands, call
-GitHub, GitLab, Bitbucket, or other remote APIs, checkout branches, fetch,
-pull, push, stash, reset, clean, write `.git`, modify the working tree, or
-auto-reindex.
+Git endpoints are local-only and read-only. They may report no-git, dirty
+worktree, detached HEAD, stale index, changed files, local branches, local
+diff/compare information, and bounded impact evidence, but must not run
+mutating Git commands, call GitHub, GitLab, Bitbucket, or other remote APIs,
+checkout branches, fetch, pull, push, stash, reset, clean, write `.git`,
+modify the working tree, or auto-reindex.
 
 Manual reindex actions and any auto-index toggle remain future Control/Web UI
 work. Auto-index must be off or conservative by default and must never run on
@@ -351,18 +351,23 @@ branch change, commit change, detached HEAD, conflicts, unknown Git state,
 no-git projects, excessive changed files, unsafe delete/rename batches, indexed
 branch mismatch, or indexed commit mismatch.
 
-The indexed Git snapshot is persisted internally, Phase 21.3 can evaluate
-freshness internally, Phase 21.4 can compute bounded changed-file summaries,
-and Phase 21.5 can map those summaries to indexed impact evidence internally.
-Phase 21.6 can compare local refs and produce bounded name-status/numstat
-summaries internally. None of those Git Intelligence results are exposed
-through a public Control API yet.
+`GET /api/git/freshness` combines current read-only Git status with the latest
+indexed Git snapshot and returns reindex recommendations plus auto-index policy
+decisions. Auto-index execution remains disabled. `GET /api/index/status` is
+unchanged; Git freshness is exposed through `/api/git/freshness`.
 
 Auto full reindex after branch or commit changes is forbidden. Phase 21.3 does
 not execute auto-index; Phase 21.4 still does not execute auto-index and only
 adds bounded changed-file detail for later APIs/UI. Phase 21.5 also does not
 execute auto-index; it only returns conservative impact evidence and context
-seeds for later API/UI integration.
+seeds. Phase 21.7 wires that evidence to `POST /api/git/impact` without adding
+MCP Git tools or a Web UI panel.
+
+`GET /api/capabilities` now includes a truthful `git_intelligence` block:
+status detection, branch-aware index metadata, stale index detection,
+changed-files, diff summaries, branch compare, diff impact, and auto-index
+policy are available; auto-index execution is disabled; MCP Git tools and the
+Web UI Git panel remain planned.
 
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route
