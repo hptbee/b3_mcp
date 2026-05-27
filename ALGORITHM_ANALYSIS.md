@@ -1159,3 +1159,27 @@ emits existing symbol, route, data-access, and messaging metadata shapes so
 query and architecture paths can consume the results without schema changes. It
 does not run package managers, compilers, runtimes, language servers, cloud
 services, external APIs, telemetry, or internet access.
+
+## Phase 21 Git Intelligence Design
+
+Phase 21.1 implements local Git status detection using bounded read-only local
+Git CLI output only. The reader detects repository root, `.git` directory,
+current branch or detached HEAD, HEAD commit, and basic porcelain status counts
+for staged, unstaged, untracked, conflicted, dirty, and total changed paths.
+Commands use null stdin, timeouts, bounded stdout parsing, and graceful no-git
+failure behavior.
+
+Git Intelligence must not execute mutating or remote operations: no checkout,
+switch, commit, merge, rebase, reset, clean, push, pull, fetch, branch/tag/ref
+mutation, auto-stash, auto-reindex on branch switch, working-tree edits,
+GitHub/GitLab/Bitbucket APIs, telemetry, cloud services, paid dependencies, or
+internet-required workflows.
+
+Planned algorithms are stale-index detection from indexed branch/commit/worktree
+snapshot metadata, changed-file classification from local status/diff evidence,
+and diff-aware impact by mapping changed paths to existing indexed symbols,
+routes, components, data-access, messaging, infrastructure, WPF/XAML,
+architecture matches, and context-pack recommendations. Phase 21.1 does not add
+schema migrations, Control APIs, MCP tools, Web UI panels, indexing behavior,
+auto-reindex, changed-file diff summaries, stale-index detection, or live
+capabilities changes.

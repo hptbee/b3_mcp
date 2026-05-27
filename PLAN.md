@@ -78,11 +78,20 @@ Completed:
 - Phase 18.9 Final Phase 18 Verification
 - Phase 19 Performance Optimization Pass B
 - Phase 20 Web UI Developer Console Refresh
+- Phase 21.0 Git Intelligence Design / Safety Plan
+- Phase 21.1 Local Git Status Detection
 
 Current/Next:
-- Phase 21 Git Intelligence
+- Phase 21.2 Branch-Aware Index Metadata
 
 Upcoming:
+- Phase 21.3 Stale Index Detection
+- Phase 21.4 Changed Files / Diff Summary
+- Phase 21.5 Diff-Aware Impact Analysis
+- Phase 21.6 Branch Comparison / Baseline Diff
+- Phase 21.7 Git APIs + Control Server Integration
+- Phase 21.8 Web UI Git Intelligence Panel
+- Phase 21.9 Git Intelligence Benchmark + Final Verification
 - Phase 22 Duplicate / Similarity Detection
 - Phase 23 Real Plugin System
 - Phase 24 Packaging + Installers
@@ -1262,13 +1271,22 @@ Completed:
 - Phase 18.9 - Final Phase 18 Verification
 - Phase 19 - Performance Optimization Pass B
 - Phase 20 - Web UI Developer Console Refresh
+- Phase 21.0 - Git Intelligence Design / Safety Plan
+- Phase 21.1 - Local Git Status Detection
 
 Current/Next:
 
-- Phase 21 - Git Intelligence
+- Phase 21.2 - Branch-Aware Index Metadata
 
 Upcoming:
 
+- Phase 21.3 - Stale Index Detection
+- Phase 21.4 - Changed Files / Diff Summary
+- Phase 21.5 - Diff-Aware Impact Analysis
+- Phase 21.6 - Branch Comparison / Baseline Diff
+- Phase 21.7 - Git APIs + Control Server Integration
+- Phase 21.8 - Web UI Git Intelligence Panel
+- Phase 21.9 - Git Intelligence Benchmark + Final Verification
 - Phase 22 - Duplicate / Similarity Detection
 - Phase 23 - Real Plugin System
 - Phase 24 - Packaging + Installers
@@ -1687,22 +1705,202 @@ Rules:
 
 ## Phase 21 Git Intelligence
 
-Status: Planned.
+Status: In progress.
 
-Scope:
+Phase 21 is local-only, read-only Git Intelligence. It must never mutate Git
+state or the working tree, must never call remote hosting APIs, and must keep B3
+usable for no-git projects, dirty worktrees, detached HEAD, subdirectories
+inside a Git repo, and incomplete repositories.
 
-- recent churn score
-- last modified commit
-- commit frequency
-- hotspot files
-- author count
-- ranking/risk integration
+Subroadmap:
+
+- 21.0 Git Intelligence Design / Safety Plan - Completed.
+- 21.1 Local Git Status Detection - Completed.
+- 21.2 Branch-Aware Index Metadata - Current / Next.
+- 21.3 Stale Index Detection - Planned.
+- 21.4 Changed Files / Diff Summary - Planned.
+- 21.5 Diff-Aware Impact Analysis - Planned.
+- 21.6 Branch Comparison / Baseline Diff - Planned.
+- 21.7 Git APIs + Control Server Integration - Planned.
+- 21.8 Web UI Git Intelligence Panel - Planned.
+- 21.9 Git Intelligence Benchmark + Final Verification - Planned.
+
+### Phase 21.0 Git Intelligence Design / Safety Plan
+
+Status: Completed.
+
+Safety boundaries:
+
+- allowed later: read `.git` metadata, run bounded read-only local Git CLI
+  commands when available, read current branch, HEAD commit, local refs, status
+  porcelain, changed files, local branch list, diff summaries, and local ref
+  comparisons without checkout
+- forbidden: `git checkout`, `git switch`, `git commit`, `git merge`,
+  `git rebase`, `git reset`, `git clean`, `git push`, `git pull`,
+  `git fetch`, destructive branch/tag/ref mutation, writing to `.git`,
+  auto-stashing, auto-reindexing on branch switch, working-tree edits, and
+  remote hosting APIs
+- future mutating Git operations are out of scope for Phase 21 and would require
+  a separate explicit-confirmation design
+
+Planned core contracts:
+
+- `GitRepositoryStatus`, `GitBranchInfo`, `GitHeadInfo`,
+  `GitWorkingTreeStatus`, `GitChangedFile`, `GitDiffSummary`,
+  `GitIndexFreshness`, `GitStaleReason`, `GitCompareRequest`,
+  `GitCompareResult`, `GitImpactRequest`, and `GitImpactResult`
+- contracts should live in `b3-core` as DTOs/enums only; no Git execution,
+  filesystem walking, command spawning, or remote assumptions in `b3-core`
+
+Planned local reader boundary:
+
+- prefer a small future `b3-git` crate for local read-only Git status/diff
+  implementation if it keeps boundaries cleaner
+- Git CLI read-only commands are acceptable when available if commands are
+  bounded, timeout-protected, parsed from bounded stdout, and never remote or
+  mutating
+- direct `.git` reading may be a fallback for basic root/HEAD detection; no
+  writes to `.git`
+
+Planned branch-aware index metadata:
+
+- future index snapshots may record `git_repo_root`, `indexed_branch`,
+  `indexed_commit`, `indexed_git_dirty`, `indexed_git_status_summary`, and
+  `indexed_at`
+- no schema migration is added in Phase 21.0; schema changes are deferred to a
+  dedicated later checkpoint if needed
+
+Planned stale index detection:
+
+- stale reasons: `not_git_repo`, `not_indexed`, `branch_changed`,
+  `commit_changed`, `working_tree_dirty`, `indexed_commit_missing`,
+  `detached_head`, and `unknown`
+- output shape should include `is_stale`, `reindex_recommended`,
+  `stale_reasons`, `current_branch`, `indexed_branch`, `current_commit`,
+  `indexed_commit`, and warnings
+- branch switches and dirty state warn/recommend reindex; they never checkout,
+  reset, stash, or auto-reindex
+
+Planned changed-files and diff summary:
+
+- statuses: added, modified, deleted, renamed, copied, untracked, staged,
+  unstaged, conflicted, unknown
+- fields: path, old_path, status, staged, unstaged, lines_added,
+  lines_deleted, language, is_indexed, symbol_count, and warnings
+
+Planned diff-aware impact:
+
+- changed files should map to indexed symbols, routes, components, data-access,
+  messaging, infrastructure, WPF/XAML, architecture matches, and context-pack
+  recommendations without changing extraction or ranking semantics
+
+Planned Control API endpoints:
+
+- `GET /api/git/status`
+- `GET /api/git/branches`
+- `GET /api/git/changed-files`
+- `GET /api/git/diff-summary`
+- `POST /api/git/compare`
+- `POST /api/git/impact`
+
+Planned MCP tools:
+
+- `git_status`, `git_changed_files`, `git_diff_summary`, `git_impact`, and
+  `git_compare`
+- no MCP tools or profile counts are changed in Phase 21.0
+
+Planned Web UI panel:
+
+- branch chip, HEAD short hash, dirty status, staged/unstaged/untracked/conflict
+  counts, stale index warning, changed files table, diff impact summary, and
+  reindex recommended callout
+- no Web UI panel is implemented in Phase 21.0
+
+Capability plan:
+
+- future `/api/capabilities` may report `git_intelligence` as Basic,
+  local-only, read-only, no remote API, no mutating Git commands, with branch
+  status, stale index detection, changed files, diff impact, branch compare, and
+  Web UI panel fields tracked truthfully as planned/ready
+- live `/api/capabilities` is not changed in Phase 21.0
+
+Design decisions:
+
+- no-git projects return `is_git_repo=false` and do not block indexing or normal
+  B3 use
+- dirty worktrees warn and may mark freshness stale/partial; they never trigger
+  auto-stash or auto-reset
+- detached HEAD uses commit hash as the primary identity and avoids branch-only
+  assumptions
+- deleted remote branch detection is out of scope unless local evidence exists;
+  no remote APIs or fetches
+- submodules/worktrees start as Basic/DetectOnly; report warnings rather than
+  failing, and do not recurse into submodules unless the configured project root
+  is inside one
 
 Rules:
 
-- local git data only
-- no remote calls required
-- no telemetry
+- local Git data only
+- read-only by default
+- no remote APIs, GitHub/GitLab/Bitbucket integration, telemetry, package
+  managers, Docker/Kubernetes/Terraform, brokers/databases, mandatory LSP, paid
+  dependencies, or internet requirement
+
+### Phase 21.1 Local Git Status Detection
+
+Status: Completed.
+
+Scope completed:
+
+- added serde-friendly Git status DTOs in `b3-core`:
+  `GitRepositoryStatus`, `GitWorkingTreeStatus`, `GitReaderConfig`,
+  `GitStatusErrorKind`, and `GitStatusError`
+- added a dedicated `b3-git` crate for local read-only Git status detection
+- implemented bounded local Git CLI reads for repository root, `.git`
+  directory, current branch, detached HEAD, HEAD commit, and
+  `git status --porcelain=v1 --branch`
+- parsed staged, unstaged, untracked, conflicted, dirty, and total changed
+  counts without returning full changed-file lists
+- added parser and safety tests for clean status, dirty status, untracked files,
+  staged/unstaged files, conflicts, detached HEAD headers, no-git projects,
+  disabled Git CLI, subdirectories inside Git repositories, and the read-only
+  command allowlist
+
+Read-only safety:
+
+- allowed commands remain limited to local read-only status commands:
+  `git rev-parse --show-toplevel`, `git rev-parse --absolute-git-dir`,
+  `git rev-parse --abbrev-ref HEAD`, `git rev-parse HEAD`, and
+  `git status --porcelain=v1 --branch`
+- the reader uses command timeouts, bounded stdout, null stdin, and warning
+  results instead of panics for unavailable Git or unreadable status
+- no checkout, switch, commit, merge, rebase, reset, clean, push, pull, fetch,
+  branch/tag mutation, `.git` writes, working-tree edits, auto-stash, or
+  auto-reindex behavior is implemented
+
+Manual and auto-index policy plan:
+
+- manual controls remain planned for later phases: preview reindex, reindex
+  current branch, and reindex changed files only
+- the future auto-index toggle must be off or conservative by default,
+  local-only, Git-read-only, and user-configurable
+- auto-index must never run when branch changed, commit changed, detached HEAD,
+  conflicts, unknown Git state, no-git project, excessive changed files, unsafe
+  delete/rename batches, indexed branch mismatch, or indexed commit mismatch
+- future conservative incremental indexing may only be considered on the same
+  branch and commit, with no conflicts, known safe state, watcher enabled,
+  bounded changed-file count, and ordinary modified/added files
+
+Deferred:
+
+- branch-aware index metadata, stale index detection, changed-file detail and
+  diff summaries, diff-aware impact, branch comparison, Control API Git
+  endpoints, MCP Git tools, live capabilities updates, and Web UI Git panel
+  remain planned for later Phase 21 checkpoints
+- no schema migration, endpoint behavior change, MCP tool/profile change, Web
+  UI change, indexing behavior change, remote API, telemetry, package manager,
+  Docker/Kubernetes/Terraform, broker/database, mandatory LSP, paid dependency,
+  or internet requirement was added
 
 ---
 

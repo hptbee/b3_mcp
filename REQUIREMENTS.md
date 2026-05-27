@@ -1106,3 +1106,37 @@ Upcoming:
 - Phase 19: Performance Optimization Pass B
 - Phase 20: Web UI Developer Console Refresh
 - Phase 21: Git Intelligence
+
+## Phase 21.0 Git Intelligence Safety Requirements
+
+Phase 21.0 is completed as design and safety planning only. Git Intelligence
+must remain local-only, read-only by default, offline/free, and safe for no-git
+projects, dirty worktrees, detached HEAD, subdirectories inside repositories,
+submodules, worktrees, and incomplete repositories.
+
+Future Git Intelligence may read local `.git` metadata or run bounded
+read-only local Git commands, but it must not run mutating or remote commands:
+no checkout, switch, commit, merge, rebase, reset, clean, push, pull, fetch,
+branch/tag/ref mutation, auto-stash, auto-reindex on branch switch, working-tree
+edits, GitHub/GitLab/Bitbucket APIs, telemetry, cloud services, package
+managers, Docker/Kubernetes/Terraform, brokers/databases, mandatory LSP, paid
+dependencies, or internet access.
+
+Phase 21.1 is completed as local Git status detection only. It adds internal
+contracts and a dedicated local reader for repository root, `.git` directory,
+current branch or detached HEAD, HEAD commit, and basic porcelain status counts
+for staged, unstaged, untracked, conflicted, dirty, and total changed paths.
+The reader uses bounded read-only local Git commands, returns warnings when Git
+is unavailable or status cannot be read, and remains safe for no-git projects.
+
+Phase 21.1 does not add schema migrations, Control API endpoints, MCP tools,
+MCP profile changes, Web UI panels, branch-aware index metadata, stale-index
+detection, changed-file diff summaries, diff-aware impact, auto-reindex, or
+indexing behavior changes. Phase 21.2 is next for branch-aware index metadata.
+
+Manual reindex actions are planned later: preview reindex, reindex current
+branch, and reindex changed files only. Any future auto-index toggle must be
+off or conservative by default and must never run on branch change, commit
+change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
+changed files, unsafe delete/rename batches, indexed branch mismatch, or
+indexed commit mismatch.

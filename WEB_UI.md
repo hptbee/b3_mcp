@@ -77,6 +77,26 @@ landing page. It favors compact metric cards, dense forms, raw JSON panels,
 status chips, and graceful offline/empty/error states for local control-server
 workflows.
 
+## Phase 21 Git Intelligence Panel Plan
+
+Phase 21.1 adds internal local Git status detection only. The Web UI does not
+render a Git Intelligence panel yet and does not execute Git directly.
+
+The planned Phase 21.8 panel should display local read-only Git data from
+future control-server APIs only: branch chip, HEAD short hash, dirty status,
+staged/unstaged/untracked/conflict counts, stale index warnings, changed files,
+diff impact summary, and reindex recommendation callouts. It must not call
+remote hosting APIs, run Git commands in the browser, mutate Git state, modify
+the working tree, checkout branches, commit, merge, rebase, reset, clean, push,
+pull, fetch, stash, or auto-reindex.
+
+Future manual actions may include preview reindex, reindex current branch, and
+reindex changed files only. A future auto-index toggle must be off or
+conservative by default, local-only, and disabled for branch change, commit
+change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
+changed files, unsafe delete/rename batches, indexed branch mismatch, or
+indexed commit mismatch.
+
 The Project Status section shows the current project path, database path,
 indexed file/symbol/edge counts, last index status, parse failures, and local
 duration. It also includes `Run Index` and `Reindex Project` buttons. Reindex is

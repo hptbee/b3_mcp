@@ -1,6 +1,25 @@
 # MCP Query Tools
 
 Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
+
+## Phase 21 Git Intelligence MCP Plan
+
+Phase 21.1 adds internal local Git status detection only. It does not add MCP
+tools, change MCP profile membership, or change tool counts.
+
+Planned future Git MCP tools are:
+
+- `git_status`
+- `git_changed_files`
+- `git_diff_summary`
+- `git_impact`
+- `git_compare`
+
+Any future Git MCP tools must be local-only and read-only. They may expose local
+status, changed files, diff summaries, stale-index warnings, and diff-aware
+impact, but must not mutate Git state, modify the working tree, run remote Git
+commands, call GitHub/GitLab/Bitbucket APIs, auto-stash, checkout, commit,
+merge, rebase, reset, clean, push, pull, fetch, or auto-reindex.
 Phase 8.5 adds a local command-output compaction adapter. The runtime validates
 requests, maps DTOs, calls the owning layer, and returns stable serializable
 responses. It does not perform indexing, storage operations, ranking,

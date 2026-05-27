@@ -176,6 +176,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "b3-git"
+version = "0.1.0"
+dependencies = [
+ "b3-core",
+ "tempfile",
+]
+
+[[package]]
 name = "b3-indexer"
 version = "0.1.0"
 dependencies = [

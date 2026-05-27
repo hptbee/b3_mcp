@@ -638,3 +638,32 @@ Benchmark config handling must remain offline-first and free-by-default: no
 internet access, external APIs, telemetry, hosted vector databases, cloud
 embeddings, brokers, database servers, paid dependencies, or global database
 merge. Each benchmark project keeps its own repo-local `.b3/b3.db`.
+
+## Git Intelligence Boundaries
+
+Phase 21.1 Local Git Status Detection is completed as the first local
+read-only Git implementation boundary. Git Intelligence must remain local-only,
+read-only by default, deterministic where possible, and safe for no-git
+projects, dirty worktrees, detached HEAD, subdirectories inside a Git repo,
+submodules, worktrees, and incomplete repositories.
+
+Future implementation may read `.git` metadata or run bounded read-only local
+Git commands when available. It must not run checkout, switch, commit, merge,
+rebase, reset, clean, push, pull, fetch, branch/tag/ref mutation, auto-stash,
+auto-reindex on branch switch, write `.git`, modify working-tree files, call
+GitHub/GitLab/Bitbucket or other remote APIs, add telemetry, require internet,
+or require paid/cloud dependencies.
+
+Phase 21.1 adds internal contracts and a `b3-git` local reader for repository
+root, `.git` directory, branch or detached HEAD, HEAD commit, and basic
+porcelain status counts only. It does not add Control API endpoints, MCP tools,
+MCP profile changes, Web UI panels, schema migrations, branch-aware index
+metadata, stale-index detection, changed-file diff summaries, diff-aware
+impact, auto-reindex, or indexing behavior changes. Phase 21.2 is next for
+branch-aware index metadata.
+
+Manual reindex actions remain future work. Any future auto-index toggle must be
+off or conservative by default and must never run on branch change, commit
+change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
+changed files, unsafe delete/rename batches, indexed branch mismatch, or
+indexed commit mismatch.

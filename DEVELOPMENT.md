@@ -553,3 +553,40 @@ crash/timeout isolation. Defaults are:
 
 Parse failures are stored locally in SQLite table `parse_failures` and surfaced
 through `GET /api/diagnostics`.
+
+## Phase 21 Git Intelligence Development Boundary
+
+Phase 21.0 is a design and safety checkpoint only. Git Intelligence
+implementation must stay local-only and read-only by default. Future code may
+read `.git` metadata or run bounded read-only local Git commands, but must not
+run checkout, switch, commit, merge, rebase, reset, clean, push, pull, fetch,
+branch/tag/ref mutation, auto-stash, auto-reindex on branch switch, working-tree
+edits, remote hosting APIs, telemetry, cloud services, package managers,
+Docker/Kubernetes/Terraform, brokers/databases, mandatory LSP, paid
+dependencies, or internet-required workflows.
+
+Keep boundaries clear: `b3-core` owns contracts only; a future `b3-git` or
+equivalent reader owns local read-only Git inspection; storage only persists
+future branch/index metadata; indexer may record an indexing-time Git snapshot
+later; query may consume Git/diff metadata for impact; control and MCP remain
+thin adapters; the Web UI only displays Git data after dedicated API support.
+
+Phase 21.1 adds the first implementation boundary: `b3-core` owns Git status
+contracts and `b3-git` owns local read-only Git status detection. The reader may
+run only bounded local read-only commands for repository root, `.git`
+directory, branch or detached HEAD, HEAD commit, and porcelain status counts.
+It must return warnings rather than panic when Git is unavailable, the project
+is not a Git repository, or status cannot be read.
+
+Phase 21.1 still does not add schema migrations, Control API endpoints, MCP
+tools, MCP profile changes, Web UI panels, branch-aware index metadata,
+stale-index detection, changed-file diff summaries, diff-aware impact,
+auto-reindex, or indexing behavior changes. Phase 21.2 is next for
+branch-aware index metadata.
+
+Manual reindex controls remain later UI/control work: preview reindex, reindex
+current branch, and reindex changed files only. A future auto-index toggle must
+be off or conservative by default and must never run on branch change, commit
+change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
+changed files, unsafe delete/rename batches, indexed branch mismatch, or
+indexed commit mismatch.

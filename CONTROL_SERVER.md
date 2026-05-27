@@ -324,6 +324,32 @@ Phase 16 config/data/web hardening is static/local/offline only. It adds shared 
 
 Phase 17 adds a quality-audit status block to `GET /api/capabilities`. It reports that the support matrix, capability truthfulness, fixture coverage, metadata consistency, secret redaction, false-positive guardrails, cross-surface integration, and benchmark claims were audited. The block explicitly keeps runtime validation, compiler-grade parsing, IDE-grade refactor, architecture graph UI, full Git Intelligence, mandatory LSP, external APIs, cloud services, and telemetry as false/deferred.
 
+## Phase 21 Git Intelligence API Plan
+
+Phase 21.1 adds internal local Git status detection only. No Git endpoints are
+exposed yet and `GET /api/capabilities` is unchanged in this checkpoint.
+
+Planned Phase 21 Control API endpoints are:
+
+- `GET /api/git/status`
+- `GET /api/git/branches`
+- `GET /api/git/changed-files`
+- `GET /api/git/diff-summary`
+- `POST /api/git/compare`
+- `POST /api/git/impact`
+
+Future Git endpoints must be local-only and read-only. They may report no-git,
+dirty worktree, detached HEAD, stale index, changed files, local branch, and
+local diff information, but must not run mutating Git commands, call GitHub,
+GitLab, Bitbucket, or other remote APIs, checkout branches, fetch/pull/push,
+stash/reset/clean, write `.git`, modify the working tree, or auto-reindex.
+
+Manual reindex actions and any auto-index toggle remain future Control/Web UI
+work. Auto-index must be off or conservative by default and must never run on
+branch change, commit change, detached HEAD, conflicts, unknown Git state,
+no-git projects, excessive changed files, unsafe delete/rename batches, indexed
+branch mismatch, or indexed commit mismatch.
+
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route
 metadata from `Route` symbols. Optional filters include `project_id`,

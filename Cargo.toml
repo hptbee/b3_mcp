@@ -6,6 +6,7 @@ members = [
     "crates/b3-cli",
     "crates/b3-core",
     "crates/b3-embeddings",
+    "crates/b3-git",
     "crates/b3-indexer",
     "crates/b3-mcp-runtime",
     "crates/b3-query",
