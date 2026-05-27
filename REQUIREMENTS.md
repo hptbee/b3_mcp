@@ -1136,10 +1136,22 @@ detached HEAD, dirty state, staged/unstaged/untracked/conflicted/total changed
 counts, timestamp, and warnings. A minimal local SQLite migration stores this
 metadata by project and branch.
 
-Phase 21.2 does not add Control API endpoints, MCP tools, MCP profile changes,
-Web UI panels, stale-index detection, changed-file diff summaries, diff-aware
-impact, branch comparison, auto-reindex, or Git mutation. Phase 21.3 is next
-for stale index detection.
+Phase 21.3 is completed as stale index detection and conservative auto-index
+policy evaluation only. It compares current read-only Git status with the latest
+indexed Git snapshot and classifies freshness as Fresh, Dirty, Stale, Unsafe,
+or Unknown. It produces reindex recommendations and manual-action requirements.
+
+Auto full reindex must never run on branch or commit changes. The default
+auto-index policy is disabled, and conservative incremental changed-file mode
+is only allowed by policy when branch and commit match, Git state is known, no
+conflicts exist, changed count is bounded, and changed-file details are
+available. Phase 21.3 does not execute auto-index because changed-file detail is
+deferred to Phase 21.4.
+
+Phase 21.3 does not add schema migrations, Control API endpoints, MCP tools,
+MCP profile changes, Web UI panels, changed-file diff summaries, diff-aware
+impact, branch comparison, auto-reindex execution, or Git mutation. Phase 21.4
+is next for changed files and diff summary.
 
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be

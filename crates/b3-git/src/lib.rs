@@ -4,9 +4,13 @@
 //! local read-only commands and returns warnings instead of failing callers.
 
 mod cli;
+mod freshness;
 mod status;
 
 pub use b3_core::{
-    GitReaderConfig, GitRepositoryStatus, GitStatusError, GitStatusErrorKind, GitWorkingTreeStatus,
+    AutoIndexDecision, AutoIndexMode, AutoIndexPolicy, AutoIndexPolicyMode, GitIndexFreshness,
+    GitIndexFreshnessStatus, GitIndexSnapshot, GitReaderConfig, GitRepositoryStatus,
+    GitStaleReason, GitStatusError, GitStatusErrorKind, GitWorkingTreeStatus,
 };
+pub use freshness::{evaluate_auto_index_policy, evaluate_git_index_freshness};
 pub use status::{parse_porcelain_status, read_git_status, READ_ONLY_GIT_COMMANDS};

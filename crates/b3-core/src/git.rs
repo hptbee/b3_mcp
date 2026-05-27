@@ -146,6 +146,134 @@ impl GitIndexSnapshot {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GitIndexFreshnessStatus {
+    Fresh,
+    Dirty,
+    Stale,
+    Unsafe,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GitStaleReason {
+    NoGitStatus,
+    NoIndexSnapshot,
+    NoGitRepo,
+    RepoRootChanged,
+    BranchChanged,
+    CommitChanged,
+    DetachedHead,
+    WorkingTreeDirty,
+    ConflictDetected,
+    IndexedConflicted,
+    GitStatusWarning,
+    SnapshotWarning,
+    ExcessiveChangedFiles,
+    UnsafeChangeShape,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitIndexFreshness {
+    pub status: GitIndexFreshnessStatus,
+    pub is_stale: bool,
+    pub reindex_recommended: bool,
+    pub manual_action_required: bool,
+    pub auto_reindex_allowed: bool,
+    pub auto_reindex_mode: AutoIndexMode,
+    pub stale_reasons: Vec<GitStaleReason>,
+    pub current: Option<GitRepositoryStatus>,
+    pub indexed: Option<GitIndexSnapshot>,
+    pub auto_index_decision: AutoIndexDecision,
+    pub warnings: Vec<String>,
+    pub recommendation: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoIndexPolicyMode {
+    Off,
+    Conservative,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoIndexMode {
+    None,
+    IncrementalChangedFiles,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutoIndexPolicy {
+    pub enabled: bool,
+    pub mode: AutoIndexPolicyMode,
+    pub max_changed_files: usize,
+    pub require_same_branch: bool,
+    pub require_same_commit: bool,
+    pub require_no_conflicts: bool,
+    pub require_known_git_state: bool,
+    pub allow_untracked: bool,
+    pub allow_deleted: bool,
+    pub allow_renamed: bool,
+    pub changed_file_list_available: bool,
+}
+
+impl Default for AutoIndexPolicy {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            mode: AutoIndexPolicyMode::Off,
+            max_changed_files: 25,
+            require_same_branch: true,
+            require_same_commit: true,
+            require_no_conflicts: true,
+            require_known_git_state: true,
+            allow_untracked: true,
+            allow_deleted: false,
+            allow_renamed: false,
+            changed_file_list_available: false,
+        }
+    }
+}
+
+impl AutoIndexPolicy {
+    pub fn conservative_enabled() -> Self {
+        Self {
+            enabled: true,
+            mode: AutoIndexPolicyMode::Conservative,
+            ..Self::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutoIndexDecision {
+    pub allowed: bool,
+    pub mode: AutoIndexMode,
+    pub blocked_reasons: Vec<String>,
+    pub requires_manual_action: bool,
+    pub recommendation: String,
+}
+
+impl AutoIndexDecision {
+    pub fn blocked(
+        blocked_reasons: Vec<String>,
+        requires_manual_action: bool,
+        recommendation: impl Into<String>,
+    ) -> Self {
+        Self {
+            allowed: false,
+            mode: AutoIndexMode::None,
+            blocked_reasons,
+            requires_manual_action,
+            recommendation: recommendation.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

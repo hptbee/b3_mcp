@@ -81,12 +81,12 @@ Completed:
 - Phase 21.0 Git Intelligence Design / Safety Plan
 - Phase 21.1 Local Git Status Detection
 - Phase 21.2 Branch-Aware Index Metadata
-
-Current/Next:
 - Phase 21.3 Stale Index Detection
 
-Upcoming:
+Current/Next:
 - Phase 21.4 Changed Files / Diff Summary
+
+Upcoming:
 - Phase 21.5 Diff-Aware Impact Analysis
 - Phase 21.6 Branch Comparison / Baseline Diff
 - Phase 21.7 Git APIs + Control Server Integration
@@ -1274,14 +1274,14 @@ Completed:
 - Phase 21.0 - Git Intelligence Design / Safety Plan
 - Phase 21.1 - Local Git Status Detection
 - Phase 21.2 - Branch-Aware Index Metadata
+- Phase 21.3 - Stale Index Detection
 
 Current/Next:
 
-- Phase 21.3 - Stale Index Detection
+- Phase 21.4 - Changed Files / Diff Summary
 
 Upcoming:
 
-- Phase 21.4 - Changed Files / Diff Summary
 - Phase 21.5 - Diff-Aware Impact Analysis
 - Phase 21.6 - Branch Comparison / Baseline Diff
 - Phase 21.7 - Git APIs + Control Server Integration
@@ -1717,8 +1717,8 @@ Subroadmap:
 - 21.0 Git Intelligence Design / Safety Plan - Completed.
 - 21.1 Local Git Status Detection - Completed.
 - 21.2 Branch-Aware Index Metadata - Completed.
-- 21.3 Stale Index Detection - Current / Next.
-- 21.4 Changed Files / Diff Summary - Planned.
+- 21.3 Stale Index Detection - Completed.
+- 21.4 Changed Files / Diff Summary - Current / Next.
 - 21.5 Diff-Aware Impact Analysis - Planned.
 - 21.6 Branch Comparison / Baseline Diff - Planned.
 - 21.7 Git APIs + Control Server Integration - Planned.
@@ -1951,6 +1951,46 @@ Impact:
   extraction format, language support level, benchmark target, frontend, remote
   API, telemetry, package manager, Docker/Kubernetes/Terraform, broker/database,
   mandatory LSP, paid dependency, or internet requirement is added
+
+### Phase 21.3 Stale Index Detection
+
+Status: Completed.
+
+Scope completed:
+
+- added `GitIndexFreshness`, `GitIndexFreshnessStatus`, `GitStaleReason`,
+  `AutoIndexPolicy`, `AutoIndexPolicyMode`, `AutoIndexMode`, and
+  `AutoIndexDecision` contracts in `b3-core`
+- added pure `b3-git` freshness and auto-index policy evaluators that compare
+  current read-only Git status with the latest indexed Git snapshot
+- classified index state as Fresh, Dirty, Stale, Unsafe, or Unknown
+- produced reindex recommendations and manual-action requirements for missing
+  snapshots, branch changes, commit changes, repo-root changes, detached HEAD,
+  conflicts, no-git/unknown state, warnings, and dirty working trees
+- added conservative auto-index policy evaluation with default execution
+  disabled
+
+Policy:
+
+- branch or commit changes produce stale/manual recommendations and block
+  auto-index
+- detached HEAD, conflicts, no-git state, unknown Git status, excessive changed
+  files, and unavailable changed-file lists block auto-index
+- default policy is disabled; an explicitly enabled conservative policy may
+  allow incremental changed-file mode only when branch and commit match, Git
+  state is known, no conflicts exist, changed count is bounded, and changed-file
+  details are available
+- Phase 21.3 does not execute auto-index; changed-file execution waits for later
+  changed-file/UI/control phases
+
+Impact:
+
+- no schema migration was added in Phase 21.3
+- no public Control API response, `/api/capabilities` response, MCP tool/profile
+  count, Web UI panel, changed-file diff summary, diff-aware impact, branch
+  compare, Git mutation, remote API, telemetry, package manager,
+  Docker/Kubernetes/Terraform, broker/database, mandatory LSP, paid dependency,
+  or internet requirement is added
 
 ---
 
