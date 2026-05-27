@@ -79,9 +79,8 @@ workflows.
 
 ## Phase 21 Git Intelligence Panel Plan
 
-Phase 21.3 adds internal stale-index and auto-index policy evaluation only. The
-Web UI does not render a Git Intelligence panel yet and does not execute Git
-directly.
+Phase 21.4 adds internal changed-file and diff-summary readers only. The Web UI
+does not render a Git Intelligence panel yet and does not execute Git directly.
 
 The planned Phase 21.8 panel should display local read-only Git data from
 future control-server APIs only: branch chip, HEAD short hash, dirty status,
@@ -98,9 +97,10 @@ change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
 changed files, unsafe delete/rename batches, indexed branch mismatch, or
 indexed commit mismatch.
 
-Phase 21.3 does not add Web UI controls, changed-file tables, diff impact
-views, or auto-index execution. Future UI may display freshness and reindex
-recommendations, but manual controls remain planned for later phases.
+Phase 21.4 does not add Web UI controls, changed-file tables, diff impact
+views, or auto-index execution. Future UI may display freshness, bounded changed
+files, line-count summaries, and reindex recommendations, but manual controls
+remain planned for later phases.
 
 The Project Status section shows the current project path, database path,
 indexed file/symbol/edge counts, last index status, parse failures, and local

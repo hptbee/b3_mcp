@@ -1,12 +1,22 @@
 use b3_core::{
-    AutoIndexDecision, AutoIndexMode, AutoIndexPolicy, AutoIndexPolicyMode, GitIndexFreshness,
-    GitIndexFreshnessStatus, GitIndexSnapshot, GitRepositoryStatus, GitStaleReason,
+    AutoIndexDecision, AutoIndexMode, AutoIndexPolicy, AutoIndexPolicyMode, GitChangedFileStatus,
+    GitDiffSummary, GitIndexFreshness, GitIndexFreshnessStatus, GitIndexSnapshot,
+    GitRepositoryStatus, GitStaleReason,
 };
 
 pub fn evaluate_git_index_freshness(
     current: Option<GitRepositoryStatus>,
     indexed: Option<GitIndexSnapshot>,
     policy: AutoIndexPolicy,
+) -> GitIndexFreshness {
+    evaluate_git_index_freshness_with_diff(current, indexed, policy, None)
+}
+
+pub fn evaluate_git_index_freshness_with_diff(
+    current: Option<GitRepositoryStatus>,
+    indexed: Option<GitIndexSnapshot>,
+    policy: AutoIndexPolicy,
+    diff_summary: Option<&GitDiffSummary>,
 ) -> GitIndexFreshness {
     let mut reasons = Vec::new();
     let mut warnings = Vec::new();
@@ -68,6 +78,19 @@ pub fn evaluate_git_index_freshness(
         reasons.push(GitStaleReason::SnapshotWarning);
         warnings.extend(indexed_snapshot.git_status_warnings.clone());
     }
+    if let Some(diff) = diff_summary {
+        if diff.truncated {
+            reasons.push(GitStaleReason::ExcessiveChangedFiles);
+            warnings.push("changed-file list was truncated".to_string());
+        }
+        if diff
+            .changed_files
+            .iter()
+            .any(|file| !is_policy_safe_status(file.status, &policy))
+        {
+            reasons.push(GitStaleReason::UnsafeChangeShape);
+        }
+    }
 
     classify_reasons(&current_status, &indexed_snapshot, &mut reasons);
     let status = classify_status(&current_status, &indexed_snapshot, &reasons);
@@ -81,7 +104,12 @@ pub fn evaluate_git_index_freshness(
             | GitIndexFreshnessStatus::Unsafe
             | GitIndexFreshnessStatus::Unknown
     );
-    let decision = evaluate_auto_index_policy(&current_status, &indexed_snapshot, &policy);
+    let decision = evaluate_auto_index_policy_with_diff(
+        &current_status,
+        &indexed_snapshot,
+        &policy,
+        diff_summary,
+    );
     let auto_reindex_allowed = decision.allowed;
     let auto_reindex_mode = decision.mode;
     let recommendation = recommendation_for(&status, &reasons, &decision);
@@ -106,6 +134,15 @@ pub fn evaluate_auto_index_policy(
     current: &GitRepositoryStatus,
     indexed: &GitIndexSnapshot,
     policy: &AutoIndexPolicy,
+) -> AutoIndexDecision {
+    evaluate_auto_index_policy_with_diff(current, indexed, policy, None)
+}
+
+pub fn evaluate_auto_index_policy_with_diff(
+    current: &GitRepositoryStatus,
+    indexed: &GitIndexSnapshot,
+    policy: &AutoIndexPolicy,
+    diff_summary: Option<&GitDiffSummary>,
 ) -> AutoIndexDecision {
     let mut blocked = Vec::new();
     let mut manual = false;
@@ -148,8 +185,25 @@ pub fn evaluate_auto_index_policy(
     } else {
         blocked.push("git_status_warning".to_string());
     }
-    if !policy.changed_file_list_available && current.working_tree.dirty {
+    let changed_file_list_available = policy.changed_file_list_available || diff_summary.is_some();
+    if !changed_file_list_available && current.working_tree.dirty {
         blocked.push("changed_file_list_not_available_until_phase_21_4".to_string());
+    }
+    if let Some(diff) = diff_summary {
+        if diff.truncated {
+            blocked.push("truncated_changed_files".to_string());
+            manual = true;
+        }
+        if diff.total_changed_count > policy.max_changed_files {
+            blocked.push("excessive_changed_files".to_string());
+            manual = true;
+        }
+        for file in &diff.changed_files {
+            if !is_policy_safe_status(file.status, policy) {
+                blocked.push(format!("unsafe_change_status:{:?}", file.status));
+                manual = true;
+            }
+        }
     }
 
     if !blocked.is_empty() {
@@ -174,6 +228,18 @@ pub fn evaluate_auto_index_policy(
         } else {
             "Index is clean; no auto-index action is needed.".to_string()
         },
+    }
+}
+
+fn is_policy_safe_status(status: GitChangedFileStatus, policy: &AutoIndexPolicy) -> bool {
+    match status {
+        GitChangedFileStatus::Modified | GitChangedFileStatus::Added => true,
+        GitChangedFileStatus::Untracked => policy.allow_untracked,
+        GitChangedFileStatus::Deleted => policy.allow_deleted,
+        GitChangedFileStatus::Renamed => policy.allow_renamed,
+        GitChangedFileStatus::Copied => policy.allow_copied,
+        GitChangedFileStatus::TypeChanged => policy.allow_type_changed,
+        GitChangedFileStatus::Conflicted | GitChangedFileStatus::Unknown => false,
     }
 }
 
@@ -228,6 +294,8 @@ fn classify_status(
                 | GitStaleReason::ConflictDetected
                 | GitStaleReason::IndexedConflicted
                 | GitStaleReason::GitStatusWarning
+                | GitStaleReason::ExcessiveChangedFiles
+                | GitStaleReason::UnsafeChangeShape
         )
     }) {
         return GitIndexFreshnessStatus::Unsafe;
@@ -287,7 +355,7 @@ fn recommendation_for(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use b3_core::{BranchId, GitWorkingTreeStatus, ProjectId};
+    use b3_core::{BranchId, GitChangedFile, GitWorkingTreeStatus, ProjectId};
     use std::path::PathBuf;
 
     fn clean_status() -> GitRepositoryStatus {
@@ -502,5 +570,110 @@ mod tests {
             .auto_index_decision
             .blocked_reasons
             .contains(&"excessive_changed_files".to_string()));
+    }
+
+    #[test]
+    fn changed_file_diff_allows_safe_modified_added_when_policy_enabled() {
+        let mut current = clean_status();
+        current.working_tree = GitWorkingTreeStatus {
+            dirty: true,
+            staged_count: 1,
+            unstaged_count: 1,
+            total_changed_count: 2,
+            ..GitWorkingTreeStatus::default()
+        };
+        let mut policy = AutoIndexPolicy::conservative_enabled();
+        policy.changed_file_list_available = true;
+        let diff = diff_with(vec![
+            changed_file("src/lib.rs", GitChangedFileStatus::Modified),
+            changed_file("src/new.rs", GitChangedFileStatus::Added),
+        ]);
+
+        let result = evaluate_git_index_freshness_with_diff(
+            Some(current),
+            Some(snapshot()),
+            policy,
+            Some(&diff),
+        );
+
+        assert_eq!(result.status, GitIndexFreshnessStatus::Dirty);
+        assert!(result.auto_reindex_allowed);
+    }
+
+    #[test]
+    fn changed_file_diff_blocks_truncated_deleted_renamed_and_unknown_by_default() {
+        let mut current = clean_status();
+        current.working_tree = GitWorkingTreeStatus {
+            dirty: true,
+            staged_count: 3,
+            total_changed_count: 3,
+            ..GitWorkingTreeStatus::default()
+        };
+        let mut policy = AutoIndexPolicy::conservative_enabled();
+        policy.changed_file_list_available = true;
+        let mut diff = diff_with(vec![
+            changed_file("deleted.rs", GitChangedFileStatus::Deleted),
+            changed_file("renamed.rs", GitChangedFileStatus::Renamed),
+            changed_file("mystery.rs", GitChangedFileStatus::Unknown),
+        ]);
+        diff.truncated = true;
+
+        let result = evaluate_git_index_freshness_with_diff(
+            Some(current),
+            Some(snapshot()),
+            policy,
+            Some(&diff),
+        );
+
+        assert_eq!(result.status, GitIndexFreshnessStatus::Unsafe);
+        assert!(!result.auto_reindex_allowed);
+        assert!(result
+            .auto_index_decision
+            .blocked_reasons
+            .contains(&"truncated_changed_files".to_string()));
+        assert!(result
+            .stale_reasons
+            .contains(&GitStaleReason::UnsafeChangeShape));
+    }
+
+    fn changed_file(path: &str, status: GitChangedFileStatus) -> GitChangedFile {
+        GitChangedFile {
+            path: path.to_string(),
+            old_path: None,
+            status,
+            staged: true,
+            unstaged: false,
+            untracked: status == GitChangedFileStatus::Untracked,
+            conflicted: status == GitChangedFileStatus::Conflicted,
+            lines_added: Some(1),
+            lines_deleted: Some(0),
+            language: None,
+            is_indexed: None,
+            warnings: Vec::new(),
+        }
+    }
+
+    fn diff_with(changed_files: Vec<GitChangedFile>) -> GitDiffSummary {
+        GitDiffSummary {
+            is_git_repo: true,
+            repo_root: Some("D:/repo".to_string()),
+            base_ref: None,
+            head_ref: Some("abc123".to_string()),
+            staged_count: changed_files.len(),
+            unstaged_count: 0,
+            untracked_count: 0,
+            conflicted_count: 0,
+            added_count: 0,
+            modified_count: 0,
+            deleted_count: 0,
+            renamed_count: 0,
+            copied_count: 0,
+            total_changed_count: changed_files.len(),
+            total_lines_added: Some(changed_files.len() as u64),
+            total_lines_deleted: Some(0),
+            truncated: false,
+            warnings: Vec::new(),
+            changed_files,
+        }
     }
 }

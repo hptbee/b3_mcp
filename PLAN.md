@@ -82,12 +82,12 @@ Completed:
 - Phase 21.1 Local Git Status Detection
 - Phase 21.2 Branch-Aware Index Metadata
 - Phase 21.3 Stale Index Detection
-
-Current/Next:
 - Phase 21.4 Changed Files / Diff Summary
 
-Upcoming:
+Current/Next:
 - Phase 21.5 Diff-Aware Impact Analysis
+
+Upcoming:
 - Phase 21.6 Branch Comparison / Baseline Diff
 - Phase 21.7 Git APIs + Control Server Integration
 - Phase 21.8 Web UI Git Intelligence Panel
@@ -1275,14 +1275,14 @@ Completed:
 - Phase 21.1 - Local Git Status Detection
 - Phase 21.2 - Branch-Aware Index Metadata
 - Phase 21.3 - Stale Index Detection
+- Phase 21.4 - Changed Files / Diff Summary
 
 Current/Next:
 
-- Phase 21.4 - Changed Files / Diff Summary
+- Phase 21.5 - Diff-Aware Impact Analysis
 
 Upcoming:
 
-- Phase 21.5 - Diff-Aware Impact Analysis
 - Phase 21.6 - Branch Comparison / Baseline Diff
 - Phase 21.7 - Git APIs + Control Server Integration
 - Phase 21.8 - Web UI Git Intelligence Panel
@@ -1718,8 +1718,8 @@ Subroadmap:
 - 21.1 Local Git Status Detection - Completed.
 - 21.2 Branch-Aware Index Metadata - Completed.
 - 21.3 Stale Index Detection - Completed.
-- 21.4 Changed Files / Diff Summary - Current / Next.
-- 21.5 Diff-Aware Impact Analysis - Planned.
+- 21.4 Changed Files / Diff Summary - Completed.
+- 21.5 Diff-Aware Impact Analysis - Current / Next.
 - 21.6 Branch Comparison / Baseline Diff - Planned.
 - 21.7 Git APIs + Control Server Integration - Planned.
 - 21.8 Web UI Git Intelligence Panel - Planned.
@@ -1991,6 +1991,35 @@ Impact:
   compare, Git mutation, remote API, telemetry, package manager,
   Docker/Kubernetes/Terraform, broker/database, mandatory LSP, paid dependency,
   or internet requirement is added
+
+### Phase 21.4 Changed Files / Diff Summary
+
+Status: Completed.
+
+Scope completed:
+
+- added `GitChangedFile`, `GitChangedFileStatus`, `GitDiffSummary`, and
+  `GitDiffSummaryConfig` contracts in `b3-core`
+- added bounded local read-only changed-file and numstat readers in `b3-git`
+- parsed `git status --porcelain=v1 -z --branch` for modified, added, deleted,
+  renamed, copied, untracked, conflicted, type-changed, and unknown file states
+- parsed `git diff --numstat` and `git diff --cached --numstat` for bounded line
+  counts without reading file contents or full patches
+- enforced max changed-file output with truncation warnings
+- integrated optional diff summaries into the Phase 21.3 auto-index policy
+  evaluator so truncated output and unsafe statuses block auto-index
+
+Safety and behavior:
+
+- allowed commands remain local read-only: status porcelain, diff numstat,
+  diff name-status, ls-files for untracked paths, and prior rev-parse commands
+- no full patch, file contents, secrets, remote APIs, Git mutation, working-tree
+  writes, auto-stash, or auto-reindex execution is added
+- default auto-index remains disabled; changed-file details only make policy
+  evaluation more precise
+- no Control API endpoint, `/api/capabilities` update, MCP tool/profile change,
+  Web UI panel, schema migration, persisted diff, branch comparison, or
+  diff-aware impact is added
 
 ---
 

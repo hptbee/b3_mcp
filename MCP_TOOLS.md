@@ -4,8 +4,8 @@ Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
 
 ## Phase 21 Git Intelligence MCP Plan
 
-Phase 21.3 adds internal stale-index and auto-index policy evaluation only. It
-does not add MCP tools, change MCP profile membership, or change tool counts.
+Phase 21.4 adds internal changed-file and diff-summary readers only. It does
+not add MCP tools, change MCP profile membership, or change tool counts.
 
 Planned future Git MCP tools are:
 

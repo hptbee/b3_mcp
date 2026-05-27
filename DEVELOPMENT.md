@@ -591,11 +591,14 @@ Stale, Unsafe, or Unknown and emits reindex/manual-action recommendations.
 
 Auto-index execution remains disabled. Branch changes, commit changes, detached
 HEAD, conflicts, no-git/unknown state, excessive changed files, and unavailable
-changed-file details must block auto-index. Phase 21.3 does not add Control API
-endpoints, MCP tools, MCP profile changes, Web UI panels, schema migrations,
-changed-file diff summaries, diff-aware impact, branch comparison, auto-reindex
-execution, or Git mutation. Phase 21.4 is next for changed files and diff
-summary.
+changed-file details must block auto-index.
+
+Phase 21.4 adds local read-only changed-file and diff-summary support in
+`b3-git`. It parses status porcelain and numstat output with bounded stdout and
+timeouts, never full patches or file contents. The summary can feed the
+conservative policy evaluator, but no auto-index execution, Control endpoint,
+MCP tool, Web UI panel, schema migration, branch comparison, or diff-aware
+impact is added. Phase 21.5 is next for diff-aware impact analysis.
 
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must

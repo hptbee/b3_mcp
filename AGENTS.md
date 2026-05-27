@@ -641,8 +641,8 @@ merge. Each benchmark project keeps its own repo-local `.b3/b3.db`.
 
 ## Git Intelligence Boundaries
 
-Phase 21.3 Stale Index Detection is completed as local read-only freshness and
-policy evaluation. Git Intelligence must remain local-only,
+Phase 21.4 Changed Files / Diff Summary is completed as local read-only changed
+file detection. Git Intelligence must remain local-only,
 read-only by default, deterministic where possible, and safe for no-git
 projects, dirty worktrees, detached HEAD, subdirectories inside a Git repo,
 submodules, worktrees, and incomplete repositories.
@@ -654,11 +654,11 @@ auto-reindex on branch switch, write `.git`, modify working-tree files, call
 GitHub/GitLab/Bitbucket or other remote APIs, add telemetry, require internet,
 or require paid/cloud dependencies.
 
-Phase 21.3 adds `GitIndexFreshness` and conservative `AutoIndexPolicy`
-evaluation. It does not add Control API endpoints, MCP tools, MCP profile
-changes, Web UI panels, schema migrations, changed-file diff summaries,
-diff-aware impact, branch comparison, auto-reindex execution, or Git mutation.
-Phase 21.4 is next for changed files and diff summary.
+Phase 21.4 adds bounded status-porcelain and numstat parsing. It does not add
+Control API endpoints, MCP tools, MCP profile changes, Web UI panels, schema
+migrations, diff-aware impact, branch comparison, auto-reindex execution, full
+patches, file-content exposure, or Git mutation. Phase 21.5 is next for
+diff-aware impact analysis.
 
 Manual reindex actions remain future work. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

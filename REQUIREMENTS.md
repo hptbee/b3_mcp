@@ -1148,10 +1148,22 @@ conflicts exist, changed count is bounded, and changed-file details are
 available. Phase 21.3 does not execute auto-index because changed-file detail is
 deferred to Phase 21.4.
 
-Phase 21.3 does not add schema migrations, Control API endpoints, MCP tools,
-MCP profile changes, Web UI panels, changed-file diff summaries, diff-aware
-impact, branch comparison, auto-reindex execution, or Git mutation. Phase 21.4
-is next for changed files and diff summary.
+Phase 21.4 is completed as local read-only changed-file and diff-summary
+support only. It parses bounded `git status --porcelain=v1 -z --branch` output
+for changed file paths and classifications, and bounded `git diff --numstat`
+plus `git diff --cached --numstat` output for line-count summaries. It does not
+read file contents or full patches.
+
+Changed-file details now inform conservative auto-index policy evaluation, but
+auto-index execution remains disabled/deferred. Truncated output, conflicts,
+deleted/renamed/copied/type-changed/unknown statuses unless explicitly allowed,
+branch changes, commit changes, detached HEAD, no-git state, and unknown Git
+state block auto-index.
+
+Phase 21.4 does not add schema migrations, Control API endpoints, MCP tools,
+MCP profile changes, Web UI panels, diff-aware impact, branch comparison,
+auto-reindex execution, Git mutation, or remote APIs. Phase 21.5 is next for
+diff-aware impact analysis.
 
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be

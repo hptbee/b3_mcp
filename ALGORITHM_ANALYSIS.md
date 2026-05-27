@@ -1162,10 +1162,10 @@ services, external APIs, telemetry, or internet access.
 
 ## Phase 21 Git Intelligence Design
 
-Phase 21.3 evaluates stale-index freshness by comparing current read-only Git
-status with the latest indexed Git snapshot. The evaluator classifies results
-as Fresh, Dirty, Stale, Unsafe, or Unknown and emits stale reasons, manual
-reindex recommendations, and conservative auto-index policy decisions.
+Phase 21.4 adds changed-file and diff-summary algorithms on top of local
+read-only Git output. It parses bounded status porcelain for path/status
+classification and bounded numstat output for line-count summaries. It does not
+parse full patches, read changed file contents, or persist diffs.
 
 Git Intelligence must not execute mutating or remote operations: no checkout,
 switch, commit, merge, rebase, reset, clean, push, pull, fetch, branch/tag/ref
@@ -1177,7 +1177,7 @@ Planned algorithms are stale-index detection from indexed branch/commit/worktree
 snapshot metadata, changed-file classification from local status/diff evidence,
 and diff-aware impact by mapping changed paths to existing indexed symbols,
 routes, components, data-access, messaging, infrastructure, WPF/XAML,
-architecture matches, and context-pack recommendations. Phase 21.3 adds no
+architecture matches, and context-pack recommendations. Phase 21.4 adds no
 schema migration and does not add Control APIs, MCP tools, Web UI panels,
-auto-reindex execution, changed-file diff summaries, diff-aware impact, or live
+auto-reindex execution, diff-aware impact, branch comparison, or live
 capabilities changes.

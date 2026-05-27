@@ -218,6 +218,8 @@ pub struct AutoIndexPolicy {
     pub allow_untracked: bool,
     pub allow_deleted: bool,
     pub allow_renamed: bool,
+    pub allow_copied: bool,
+    pub allow_type_changed: bool,
     pub changed_file_list_available: bool,
 }
 
@@ -234,6 +236,8 @@ impl Default for AutoIndexPolicy {
             allow_untracked: true,
             allow_deleted: false,
             allow_renamed: false,
+            allow_copied: false,
+            allow_type_changed: false,
             changed_file_list_available: false,
         }
     }
@@ -270,6 +274,84 @@ impl AutoIndexDecision {
             blocked_reasons,
             requires_manual_action,
             recommendation: recommendation.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitChangedFile {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub status: GitChangedFileStatus,
+    pub staged: bool,
+    pub unstaged: bool,
+    pub untracked: bool,
+    pub conflicted: bool,
+    pub lines_added: Option<u64>,
+    pub lines_deleted: Option<u64>,
+    pub language: Option<String>,
+    pub is_indexed: Option<bool>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GitChangedFileStatus {
+    Added,
+    Modified,
+    Deleted,
+    Renamed,
+    Copied,
+    Untracked,
+    Conflicted,
+    TypeChanged,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitDiffSummary {
+    pub is_git_repo: bool,
+    pub repo_root: Option<String>,
+    pub base_ref: Option<String>,
+    pub head_ref: Option<String>,
+    pub changed_files: Vec<GitChangedFile>,
+    pub staged_count: usize,
+    pub unstaged_count: usize,
+    pub untracked_count: usize,
+    pub conflicted_count: usize,
+    pub added_count: usize,
+    pub modified_count: usize,
+    pub deleted_count: usize,
+    pub renamed_count: usize,
+    pub copied_count: usize,
+    pub total_changed_count: usize,
+    pub total_lines_added: Option<u64>,
+    pub total_lines_deleted: Option<u64>,
+    pub truncated: bool,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitDiffSummaryConfig {
+    pub max_changed_files: usize,
+    pub max_stdout_bytes: usize,
+    pub command_timeout_ms: u64,
+    pub include_untracked: bool,
+    pub include_line_counts: bool,
+    pub allow_numstat: bool,
+    pub allow_name_status: bool,
+}
+
+impl Default for GitDiffSummaryConfig {
+    fn default() -> Self {
+        Self {
+            max_changed_files: 100,
+            max_stdout_bytes: 512 * 1024,
+            command_timeout_ms: 2_000,
+            include_untracked: true,
+            include_line_counts: true,
+            allow_numstat: true,
+            allow_name_status: true,
         }
     }
 }
