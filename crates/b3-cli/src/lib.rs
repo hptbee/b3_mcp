@@ -137,6 +137,52 @@ impl Default for DoctorOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpConfigOptions {
+    pub agent: AgentKind,
+    pub server_name: String,
+    pub command_path: String,
+    pub project_path: PathBuf,
+    pub database_path: PathBuf,
+    pub profile: ToolProfileName,
+    pub config_path: Option<PathBuf>,
+    pub cargo_run: bool,
+    pub repo_path: PathBuf,
+}
+
+impl McpConfigOptions {
+    fn default_for(agent: AgentKind) -> Self {
+        let project_path = absolute_path(PathBuf::from("."));
+        let database_path = project_path.join(".b3").join("b3.db");
+        Self {
+            agent,
+            server_name: DEFAULT_SERVER_NAME.to_string(),
+            command_path: DEFAULT_COMMAND.to_string(),
+            project_path,
+            database_path,
+            profile: ToolProfileName::default(),
+            config_path: None,
+            cargo_run: false,
+            repo_path: absolute_path(PathBuf::from(".")),
+        }
+    }
+
+    pub fn target_path(&self) -> PathBuf {
+        match (self.agent, &self.config_path) {
+            (_, Some(path)) => path.clone(),
+            (AgentKind::Codex, None) => codex_config_path(),
+            (AgentKind::Cursor, None) => self.project_path.join(".cursor").join("mcp.json"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpConfigPlan {
+    pub target_path: PathBuf,
+    pub content: String,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstallPlan {
     pub target_path: PathBuf,
     pub content: String,
@@ -253,6 +299,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), String> {
         "doctor" => {
             let options = parse_doctor(args)?;
             println!("{}", run_doctor(&options));
+            Ok(())
+        }
+        "mcp" => {
+            println!("{}", run_mcp(args)?);
             Ok(())
         }
         "register" => {
@@ -388,6 +438,72 @@ pub fn cursor_server_value(options: &InstallOptions) -> Value {
             options.profile.to_string()
         ]
     })
+}
+
+pub fn mcp_config_plan(options: &McpConfigOptions) -> Result<McpConfigPlan, String> {
+    validate_server_name(&options.server_name)?;
+    let target_path = options.target_path();
+    let content = match options.agent {
+        AgentKind::Codex => codex_mcp_template(options),
+        AgentKind::Cursor => cursor_mcp_template(options)?,
+    };
+    let warnings = mcp_config_warnings(options, &target_path);
+    Ok(McpConfigPlan {
+        target_path,
+        content,
+        warnings,
+    })
+}
+
+pub fn cursor_mcp_template(options: &McpConfigOptions) -> Result<String, String> {
+    let mut server = json!({
+        "command": mcp_command(options),
+        "args": mcp_args(options),
+    });
+    if options.cargo_run {
+        server["cwd"] = json!(path_string(&options.repo_path));
+    }
+    let mut servers = serde_json::Map::new();
+    servers.insert(options.server_name.clone(), server);
+    let root = json!({ "mcpServers": servers });
+    serde_json::to_string_pretty(&root).map_err(|error| error.to_string())
+}
+
+pub fn codex_mcp_template(options: &McpConfigOptions) -> String {
+    let mut lines = vec![
+        format!("[mcp_servers.{}]", options.server_name),
+        "enabled = true".to_string(),
+        format!("command = \"{}\"", escape_toml(&mcp_command(options))),
+        "args = [".to_string(),
+    ];
+    for arg in mcp_args(options) {
+        lines.push(format!("  \"{}\",", escape_toml(&arg)));
+    }
+    lines.push("]".to_string());
+    if options.cargo_run {
+        lines.push(format!(
+            "cwd = \"{}\"",
+            escape_toml(&path_string(&options.repo_path))
+        ));
+        lines.push("startup_timeout_sec = 30".to_string());
+    } else {
+        lines.push("startup_timeout_sec = 20".to_string());
+    }
+    lines.push("tool_timeout_sec = 60".to_string());
+    lines.push(String::new());
+    lines.join("\n")
+}
+
+pub fn mcp_profile_recommendations() -> String {
+    [
+        "B3 MCP profiles",
+        "recommended: optimized - everyday Cursor/Codex use",
+        "optional: full - broader tool surface when needed",
+        "minimal: tiny - smallest high-value manifest",
+        "available: debug, readonly, editing, web-app, enterprise",
+        "Git Intelligence MCP tools: not exposed in Phase 21.4.1",
+    ]
+    .join("\n")
 }
 
 pub fn backup_path_for(path: &Path) -> PathBuf {
@@ -799,6 +915,66 @@ fn parse_install(args: impl Iterator<Item = String>) -> Result<InstallOptions, S
     Ok(options)
 }
 
+fn run_mcp(args: impl Iterator<Item = String>) -> Result<String, String> {
+    let mut args = args.peekable();
+    let subcommand = next_arg(&mut args, "mcp <config|doctor|profiles>")?;
+    match subcommand.as_str() {
+        "config" => {
+            let agent: AgentKind = next_arg(&mut args, "mcp config <codex|cursor>")?.parse()?;
+            let options = parse_mcp_config(agent, args)?;
+            let plan = mcp_config_plan(&options)?;
+            Ok(render_mcp_config_plan(&options, &plan))
+        }
+        "doctor" => {
+            let options = parse_doctor(args)?;
+            Ok(run_doctor(&options))
+        }
+        "profiles" => Ok(mcp_profile_recommendations()),
+        "--help" | "-h" => Err(usage()),
+        _ => Err(format!("unknown mcp subcommand: {subcommand}\n{}", usage())),
+    }
+}
+
+fn parse_mcp_config(
+    agent: AgentKind,
+    args: impl Iterator<Item = String>,
+) -> Result<McpConfigOptions, String> {
+    let mut options = McpConfigOptions::default_for(agent);
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--server-name" => options.server_name = next_arg(&mut args, "--server-name")?,
+            "--command" => options.command_path = next_arg(&mut args, "--command")?,
+            "--project" => options.project_path = absolute_path(next_path(&mut args, "--project")?),
+            "--database" => {
+                options.database_path = absolute_path(next_path(&mut args, "--database")?)
+            }
+            "--profile" | "--tool-profile" => {
+                options.profile = next_arg(&mut args, &arg)?.parse()?;
+            }
+            "--config" => options.config_path = Some(next_path(&mut args, "--config")?),
+            "--cargo-run" => options.cargo_run = true,
+            "--repo" => options.repo_path = absolute_path(next_path(&mut args, "--repo")?),
+            "--dry-run" => {}
+            "--write" | "--apply" => {
+                return Err(
+                    "b3 mcp config is print-only; use b3 install --agent <codex|cursor> --apply for safe writes with backups"
+                        .to_string(),
+                );
+            }
+            "--force" => {
+                return Err(
+                    "b3 mcp config does not force-overwrite files; use b3 install --apply --backup for safe writes"
+                        .to_string(),
+                );
+            }
+            "--help" | "-h" => return Err(usage()),
+            _ => return Err(format!("unknown mcp config argument: {arg}")),
+        }
+    }
+    Ok(options)
+}
+
 fn parse_shared_install_options(
     args: impl Iterator<Item = String>,
     options: &mut InstallOptions,
@@ -1155,6 +1331,38 @@ fn render_install_plan(options: &InstallOptions, plan: &InstallPlan) -> String {
     lines.join("\n")
 }
 
+fn render_mcp_config_plan(options: &McpConfigOptions, plan: &McpConfigPlan) -> String {
+    let mode = if options.cargo_run {
+        "cargo-run"
+    } else {
+        "binary"
+    };
+    let mut lines = vec![
+        format!("agent: {:?}", options.agent).to_lowercase(),
+        format!("target: {}", plan.target_path.display()),
+        "mode: dry-run".to_string(),
+        format!("runtime mode: {mode}"),
+        format!("profile: {}", options.profile),
+    ];
+    lines.extend(
+        plan.warnings
+            .iter()
+            .map(|warning| format!("warning: {warning}")),
+    );
+    lines.push("generated config template:".to_string());
+    lines.push(plan.content.clone());
+    lines.push(
+        "write safety: print-only; use b3 install --agent <codex|cursor> --apply to merge config with backups"
+            .to_string(),
+    );
+    lines.push(next_steps(&options.project_path, &options.database_path));
+    lines.push(
+        "Git MCP tools: not exposed by this setup helper; existing B3 MCP tools are unchanged"
+            .to_string(),
+    );
+    lines.join("\n")
+}
+
 fn render_uninstall_plan(options: &UninstallOptions, plan: &InstallPlan) -> String {
     let mut lines = vec![
         format!("agent: {:?}", options.agent).to_lowercase(),
@@ -1219,6 +1427,63 @@ fn path_warnings(
         }
     }
     warnings
+}
+
+fn mcp_config_warnings(options: &McpConfigOptions, target_path: &Path) -> Vec<String> {
+    let command = mcp_command(options);
+    let mut warnings = path_warnings(
+        &command,
+        &options.project_path,
+        &options.database_path,
+        target_path,
+    );
+    if options.cargo_run && !options.repo_path.exists() {
+        warnings.push(format!(
+            "B3 repo path does not exist yet: {}",
+            options.repo_path.display()
+        ));
+    }
+    if options.cargo_run {
+        warnings.push(
+            "cargo-run templates are useful for local source checkouts but start more slowly than installed binaries"
+                .to_string(),
+        );
+    }
+    warnings.push(
+        "generated template is dry-run only; no Cursor or Codex config file was written"
+            .to_string(),
+    );
+    warnings
+}
+
+fn mcp_command(options: &McpConfigOptions) -> String {
+    if options.cargo_run {
+        "cargo".to_string()
+    } else {
+        options.command_path.clone()
+    }
+}
+
+fn mcp_args(options: &McpConfigOptions) -> Vec<String> {
+    let mut args = Vec::new();
+    if options.cargo_run {
+        args.extend([
+            "run".to_string(),
+            "-p".to_string(),
+            "b3-mcp-runtime".to_string(),
+            "--".to_string(),
+        ]);
+    }
+    args.extend([
+        "serve".to_string(),
+        "--project".to_string(),
+        path_string(&options.project_path),
+        "--database".to_string(),
+        path_string(&options.database_path),
+        "--profile".to_string(),
+        options.profile.to_string(),
+    ]);
+    args
 }
 
 fn next_steps(project_path: &Path, database_path: &Path) -> String {
@@ -1372,7 +1637,7 @@ fn same_path_text(left: &str, right: &str) -> bool {
 }
 
 fn usage() -> String {
-    "usage:\n  b3 install --agent <codex|cursor> --project <path> --database <path> --profile <profile> [--dry-run|--apply] [--backup|--no-backup]\n  b3 uninstall --agent <codex|cursor> [--dry-run|--apply]\n  b3 doctor --project <path> --database <path> --profile <profile>\n  b3 register <project-path> [--name <name>] [--id <id>] [--database <path>] [--tag <tag>] [--update]\n  b3 unregister <project-id> [--dry-run|--apply]\n  b3 list\n  b3 status <project-id>\n  b3 group create <group-name> [--id <id>] [--description <text>]\n  b3 group add <group-id> <project-id>\n  b3 group remove <group-id> <project-id>\n  b3 group list\n  b3 group status <group-id>".to_string()
+    "usage:\n  b3 mcp config <codex|cursor> --project <path> --database <path> --profile <profile> [--cargo-run --repo <path>]\n  b3 mcp doctor --project <path> --database <path> --profile <profile>\n  b3 mcp profiles\n  b3 install --agent <codex|cursor> --project <path> --database <path> --profile <profile> [--dry-run|--apply] [--backup|--no-backup]\n  b3 uninstall --agent <codex|cursor> [--dry-run|--apply]\n  b3 doctor --project <path> --database <path> --profile <profile>\n  b3 register <project-path> [--name <name>] [--id <id>] [--database <path>] [--tag <tag>] [--update]\n  b3 unregister <project-id> [--dry-run|--apply]\n  b3 list\n  b3 status <project-id>\n  b3 group create <group-name> [--id <id>] [--description <text>]\n  b3 group add <group-id> <project-id>\n  b3 group remove <group-id> <project-id>\n  b3 group list\n  b3 group status <group-id>".to_string()
 }
 
 fn print_help() {
@@ -1422,6 +1687,118 @@ mod tests {
         assert!(content.contains("\"local_b3\""));
         assert!(content.contains("\"--profile\""));
         assert!(content.contains("\"tiny\""));
+    }
+
+    #[test]
+    fn mcp_cursor_template_generates_binary_json() {
+        let dir = tempdir().expect("tempdir");
+        let options = McpConfigOptions {
+            agent: AgentKind::Cursor,
+            server_name: "b3".to_string(),
+            command_path: "C:\\Tools\\b3\\b3-mcp-runtime.exe".to_string(),
+            project_path: dir.path().join("project with spaces"),
+            database_path: dir
+                .path()
+                .join("project with spaces")
+                .join(".b3")
+                .join("b3.db"),
+            profile: ToolProfileName::Optimized,
+            config_path: Some(dir.path().join(".cursor").join("mcp.json")),
+            cargo_run: false,
+            repo_path: dir.path().to_path_buf(),
+        };
+        let content = cursor_mcp_template(&options).expect("template");
+        let parsed: Value = serde_json::from_str(&content).expect("json");
+        let server = &parsed["mcpServers"]["b3"];
+
+        assert_eq!(server["command"], "C:\\Tools\\b3\\b3-mcp-runtime.exe");
+        assert!(server["args"].as_array().unwrap().contains(&json!("serve")));
+        assert!(server["args"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("optimized")));
+        assert!(content.contains("\\\\Tools\\\\b3"));
+    }
+
+    #[test]
+    fn mcp_codex_template_generates_cargo_run_toml() {
+        let dir = tempdir().expect("tempdir");
+        let options = McpConfigOptions {
+            agent: AgentKind::Codex,
+            server_name: "b3".to_string(),
+            command_path: "b3-mcp-runtime".to_string(),
+            project_path: dir.path().join("project"),
+            database_path: dir.path().join("project").join(".b3").join("b3.db"),
+            profile: ToolProfileName::Full,
+            config_path: Some(dir.path().join("config.toml")),
+            cargo_run: true,
+            repo_path: PathBuf::from("C:\\Repos\\b3_mcp"),
+        };
+        let content = codex_mcp_template(&options);
+
+        assert!(content.contains("[mcp_servers.b3]"));
+        assert!(content.contains("command = \"cargo\""));
+        assert!(content.contains("\"run\","));
+        assert!(content.contains("\"b3-mcp-runtime\","));
+        assert!(content.contains("\"full\","));
+        assert!(content.contains("cwd = \"C:\\\\Repos\\\\b3_mcp\""));
+        assert!(content.contains("startup_timeout_sec = 30"));
+        assert!(content.contains("tool_timeout_sec = 60"));
+    }
+
+    #[test]
+    fn mcp_config_plan_warns_without_writing() {
+        let dir = tempdir().expect("tempdir");
+        let target = dir.path().join(".cursor").join("mcp.json");
+        let options = McpConfigOptions {
+            agent: AgentKind::Cursor,
+            server_name: "b3".to_string(),
+            command_path: "definitely-not-b3-mcp-runtime".to_string(),
+            project_path: dir.path().join("missing"),
+            database_path: dir.path().join("missing").join(".b3").join("b3.db"),
+            profile: ToolProfileName::Optimized,
+            config_path: Some(target.clone()),
+            cargo_run: false,
+            repo_path: dir.path().to_path_buf(),
+        };
+        let plan = mcp_config_plan(&options).expect("plan");
+
+        assert!(!target.exists());
+        assert!(plan
+            .warnings
+            .iter()
+            .any(|line| line.contains("project path does not exist")));
+        assert!(plan
+            .warnings
+            .iter()
+            .any(|line| line.contains("database file does not exist")));
+        assert!(plan
+            .warnings
+            .iter()
+            .any(|line| line.contains("dry-run only")));
+    }
+
+    #[test]
+    fn mcp_config_rejects_write_to_preserve_explicit_install_safety() {
+        let result = run_cli([
+            "mcp".to_string(),
+            "config".to_string(),
+            "cursor".to_string(),
+            "--write".to_string(),
+        ]);
+
+        assert!(result.expect_err("write error").contains("print-only"));
+    }
+
+    #[test]
+    fn mcp_profile_recommendations_do_not_add_git_tools() {
+        let output = mcp_profile_recommendations();
+
+        assert!(output.contains("optimized"));
+        assert!(output.contains("full"));
+        assert!(output.contains("tiny"));
+        assert!(!output.contains("git_status"));
+        assert!(!output.contains("git_changed_files"));
     }
 
     #[test]

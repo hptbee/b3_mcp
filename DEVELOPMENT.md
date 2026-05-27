@@ -359,6 +359,21 @@ Doctor is local-only:
 cargo run -p b3-cli -- doctor --project "." --database ".b3/b3.db" --profile optimized
 ```
 
+Phase 21.4.1 adds setup-oriented MCP helper aliases. These are dry-run by
+default and do not change MCP tool profiles or expose Git MCP tools:
+
+```powershell
+cargo run -p b3-cli -- mcp config cursor --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp config codex --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp doctor --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp profiles
+```
+
+Use `--cargo-run --repo <b3-repo-path>` when generating templates for a source
+checkout instead of an installed `b3-mcp-runtime` binary. Writing remains
+explicit through `install --apply`; generated `mcp config` templates are
+print-only so setup never overwrites Cursor or Codex config by surprise.
+
 ## Registry And Groups
 
 The optional registry is local JSON. Default path:
@@ -599,6 +614,12 @@ timeouts, never full patches or file contents. The summary can feed the
 conservative policy evaluator, but no auto-index execution, Control endpoint,
 MCP tool, Web UI panel, schema migration, branch comparison, or diff-aware
 impact is added. Phase 21.5 is next for diff-aware impact analysis.
+
+Phase 21.4.1 adds Cursor/Codex MCP setup helpers in `b3-cli` only. It can print
+Cursor JSON and Codex TOML templates, validate local project/database/profile
+inputs through doctor checks, and recommend existing profiles. It does not
+change MCP tool counts, expose Git MCP tools, add Control endpoints, mutate Git,
+or write config through the new `mcp config` templates.
 
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must

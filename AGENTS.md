@@ -108,6 +108,13 @@ The `b3` helper may generate or update local Codex/Cursor MCP config files.
 Install behavior must be dry-run-first, preserve unrelated config, avoid
 duplicate server entries, and create backups before writes.
 
+Phase 21.4.1 adds `b3 mcp config <cursor|codex>` print-only templates,
+`b3 mcp doctor`, and `b3 mcp profiles` for setup ergonomics. These helpers must
+stay local/offline, validate paths/profiles without launching Cursor or Codex,
+recommend existing profiles, and must not change MCP tool counts or expose Git
+MCP tools. Config writes remain explicit through `b3 install --apply` with
+backup behavior.
+
 It also owns local registry commands for project and group metadata. Registry
 behavior must stay metadata-only:
 
@@ -659,6 +666,12 @@ Control API endpoints, MCP tools, MCP profile changes, Web UI panels, schema
 migrations, diff-aware impact, branch comparison, auto-reindex execution, full
 patches, file-content exposure, or Git mutation. Phase 21.5 is next for
 diff-aware impact analysis.
+
+Phase 21.4.1 adds only Cursor/Codex MCP setup helper ergonomics in `b3-cli`.
+It does not add Git MCP tools, Control Git APIs, Web UI Git panels, schema
+migrations, backend API changes, Git mutation, remote APIs, telemetry, or
+package-manager requirements. Phase 21.5 remains the next Git Intelligence
+implementation checkpoint.
 
 Manual reindex actions remain future work. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

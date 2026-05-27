@@ -4,8 +4,9 @@ Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
 
 ## Phase 21 Git Intelligence MCP Plan
 
-Phase 21.4 adds internal changed-file and diff-summary readers only. It does
-not add MCP tools, change MCP profile membership, or change tool counts.
+Phase 21.4 adds internal changed-file and diff-summary readers only. Phase
+21.4.1 adds Cursor/Codex setup helpers in `b3-cli` only. Neither phase adds MCP
+tools, changes MCP profile membership, or changes tool counts.
 
 Planned future Git MCP tools are:
 
@@ -176,12 +177,31 @@ Codex-style generic MCP config:
 }
 ```
 
-The `b3` helper can generate or apply these snippets locally:
+The `b3` helper can print setup-specific Cursor and Codex templates locally:
+
+```powershell
+cargo run -p b3-cli -- mcp config cursor --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp config codex --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp doctor --project "." --database ".b3/b3.db" --profile optimized
+cargo run -p b3-cli -- mcp profiles
+```
+
+Use `--cargo-run --repo <b3-repo-path>` to generate a template that launches the
+runtime with `cargo run -p b3-mcp-runtime -- serve ...` from a source checkout.
+`b3 mcp config` is print-only by design; it does not overwrite Cursor or Codex
+config files. To merge config with backups, use the existing explicit install
+path:
 
 ```powershell
 cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --dry-run
 cargo run -p b3-cli -- install --agent cursor --project "." --database ".b3/b3.db" --profile optimized --dry-run
+cargo run -p b3-cli -- install --agent codex --project "." --database ".b3/b3.db" --profile optimized --apply --backup
 ```
+
+`optimized` is recommended for everyday Cursor/Codex usage. `full` is optional
+when a broader tool surface is needed, and `tiny` is the minimal profile. Git
+Intelligence MCP tools are still planned for later phases and are not exposed
+by the setup helper.
 
 All tools require `scope.project_id` and `scope.branch_id`.
 

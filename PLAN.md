@@ -83,6 +83,7 @@ Completed:
 - Phase 21.2 Branch-Aware Index Metadata
 - Phase 21.3 Stale Index Detection
 - Phase 21.4 Changed Files / Diff Summary
+- Phase 21.4.1 Cursor/Codex MCP Setup Helper
 
 Current/Next:
 - Phase 21.5 Diff-Aware Impact Analysis
@@ -1276,6 +1277,7 @@ Completed:
 - Phase 21.2 - Branch-Aware Index Metadata
 - Phase 21.3 - Stale Index Detection
 - Phase 21.4 - Changed Files / Diff Summary
+- Phase 21.4.1 - Cursor/Codex MCP Setup Helper
 
 Current/Next:
 
@@ -1719,6 +1721,7 @@ Subroadmap:
 - 21.2 Branch-Aware Index Metadata - Completed.
 - 21.3 Stale Index Detection - Completed.
 - 21.4 Changed Files / Diff Summary - Completed.
+- 21.4.1 Cursor/Codex MCP Setup Helper - Completed.
 - 21.5 Diff-Aware Impact Analysis - Current / Next.
 - 21.6 Branch Comparison / Baseline Diff - Planned.
 - 21.7 Git APIs + Control Server Integration - Planned.
@@ -2020,6 +2023,26 @@ Safety and behavior:
 - no Control API endpoint, `/api/capabilities` update, MCP tool/profile change,
   Web UI panel, schema migration, persisted diff, branch comparison, or
   diff-aware impact is added
+
+### Phase 21.4.1 Cursor/Codex MCP Setup Helper
+
+Status: Completed.
+
+Phase 21.4.1 improves setup ergonomics for the existing B3 MCP runtime:
+
+- added `b3 mcp config cursor` and `b3 mcp config codex` dry-run template
+  generation for Cursor JSON and Codex TOML
+- added `b3 mcp doctor` as an ergonomic alias for local path/profile/runtime
+  checks and `b3 mcp profiles` for setup-oriented profile recommendations
+- generated templates support installed-binary mode and local cargo-run mode for
+  source checkouts
+- `optimized` remains the recommended everyday Cursor/Codex profile, `full` is
+  optional, and `tiny` remains the minimal profile
+- write behavior remains explicit through `b3 install --apply`, which preserves
+  unrelated config and creates backups by default
+- no MCP tool profile membership, tool count, Git MCP tool, Control API, Web UI
+  panel, schema migration, metadata format, Git behavior, backend API behavior,
+  remote API, telemetry, or package-manager requirement changed
 
 ---
 
