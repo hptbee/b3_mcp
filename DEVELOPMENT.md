@@ -628,6 +628,13 @@ seeds. It does not expose a Control endpoint, add MCP tools, add Web UI panels,
 persist impact results, mutate Git, read full patches, execute auto-index, or
 change extraction/metadata behavior.
 
+Phase 21.6 adds internal branch comparison / baseline diff support in `b3-git`
+and compare-impact plumbing in `b3-query::git_impact`. It compares local refs
+with read-only `rev-parse`, `merge-base`, `diff --name-status`,
+`diff --numstat`, and `branch --list`, never checkout/switch/fetch/pull/push or
+remote APIs. Control endpoints, MCP tools, Web UI surfaces, full patches, file
+content reads from Git, persistence, and auto-reindex remain deferred.
+
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must
 be off or conservative by default and must never run on branch change, commit

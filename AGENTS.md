@@ -680,8 +680,18 @@ untracked, deleted, renamed, and truncated states. It must not add Control Git
 APIs, Git MCP tools, Web UI Git panels, branch comparison, schema migrations,
 metadata format changes, extraction behavior changes, full patch/file-content
 reads from Git, auto-reindex execution, Git mutation, remote APIs, telemetry,
-or package-manager requirements. Phase 21.6 is next for branch comparison /
-baseline diff.
+or package-manager requirements.
+
+Phase 21.6 Branch Comparison / Baseline Diff is completed as internal
+local/read-only Git compare support only. It may resolve local refs, choose
+local `main` or `master` as conservative default base refs, compute local
+merge-base, parse bounded `diff --name-status` and `diff --numstat` summaries,
+and feed compare summaries into internal diff impact. It must not add Control
+Git APIs, Git MCP tools, Web UI Git panels, checkout/switch/fetch/pull/push,
+remote APIs, branch/tag/ref mutation, `.git` writes, working-tree writes, full
+patch/file-content reads from Git, auto-reindex, schema migrations, metadata
+format changes, extraction behavior changes, telemetry, or package-manager
+requirements. Phase 21.7 is next for Git APIs + Control Server integration.
 
 Manual reindex actions remain future work. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

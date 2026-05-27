@@ -1190,3 +1190,20 @@ metadata semantics, add Control APIs, add MCP tools, add Web UI panels, add
 branch comparison, or change live capabilities. Richer graph/service-map
 traversal remains deferred; Phase 21.5 architecture impact is direct evidence
 only.
+
+Phase 21.6 adds branch comparison / baseline diff algorithms. The algorithm:
+
+1. resolve local base/head refs with bounded read-only `rev-parse`
+2. choose a conservative local default base from `main`, then `master`, when no
+   base ref is provided
+3. compute local merge-base for triple-dot comparisons without checkout
+4. parse bounded `git diff --name-status` and `git diff --numstat` output for
+   added, modified, deleted, renamed, copied, type-changed, unknown, and binary
+   summaries
+5. optionally feed the resulting `GitDiffSummary` into Phase 21.5 internal
+   diff-impact mapping
+
+It does not fetch, pull, push, checkout, switch, mutate refs, write `.git`, read
+full patches or file contents from Git, persist compare results, add Control
+APIs, add MCP tools, add Web UI panels, execute auto-reindex, or call remote
+hosting APIs.

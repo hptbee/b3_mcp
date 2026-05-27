@@ -1175,6 +1175,16 @@ API endpoints, add MCP tools, add Web UI panels, execute auto-reindex, mutate
 Git, call remote APIs, or change extraction/metadata formats. Phase 21.6 is
 next for branch comparison / baseline diff.
 
+Phase 21.6 is completed as internal branch comparison / baseline diff support.
+It compares local refs without checkout, switch, fetch, pull, push, branch
+mutation, working-tree writes, remote APIs, or auto-reindex. It resolves local
+base/head refs, uses local `main` then `master` as conservative default base
+candidates, defaults head to `HEAD`, supports merge-base triple-dot and direct
+double-dot diff modes, and returns bounded name-status/numstat summaries. It
+does not expose Control APIs, MCP tools, Web UI panels, full patches, file
+contents, schema changes, persisted compare results, or live capability changes.
+Phase 21.7 is next for Git APIs + Control Server integration.
+
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

@@ -85,12 +85,12 @@ Completed:
 - Phase 21.4 Changed Files / Diff Summary
 - Phase 21.4.1 Cursor/Codex MCP Setup Helper
 - Phase 21.5 Diff-Aware Impact Analysis
-
-Current/Next:
 - Phase 21.6 Branch Comparison / Baseline Diff
 
-Upcoming:
+Current/Next:
 - Phase 21.7 Git APIs + Control Server Integration
+
+Upcoming:
 - Phase 21.8 Web UI Git Intelligence Panel
 - Phase 21.9 Git Intelligence Benchmark + Final Verification
 - Phase 22 Duplicate / Similarity Detection
@@ -1279,14 +1279,14 @@ Completed:
 - Phase 21.4 - Changed Files / Diff Summary
 - Phase 21.4.1 - Cursor/Codex MCP Setup Helper
 - Phase 21.5 - Diff-Aware Impact Analysis
+- Phase 21.6 - Branch Comparison / Baseline Diff
 
 Current/Next:
 
-- Phase 21.6 - Branch Comparison / Baseline Diff
+- Phase 21.7 - Git APIs + Control Server Integration
 
 Upcoming:
 
-- Phase 21.7 - Git APIs + Control Server Integration
 - Phase 21.8 - Web UI Git Intelligence Panel
 - Phase 21.9 - Git Intelligence Benchmark + Final Verification
 - Phase 22 - Duplicate / Similarity Detection
@@ -1723,8 +1723,8 @@ Subroadmap:
 - 21.4 Changed Files / Diff Summary - Completed.
 - 21.4.1 Cursor/Codex MCP Setup Helper - Completed.
 - 21.5 Diff-Aware Impact Analysis - Completed.
-- 21.6 Branch Comparison / Baseline Diff - Current / Next.
-- 21.7 Git APIs + Control Server Integration - Planned.
+- 21.6 Branch Comparison / Baseline Diff - Completed.
+- 21.7 Git APIs + Control Server Integration - Current / Next.
 - 21.8 Web UI Git Intelligence Panel - Planned.
 - 21.9 Git Intelligence Benchmark + Final Verification - Planned.
 
@@ -2069,6 +2069,33 @@ evidence:
   patch exposure, file-content read from Git, branch comparison, or
   auto-reindex execution was added
 - Phase 21.6 is next for branch comparison / baseline diff
+
+### Phase 21.6 Branch Comparison / Baseline Diff
+
+Status: Completed.
+
+Phase 21.6 adds internal local branch/ref comparison support:
+
+- added `GitBranchInfo`, `GitCompareRequest`, `GitCompareDiffMode`, and
+  `GitCompareResult` contracts in `b3-core`
+- added `b3-git` branch comparison using local read-only `rev-parse`,
+  `merge-base`, `diff --name-status`, `diff --numstat`, and `branch --list`
+  commands with existing timeout/stdout bounds and null stdin
+- supports default local base-ref selection from local `main` then `master`
+  when no explicit base is provided, and uses `HEAD` as the default head ref
+- supports merge-base triple-dot comparison by default and direct double-dot
+  comparison when explicitly requested
+- parses added, modified, deleted, renamed, copied, type-changed, unknown, paths
+  with spaces, and binary numstat markers without full patch parsing
+- untracked files are not mixed into branch/ref diffs; requests to include them
+  produce a warning because they are working-tree state
+- compare results can feed the internal Phase 21.5 diff-impact mapper where the
+  caller already has indexed evidence
+- no checkout, switch, fetch, pull, push, Git mutation, remote API, Control API
+  endpoint, live capability change, MCP tool/profile change, Web UI panel,
+  schema migration, persisted compare result, full patch exposure, file-content
+  read from Git, branch mutation, or auto-reindex execution was added
+- Phase 21.7 is next for Git APIs + Control Server integration
 
 ---
 

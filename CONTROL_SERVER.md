@@ -326,7 +326,7 @@ Phase 17 adds a quality-audit status block to `GET /api/capabilities`. It report
 
 ## Phase 21 Git Intelligence API Plan
 
-Phase 21.5 adds internal diff-aware impact analysis only. No Git endpoints are
+Phase 21.6 adds internal branch comparison / baseline diff support only. No Git endpoints are
 exposed yet and `GET /api/capabilities` is unchanged in this checkpoint.
 
 Planned Phase 21 Control API endpoints are:
@@ -340,9 +340,10 @@ Planned Phase 21 Control API endpoints are:
 
 Future Git endpoints must be local-only and read-only. They may report no-git,
 dirty worktree, detached HEAD, stale index, changed files, local branch, and
-local diff information, but must not run mutating Git commands, call GitHub,
-GitLab, Bitbucket, or other remote APIs, checkout branches, fetch/pull/push,
-stash/reset/clean, write `.git`, modify the working tree, or auto-reindex.
+local diff/compare information, but must not run mutating Git commands, call
+GitHub, GitLab, Bitbucket, or other remote APIs, checkout branches, fetch,
+pull, push, stash, reset, clean, write `.git`, modify the working tree, or
+auto-reindex.
 
 Manual reindex actions and any auto-index toggle remain future Control/Web UI
 work. Auto-index must be off or conservative by default and must never run on
@@ -353,8 +354,9 @@ branch mismatch, or indexed commit mismatch.
 The indexed Git snapshot is persisted internally, Phase 21.3 can evaluate
 freshness internally, Phase 21.4 can compute bounded changed-file summaries,
 and Phase 21.5 can map those summaries to indexed impact evidence internally.
-None of those Git Intelligence results are exposed through a public Control API
-yet.
+Phase 21.6 can compare local refs and produce bounded name-status/numstat
+summaries internally. None of those Git Intelligence results are exposed
+through a public Control API yet.
 
 Auto full reindex after branch or commit changes is forbidden. Phase 21.3 does
 not execute auto-index; Phase 21.4 still does not execute auto-index and only

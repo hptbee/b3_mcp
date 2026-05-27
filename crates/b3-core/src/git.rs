@@ -356,6 +356,73 @@ impl Default for GitDiffSummaryConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitBranchInfo {
+    pub name: String,
+    pub full_ref: Option<String>,
+    pub commit: Option<String>,
+    pub short_commit: Option<String>,
+    pub is_current: bool,
+    pub is_detached: bool,
+    pub is_remote_tracking: bool,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GitCompareDiffMode {
+    MergeBaseTripleDot,
+    DirectDoubleDot,
+}
+
+impl Default for GitCompareDiffMode {
+    fn default() -> Self {
+        Self::MergeBaseTripleDot
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitCompareRequest {
+    pub base_ref: Option<String>,
+    pub head_ref: Option<String>,
+    pub diff_mode: GitCompareDiffMode,
+    pub include_line_counts: bool,
+    pub include_untracked: bool,
+    pub max_changed_files: usize,
+    pub max_stdout_bytes: usize,
+    pub command_timeout_ms: u64,
+}
+
+impl Default for GitCompareRequest {
+    fn default() -> Self {
+        Self {
+            base_ref: None,
+            head_ref: None,
+            diff_mode: GitCompareDiffMode::default(),
+            include_line_counts: true,
+            include_untracked: false,
+            max_changed_files: 100,
+            max_stdout_bytes: 512 * 1024,
+            command_timeout_ms: 2_000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitCompareResult {
+    pub is_git_repo: bool,
+    pub repo_root: Option<String>,
+    pub base_ref: Option<String>,
+    pub base_commit: Option<String>,
+    pub head_ref: Option<String>,
+    pub head_commit: Option<String>,
+    pub merge_base: Option<String>,
+    pub diff_mode: GitCompareDiffMode,
+    pub diff_summary: Option<GitDiffSummary>,
+    pub warnings: Vec<String>,
+    pub truncated: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -388,5 +455,36 @@ mod tests {
         assert_eq!(decoded, snapshot);
         assert!(!decoded.is_git_repo);
         assert!(decoded.indexed_branch.is_none());
+    }
+
+    #[test]
+    fn git_compare_request_and_result_serialize() {
+        let request = GitCompareRequest {
+            base_ref: Some("main".to_string()),
+            head_ref: Some("HEAD".to_string()),
+            diff_mode: GitCompareDiffMode::MergeBaseTripleDot,
+            ..GitCompareRequest::default()
+        };
+        let json = serde_json::to_string(&request).expect("serialize request");
+        let decoded: GitCompareRequest = serde_json::from_str(&json).expect("decode request");
+        assert_eq!(decoded.diff_mode, GitCompareDiffMode::MergeBaseTripleDot);
+
+        let result = GitCompareResult {
+            is_git_repo: true,
+            repo_root: Some("repo".to_string()),
+            base_ref: Some("main".to_string()),
+            base_commit: Some("abc".to_string()),
+            head_ref: Some("HEAD".to_string()),
+            head_commit: Some("def".to_string()),
+            merge_base: Some("abc".to_string()),
+            diff_mode: GitCompareDiffMode::DirectDoubleDot,
+            diff_summary: None,
+            warnings: Vec::new(),
+            truncated: false,
+        };
+        let json = serde_json::to_string(&result).expect("serialize result");
+        let decoded: GitCompareResult = serde_json::from_str(&json).expect("decode result");
+        assert_eq!(decoded.base_ref.as_deref(), Some("main"));
+        assert_eq!(decoded.diff_mode, GitCompareDiffMode::DirectDoubleDot);
     }
 }

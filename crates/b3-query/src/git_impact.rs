@@ -7,8 +7,8 @@
 use std::collections::{BTreeSet, HashSet};
 
 use b3_core::{
-    ContractResult, GitChangedFile, GitChangedFileStatus, GitDiffSummary, GitIndexFreshness,
-    GitIndexFreshnessStatus, NodeKind, ProjectId, QueryRepository, QueryScope,
+    ContractResult, GitChangedFile, GitChangedFileStatus, GitCompareResult, GitDiffSummary,
+    GitIndexFreshness, GitIndexFreshnessStatus, NodeKind, ProjectId, QueryRepository, QueryScope,
 };
 use b3_storage::{
     SqliteStorage, StoredComponent, StoredDataAccess, StoredInfrastructure, StoredMessaging,
@@ -627,6 +627,26 @@ pub fn analyze_git_diff_impact<R: GitImpactRepository>(
         warnings: dedupe_strings(warnings),
         truncated,
     })
+}
+
+pub fn analyze_git_compare_impact<R: GitImpactRepository>(
+    repository: &R,
+    request: &GitDiffImpactRequest,
+    freshness: Option<GitIndexFreshness>,
+    compare_result: &GitCompareResult,
+) -> ContractResult<Option<GitDiffImpactResult>> {
+    let Some(diff_summary) = compare_result.diff_summary.clone() else {
+        return Ok(None);
+    };
+    let mut result = analyze_git_diff_impact(repository, request, freshness, diff_summary)?;
+    result
+        .warnings
+        .extend(compare_result.warnings.iter().cloned());
+    result.warnings = dedupe_strings(result.warnings);
+    if compare_result.truncated {
+        result.truncated = true;
+    }
+    Ok(Some(result))
 }
 
 fn symbols_from_query_repository<R: QueryRepository>(
@@ -1263,6 +1283,41 @@ mod tests {
             .impacted_architecture
             .iter()
             .all(|item| item.reasons == vec![GitImpactReason::ArchitectureMatch]));
+    }
+
+    #[test]
+    fn compare_result_can_feed_diff_impact_path_mapping() {
+        let repo = FixtureImpactRepository {
+            symbols: vec![symbol("sym-user", "src/users.rs", "list_users", None)],
+            ..FixtureImpactRepository::default()
+        };
+        let compare = b3_core::GitCompareResult {
+            is_git_repo: true,
+            repo_root: Some(".".to_string()),
+            base_ref: Some("main".to_string()),
+            base_commit: Some("base".to_string()),
+            head_ref: Some("HEAD".to_string()),
+            head_commit: Some("head".to_string()),
+            merge_base: Some("base".to_string()),
+            diff_mode: b3_core::GitCompareDiffMode::MergeBaseTripleDot,
+            diff_summary: Some(diff(vec![changed(
+                "src/users.rs",
+                GitChangedFileStatus::Modified,
+            )])),
+            warnings: vec!["compare warning".to_string()],
+            truncated: false,
+        };
+        let result = analyze_git_compare_impact(
+            &repo,
+            &request(),
+            Some(freshness(GitIndexFreshnessStatus::Fresh)),
+            &compare,
+        )
+        .expect("impact")
+        .expect("result");
+
+        assert_eq!(result.impacted_symbols.len(), 1);
+        assert!(result.warnings.contains(&"compare warning".to_string()));
     }
 
     fn request() -> GitDiffImpactRequest {
