@@ -84,12 +84,12 @@ Completed:
 - Phase 21.3 Stale Index Detection
 - Phase 21.4 Changed Files / Diff Summary
 - Phase 21.4.1 Cursor/Codex MCP Setup Helper
-
-Current/Next:
 - Phase 21.5 Diff-Aware Impact Analysis
 
-Upcoming:
+Current/Next:
 - Phase 21.6 Branch Comparison / Baseline Diff
+
+Upcoming:
 - Phase 21.7 Git APIs + Control Server Integration
 - Phase 21.8 Web UI Git Intelligence Panel
 - Phase 21.9 Git Intelligence Benchmark + Final Verification
@@ -1278,14 +1278,14 @@ Completed:
 - Phase 21.3 - Stale Index Detection
 - Phase 21.4 - Changed Files / Diff Summary
 - Phase 21.4.1 - Cursor/Codex MCP Setup Helper
+- Phase 21.5 - Diff-Aware Impact Analysis
 
 Current/Next:
 
-- Phase 21.5 - Diff-Aware Impact Analysis
+- Phase 21.6 - Branch Comparison / Baseline Diff
 
 Upcoming:
 
-- Phase 21.6 - Branch Comparison / Baseline Diff
 - Phase 21.7 - Git APIs + Control Server Integration
 - Phase 21.8 - Web UI Git Intelligence Panel
 - Phase 21.9 - Git Intelligence Benchmark + Final Verification
@@ -1722,8 +1722,8 @@ Subroadmap:
 - 21.3 Stale Index Detection - Completed.
 - 21.4 Changed Files / Diff Summary - Completed.
 - 21.4.1 Cursor/Codex MCP Setup Helper - Completed.
-- 21.5 Diff-Aware Impact Analysis - Current / Next.
-- 21.6 Branch Comparison / Baseline Diff - Planned.
+- 21.5 Diff-Aware Impact Analysis - Completed.
+- 21.6 Branch Comparison / Baseline Diff - Current / Next.
 - 21.7 Git APIs + Control Server Integration - Planned.
 - 21.8 Web UI Git Intelligence Panel - Planned.
 - 21.9 Git Intelligence Benchmark + Final Verification - Planned.
@@ -2043,6 +2043,32 @@ Phase 21.4.1 improves setup ergonomics for the existing B3 MCP runtime:
 - no MCP tool profile membership, tool count, Git MCP tool, Control API, Web UI
   panel, schema migration, metadata format, Git behavior, backend API behavior,
   remote API, telemetry, or package-manager requirement changed
+
+### Phase 21.5 Diff-Aware Impact Analysis
+
+Status: Completed.
+
+Phase 21.5 adds internal diff-aware impact analysis over existing indexed
+evidence:
+
+- added `b3-query::git_impact` contracts and an internal impact analyzer that
+  consumes `GitDiffSummary` plus optional `GitIndexFreshness`
+- maps changed paths to indexed files, symbols, routes, components,
+  data-access, realtime, messaging, infrastructure, WPF/XAML, SQL/ksqlDB
+  evidence, and direct architecture evidence when requested
+- handles Windows path separators, renamed-file old/new paths, untracked paths,
+  deleted paths, stale/unsafe/unknown freshness states, and truncated diff
+  summaries conservatively
+- returns bounded recommended context seeds rather than generating a full
+  context pack, so global context-pack ranking and semantics are unchanged
+- architecture integration is direct evidence only; richer graph/service-map
+  traversal is deferred
+- no Control API endpoint, live `/api/capabilities` change, MCP tool/profile
+  change, Web UI panel, schema migration, persisted impact result, metadata
+  format change, extraction behavior change, Git mutation, remote API, full
+  patch exposure, file-content read from Git, branch comparison, or
+  auto-reindex execution was added
+- Phase 21.6 is next for branch comparison / baseline diff
 
 ---
 

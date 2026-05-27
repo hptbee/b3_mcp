@@ -664,14 +664,24 @@ or require paid/cloud dependencies.
 Phase 21.4 adds bounded status-porcelain and numstat parsing. It does not add
 Control API endpoints, MCP tools, MCP profile changes, Web UI panels, schema
 migrations, diff-aware impact, branch comparison, auto-reindex execution, full
-patches, file-content exposure, or Git mutation. Phase 21.5 is next for
-diff-aware impact analysis.
+patches, file-content exposure, or Git mutation.
 
 Phase 21.4.1 adds only Cursor/Codex MCP setup helper ergonomics in `b3-cli`.
 It does not add Git MCP tools, Control Git APIs, Web UI Git panels, schema
 migrations, backend API changes, Git mutation, remote APIs, telemetry, or
-package-manager requirements. Phase 21.5 remains the next Git Intelligence
-implementation checkpoint.
+package-manager requirements.
+
+Phase 21.5 Diff-Aware Impact Analysis is completed as internal local/read-only
+query logic only. It may map bounded changed-file summaries to existing indexed
+files, symbols, routes, components, data-access, realtime, messaging,
+infrastructure, WPF/XAML, SQL/ksqlDB metadata, direct architecture evidence,
+and context seeds. It must remain conservative for stale, unsafe, unknown,
+untracked, deleted, renamed, and truncated states. It must not add Control Git
+APIs, Git MCP tools, Web UI Git panels, branch comparison, schema migrations,
+metadata format changes, extraction behavior changes, full patch/file-content
+reads from Git, auto-reindex execution, Git mutation, remote APIs, telemetry,
+or package-manager requirements. Phase 21.6 is next for branch comparison /
+baseline diff.
 
 Manual reindex actions remain future work. Any future auto-index toggle must be
 off or conservative by default and must never run on branch change, commit

@@ -1173,11 +1173,20 @@ mutation, auto-stash, auto-reindex on branch switch, working-tree edits,
 GitHub/GitLab/Bitbucket APIs, telemetry, cloud services, paid dependencies, or
 internet-required workflows.
 
-Planned algorithms are stale-index detection from indexed branch/commit/worktree
-snapshot metadata, changed-file classification from local status/diff evidence,
-and diff-aware impact by mapping changed paths to existing indexed symbols,
-routes, components, data-access, messaging, infrastructure, WPF/XAML,
-architecture matches, and context-pack recommendations. Phase 21.4 adds no
-schema migration and does not add Control APIs, MCP tools, Web UI panels,
-auto-reindex execution, diff-aware impact, branch comparison, or live
-capabilities changes.
+Phase 21.5 adds conservative diff-aware impact analysis. The algorithm:
+
+1. consume a bounded `GitDiffSummary` and optional `GitIndexFreshness`
+2. normalize changed paths with slash-stable matching, including Windows
+   separators and renamed-file old/new paths
+3. match changed paths to existing indexed evidence only: files, symbols,
+   routes, components, data-access, realtime, messaging, infrastructure,
+   WPF/XAML, SQL/ksqlDB metadata, and direct architecture evidence
+4. classify impact as direct or unknown, with stale/unsafe/truncated warnings
+5. return bounded context seeds rather than generating a full context pack
+
+The algorithm does not parse full patches, read changed file contents from Git,
+persist impact results, mutate Git, execute auto-reindex, change extraction or
+metadata semantics, add Control APIs, add MCP tools, add Web UI panels, add
+branch comparison, or change live capabilities. Richer graph/service-map
+traversal remains deferred; Phase 21.5 architecture impact is direct evidence
+only.

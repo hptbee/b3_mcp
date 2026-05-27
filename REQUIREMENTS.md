@@ -1162,8 +1162,18 @@ state block auto-index.
 
 Phase 21.4 does not add schema migrations, Control API endpoints, MCP tools,
 MCP profile changes, Web UI panels, diff-aware impact, branch comparison,
-auto-reindex execution, Git mutation, or remote APIs. Phase 21.5 is next for
-diff-aware impact analysis.
+auto-reindex execution, Git mutation, or remote APIs.
+
+Phase 21.5 is completed as internal diff-aware impact analysis only. It maps
+bounded changed-file summaries to existing indexed files, symbols, routes,
+components, data-access, realtime, messaging, infrastructure, WPF/XAML,
+SQL/ksqlDB metadata, direct architecture evidence, and recommended context
+seeds. It is conservative for stale, unsafe, unknown, untracked, deleted,
+renamed, and truncated diff states. It does not parse full patches, read file
+contents from Git, persist impact results, add schema migrations, add Control
+API endpoints, add MCP tools, add Web UI panels, execute auto-reindex, mutate
+Git, call remote APIs, or change extraction/metadata formats. Phase 21.6 is
+next for branch comparison / baseline diff.
 
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be

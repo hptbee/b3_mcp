@@ -613,13 +613,20 @@ Phase 21.4 adds local read-only changed-file and diff-summary support in
 timeouts, never full patches or file contents. The summary can feed the
 conservative policy evaluator, but no auto-index execution, Control endpoint,
 MCP tool, Web UI panel, schema migration, branch comparison, or diff-aware
-impact is added. Phase 21.5 is next for diff-aware impact analysis.
+impact is added.
 
 Phase 21.4.1 adds Cursor/Codex MCP setup helpers in `b3-cli` only. It can print
 Cursor JSON and Codex TOML templates, validate local project/database/profile
 inputs through doctor checks, and recommend existing profiles. It does not
 change MCP tool counts, expose Git MCP tools, add Control endpoints, mutate Git,
 or write config through the new `mcp config` templates.
+
+Phase 21.5 adds internal diff-aware impact analysis in `b3-query::git_impact`.
+It consumes bounded `GitDiffSummary` and optional freshness results, maps
+changed paths to existing indexed evidence, and returns conservative context
+seeds. It does not expose a Control endpoint, add MCP tools, add Web UI panels,
+persist impact results, mutate Git, read full patches, execute auto-index, or
+change extraction/metadata behavior.
 
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must

@@ -6,6 +6,7 @@
 
 pub mod architecture;
 pub mod editing;
+pub mod git_impact;
 pub mod hybrid;
 pub mod refactor;
 
