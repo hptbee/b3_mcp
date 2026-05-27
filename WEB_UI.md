@@ -79,7 +79,7 @@ workflows.
 
 ## Phase 21 Git Intelligence Panel Plan
 
-Phase 21.1 adds internal local Git status detection only. The Web UI does not
+Phase 21.2 adds internal branch-aware index metadata only. The Web UI does not
 render a Git Intelligence panel yet and does not execute Git directly.
 
 The planned Phase 21.8 panel should display local read-only Git data from
@@ -96,6 +96,9 @@ conservative by default, local-only, and disabled for branch change, commit
 change, detached HEAD, conflicts, unknown Git state, no-git projects, excessive
 changed files, unsafe delete/rename batches, indexed branch mismatch, or
 indexed commit mismatch.
+
+Phase 21.2 does not add Web UI controls, stale-index warnings, changed-file
+tables, diff impact views, or auto-index execution.
 
 The Project Status section shows the current project path, database path,
 indexed file/symbol/edge counts, last index status, parse failures, and local

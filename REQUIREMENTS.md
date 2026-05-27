@@ -1129,10 +1129,17 @@ for staged, unstaged, untracked, conflicted, dirty, and total changed paths.
 The reader uses bounded read-only local Git commands, returns warnings when Git
 is unavailable or status cannot be read, and remains safe for no-git projects.
 
-Phase 21.1 does not add schema migrations, Control API endpoints, MCP tools,
-MCP profile changes, Web UI panels, branch-aware index metadata, stale-index
-detection, changed-file diff summaries, diff-aware impact, auto-reindex, or
-indexing behavior changes. Phase 21.2 is next for branch-aware index metadata.
+Phase 21.2 is completed as branch-aware index metadata only. B3 records a
+read-only Git index snapshot at index time when possible, including no-git
+state, repository root, `.git` directory, indexed branch/commit, short commit,
+detached HEAD, dirty state, staged/unstaged/untracked/conflicted/total changed
+counts, timestamp, and warnings. A minimal local SQLite migration stores this
+metadata by project and branch.
+
+Phase 21.2 does not add Control API endpoints, MCP tools, MCP profile changes,
+Web UI panels, stale-index detection, changed-file diff summaries, diff-aware
+impact, branch comparison, auto-reindex, or Git mutation. Phase 21.3 is next
+for stale index detection.
 
 Manual reindex actions are planned later: preview reindex, reindex current
 branch, and reindex changed files only. Any future auto-index toggle must be

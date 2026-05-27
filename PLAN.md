@@ -80,12 +80,12 @@ Completed:
 - Phase 20 Web UI Developer Console Refresh
 - Phase 21.0 Git Intelligence Design / Safety Plan
 - Phase 21.1 Local Git Status Detection
-
-Current/Next:
 - Phase 21.2 Branch-Aware Index Metadata
 
-Upcoming:
+Current/Next:
 - Phase 21.3 Stale Index Detection
+
+Upcoming:
 - Phase 21.4 Changed Files / Diff Summary
 - Phase 21.5 Diff-Aware Impact Analysis
 - Phase 21.6 Branch Comparison / Baseline Diff
@@ -1273,14 +1273,14 @@ Completed:
 - Phase 20 - Web UI Developer Console Refresh
 - Phase 21.0 - Git Intelligence Design / Safety Plan
 - Phase 21.1 - Local Git Status Detection
+- Phase 21.2 - Branch-Aware Index Metadata
 
 Current/Next:
 
-- Phase 21.2 - Branch-Aware Index Metadata
+- Phase 21.3 - Stale Index Detection
 
 Upcoming:
 
-- Phase 21.3 - Stale Index Detection
 - Phase 21.4 - Changed Files / Diff Summary
 - Phase 21.5 - Diff-Aware Impact Analysis
 - Phase 21.6 - Branch Comparison / Baseline Diff
@@ -1716,8 +1716,8 @@ Subroadmap:
 
 - 21.0 Git Intelligence Design / Safety Plan - Completed.
 - 21.1 Local Git Status Detection - Completed.
-- 21.2 Branch-Aware Index Metadata - Current / Next.
-- 21.3 Stale Index Detection - Planned.
+- 21.2 Branch-Aware Index Metadata - Completed.
+- 21.3 Stale Index Detection - Current / Next.
 - 21.4 Changed Files / Diff Summary - Planned.
 - 21.5 Diff-Aware Impact Analysis - Planned.
 - 21.6 Branch Comparison / Baseline Diff - Planned.
@@ -1901,6 +1901,56 @@ Deferred:
   UI change, indexing behavior change, remote API, telemetry, package manager,
   Docker/Kubernetes/Terraform, broker/database, mandatory LSP, paid dependency,
   or internet requirement was added
+
+### Phase 21.2 Branch-Aware Index Metadata
+
+Status: Completed.
+
+Scope completed:
+
+- added `GitIndexSnapshot` in `b3-core` to represent the Git state recorded at
+  index time
+- extended `IndexStore` with default `record_git_index_snapshot` and
+  `latest_git_index_snapshot` methods so non-persistent stores remain
+  compatible
+- added storage migration 6 with a minimal `index_git_snapshots` table keyed by
+  project and branch
+- persisted repository root, `.git` directory, indexed branch, indexed commit,
+  short commit, detached HEAD flag, dirty flag, staged/unstaged/untracked/
+  conflicted/total changed counts, indexed timestamp, and bounded warnings JSON
+- integrated snapshot capture once per full index run and once per explicit
+  path index run using the Phase 21.1 read-only `b3-git` reader
+
+Safety and behavior:
+
+- no-git projects persist a safe no-git snapshot and indexing still succeeds
+- Git read failures are represented as snapshot warnings through the existing
+  safe status reader rather than failing indexing
+- dirty and conflicted working trees are recorded as metadata only
+- detached HEAD is represented explicitly without branch-only assumptions
+- snapshot capture is not per-file and does not store full Git output, diffs,
+  changed-file lists, or secrets
+- scoped dry-run/preview behavior is unchanged and does not persist snapshots
+- no stale-index detection, auto-reindex, changed-file diff summary,
+  diff-aware impact, branch comparison, public Git endpoint, MCP Git tool, live
+  capability update, or Web UI Git panel is implemented
+
+Manual and auto-index policy:
+
+- manual preview/reindex controls remain planned for later Control/Web UI
+  checkpoints
+- future auto-index remains off or conservative by default and must never run
+  on branch change, commit change, detached HEAD, conflicts, unknown Git state,
+  no-git projects, excessive changes, unsafe delete/rename batches, indexed
+  branch mismatch, or indexed commit mismatch
+
+Impact:
+
+- schema migration 6 is added for local SQLite metadata only
+- no endpoint behavior, MCP tool/profile count, extraction behavior, metadata
+  extraction format, language support level, benchmark target, frontend, remote
+  API, telemetry, package manager, Docker/Kubernetes/Terraform, broker/database,
+  mandatory LSP, paid dependency, or internet requirement is added
 
 ---
 

@@ -4,9 +4,9 @@
 //! modules from depending on concrete implementations too early.
 
 use crate::{
-    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, FileId, FtsSearchHit, GraphDirection,
-    GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile, QueryRequest,
-    QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
+    AppConfig, BranchId, DomainEvent, EdgeId, EdgeKind, FileId, FtsSearchHit, GitIndexSnapshot,
+    GraphDirection, GraphEdgeMetadata, GraphNeighbor, NodeId, NodeKind, ProjectId, QueryFile,
+    QueryRequest, QueryResult, QueryScope, QuerySymbol, SymbolId, ToolCallId,
 };
 use crate::{CentralityMetric, CentralitySnapshot};
 
@@ -96,6 +96,18 @@ pub trait IndexStore {
 
     fn record_parse_failure(&self, _failure: ParseFailureRecord) -> ContractResult<()> {
         Ok(())
+    }
+
+    fn record_git_index_snapshot(&self, _snapshot: GitIndexSnapshot) -> ContractResult<()> {
+        Ok(())
+    }
+
+    fn latest_git_index_snapshot(
+        &self,
+        _project_id: &ProjectId,
+        _branch_id: &BranchId,
+    ) -> ContractResult<Option<GitIndexSnapshot>> {
+        Ok(None)
     }
 }
 

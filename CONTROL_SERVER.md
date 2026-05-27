@@ -326,7 +326,7 @@ Phase 17 adds a quality-audit status block to `GET /api/capabilities`. It report
 
 ## Phase 21 Git Intelligence API Plan
 
-Phase 21.1 adds internal local Git status detection only. No Git endpoints are
+Phase 21.2 adds internal branch-aware index metadata only. No Git endpoints are
 exposed yet and `GET /api/capabilities` is unchanged in this checkpoint.
 
 Planned Phase 21 Control API endpoints are:
@@ -349,6 +349,9 @@ work. Auto-index must be off or conservative by default and must never run on
 branch change, commit change, detached HEAD, conflicts, unknown Git state,
 no-git projects, excessive changed files, unsafe delete/rename batches, indexed
 branch mismatch, or indexed commit mismatch.
+
+The indexed Git snapshot is persisted internally for later stale-index
+detection, but Phase 21.2 does not expose it through a public Control API.
 
 `GET /api/routes` returns locally indexed Node.js REST, Next.js, Angular,
 ASP.NET Core, and Go route

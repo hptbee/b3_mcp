@@ -578,11 +578,16 @@ directory, branch or detached HEAD, HEAD commit, and porcelain status counts.
 It must return warnings rather than panic when Git is unavailable, the project
 is not a Git repository, or status cannot be read.
 
-Phase 21.1 still does not add schema migrations, Control API endpoints, MCP
-tools, MCP profile changes, Web UI panels, branch-aware index metadata,
-stale-index detection, changed-file diff summaries, diff-aware impact,
-auto-reindex, or indexing behavior changes. Phase 21.2 is next for
-branch-aware index metadata.
+Phase 21.2 adds branch-aware index metadata. `b3-core` owns
+`GitIndexSnapshot`, storage migration 6 owns the local `index_git_snapshots`
+table, and the indexer records one read-only Git snapshot per full index or
+explicit path index run. The snapshot is metadata only; it does not store full
+Git output, diffs, changed-file lists, or secrets.
+
+Phase 21.2 still does not add Control API endpoints, MCP tools, MCP profile
+changes, Web UI panels, stale-index detection, changed-file diff summaries,
+diff-aware impact, branch comparison, auto-reindex, or Git mutation. Phase 21.3
+is next for stale index detection.
 
 Manual reindex controls remain later UI/control work: preview reindex, reindex
 current branch, and reindex changed files only. A future auto-index toggle must

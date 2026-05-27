@@ -73,6 +73,45 @@ fn local_indexer_skips_ignored_and_unchanged_files() {
 }
 
 #[test]
+fn local_indexer_records_no_git_snapshot_once_for_full_index() {
+    let root = std::env::temp_dir().join(format!(
+        "b3-indexer-git-snapshot-test-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("create root");
+    fs::write(root.join("lib.rs"), "fn main() {}\n").expect("write source");
+    let store = SharedMemoryStore::default();
+    let observed_store = store.clone();
+    let indexer = LocalIndexer::new(
+        NoopTreeSitterParser,
+        store,
+        MemoryBus::default(),
+        IndexerConfig::default(),
+    );
+
+    indexer
+        .index(IndexJob {
+            project_id: ProjectId::new("project"),
+            root_path: root.to_string_lossy().to_string(),
+        })
+        .expect("index succeeds");
+
+    let snapshots = observed_store
+        .0
+        .git_snapshots
+        .lock()
+        .expect("snapshots lock");
+    assert_eq!(snapshots.len(), 1);
+    assert!(!snapshots[0].is_git_repo);
+    assert_eq!(snapshots[0].project_id.as_str(), "project");
+    assert_eq!(snapshots[0].branch_id.as_str(), "default");
+    assert!(!snapshots[0].git_status_warnings.is_empty());
+    drop(snapshots);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
 fn tree_sitter_pipeline_uses_extractor_contracts() {
     let parser = TreeSitterPipelineParser::new(NoopSymbolExtractor, NoopRelationshipExtractor);
     let parsed = parser

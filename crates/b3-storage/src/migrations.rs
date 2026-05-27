@@ -333,6 +333,34 @@ CREATE INDEX IF NOT EXISTS idx_embedding_vectors_provider_dimension
 ON embedding_vectors(provider_id, dimension);
 "#;
 
+const MIGRATION_006: &str = r#"
+CREATE TABLE IF NOT EXISTS index_git_snapshots (
+    project_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    is_git_repo INTEGER NOT NULL DEFAULT 0,
+    git_repo_root TEXT,
+    git_dir TEXT,
+    indexed_branch TEXT,
+    indexed_commit TEXT,
+    indexed_short_commit TEXT,
+    indexed_detached_head INTEGER NOT NULL DEFAULT 0,
+    indexed_dirty INTEGER NOT NULL DEFAULT 0,
+    indexed_staged_count INTEGER NOT NULL DEFAULT 0,
+    indexed_unstaged_count INTEGER NOT NULL DEFAULT 0,
+    indexed_untracked_count INTEGER NOT NULL DEFAULT 0,
+    indexed_conflicted_count INTEGER NOT NULL DEFAULT 0,
+    indexed_total_changed_count INTEGER NOT NULL DEFAULT 0,
+    indexed_at_unix_ms INTEGER NOT NULL DEFAULT 0,
+    warnings_json TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY(project_id, branch_id),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(branch_id) REFERENCES branches(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_index_git_snapshots_indexed_at
+ON index_git_snapshots(indexed_at_unix_ms DESC);
+"#;
+
 impl SqliteStorage {
     pub fn migrate(&mut self) -> ContractResult<()> {
         self.connection
@@ -351,6 +379,7 @@ impl SqliteStorage {
         self.apply_migration(3, "parse_failure_registry", MIGRATION_003)?;
         self.apply_migration(4, "vector_architecture_schema", MIGRATION_004)?;
         self.apply_migration(5, "sqlite_vector_search_index", MIGRATION_005)?;
+        self.apply_migration(6, "branch_aware_index_git_snapshots", MIGRATION_006)?;
 
         Ok(())
     }

@@ -12,11 +12,11 @@ use b3_core::{
     cosine_similarity, validate_dimension, BranchId, BranchMetadata, CentralityMetric,
     CentralityRepository, CentralitySnapshot, ContractError, ContractResult, EdgeConfidence,
     EdgeId, EdgeKind, EdgeProvenance, EmbeddingVector, FileId, FileRecord, FileRepository,
-    FtsSearchHit, GraphDirection, GraphEdge, GraphEdgeMetadata, GraphNeighbor, GraphNode,
-    GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind, ProjectId, QueryFile,
-    QueryRepository, QueryScope, QuerySymbol, SourceKind, StorageProvider, SymbolId, SymbolRecord,
-    SymbolRepository, TokenSavingsRecord, TokenSavingsRepository, VectorDocument, VectorSearchHit,
-    VectorSearchRequest, VectorStore, VectorStoreStats,
+    FtsSearchHit, GitIndexSnapshot, GraphDirection, GraphEdge, GraphEdgeMetadata, GraphNeighbor,
+    GraphNode, GraphRepository, IndexStore, IndexedFileRecord, NodeId, NodeKind, ProjectId,
+    QueryFile, QueryRepository, QueryScope, QuerySymbol, SourceKind, StorageProvider, SymbolId,
+    SymbolRecord, SymbolRepository, TokenSavingsRecord, TokenSavingsRepository, VectorDocument,
+    VectorSearchHit, VectorSearchRequest, VectorStore, VectorStoreStats,
 };
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Row, Transaction};
 
@@ -844,6 +844,84 @@ impl SqliteStorage {
             .query_map([limit as i64], parse_failure_from_row)
             .map_err(to_contract_error)?;
         collect_rows(rows)
+    }
+
+    pub fn record_git_index_snapshot(&self, snapshot: &GitIndexSnapshot) -> ContractResult<()> {
+        let warnings_json =
+            serde_json::to_string(&snapshot.git_status_warnings).map_err(to_contract_error)?;
+        self.connection
+            .execute(
+                "INSERT INTO index_git_snapshots (
+                    project_id, branch_id, is_git_repo, git_repo_root, git_dir,
+                    indexed_branch, indexed_commit, indexed_short_commit,
+                    indexed_detached_head, indexed_dirty, indexed_staged_count,
+                    indexed_unstaged_count, indexed_untracked_count,
+                    indexed_conflicted_count, indexed_total_changed_count,
+                    indexed_at_unix_ms, warnings_json
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                 ON CONFLICT(project_id, branch_id) DO UPDATE SET
+                    is_git_repo = excluded.is_git_repo,
+                    git_repo_root = excluded.git_repo_root,
+                    git_dir = excluded.git_dir,
+                    indexed_branch = excluded.indexed_branch,
+                    indexed_commit = excluded.indexed_commit,
+                    indexed_short_commit = excluded.indexed_short_commit,
+                    indexed_detached_head = excluded.indexed_detached_head,
+                    indexed_dirty = excluded.indexed_dirty,
+                    indexed_staged_count = excluded.indexed_staged_count,
+                    indexed_unstaged_count = excluded.indexed_unstaged_count,
+                    indexed_untracked_count = excluded.indexed_untracked_count,
+                    indexed_conflicted_count = excluded.indexed_conflicted_count,
+                    indexed_total_changed_count = excluded.indexed_total_changed_count,
+                    indexed_at_unix_ms = excluded.indexed_at_unix_ms,
+                    warnings_json = excluded.warnings_json",
+                params![
+                    snapshot.project_id.as_str(),
+                    snapshot.branch_id.as_str(),
+                    bool_to_i64(snapshot.is_git_repo),
+                    snapshot.git_repo_root.as_deref(),
+                    snapshot.git_dir.as_deref(),
+                    snapshot.indexed_branch.as_deref(),
+                    snapshot.indexed_commit.as_deref(),
+                    snapshot.indexed_short_commit.as_deref(),
+                    bool_to_i64(snapshot.indexed_detached_head),
+                    bool_to_i64(snapshot.indexed_dirty),
+                    snapshot.indexed_staged_count as i64,
+                    snapshot.indexed_unstaged_count as i64,
+                    snapshot.indexed_untracked_count as i64,
+                    snapshot.indexed_conflicted_count as i64,
+                    snapshot.indexed_total_changed_count as i64,
+                    snapshot.indexed_at_unix_ms as i64,
+                    warnings_json,
+                ],
+            )
+            .map_err(to_contract_error)?;
+        Ok(())
+    }
+
+    pub fn latest_git_index_snapshot(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<Option<GitIndexSnapshot>> {
+        self.connection
+            .prepare_cached(
+                "SELECT project_id, branch_id, is_git_repo, git_repo_root, git_dir,
+                        indexed_branch, indexed_commit, indexed_short_commit,
+                        indexed_detached_head, indexed_dirty, indexed_staged_count,
+                        indexed_unstaged_count, indexed_untracked_count,
+                        indexed_conflicted_count, indexed_total_changed_count,
+                        indexed_at_unix_ms, warnings_json
+                 FROM index_git_snapshots
+                 WHERE project_id = ?1 AND branch_id = ?2",
+            )
+            .map_err(to_contract_error)?
+            .query_row(params![project_id.as_str(), branch_id.as_str()], |row| {
+                git_index_snapshot_from_row(row)
+            })
+            .optional()
+            .map_err(to_contract_error)
     }
 
     pub fn current_branch_name(&self) -> ContractResult<Option<String>> {
@@ -1706,6 +1784,18 @@ impl IndexStore for SqliteStorage {
     fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
         SqliteStorage::record_parse_failure(self, &failure)
     }
+
+    fn record_git_index_snapshot(&self, snapshot: GitIndexSnapshot) -> ContractResult<()> {
+        SqliteStorage::record_git_index_snapshot(self, &snapshot)
+    }
+
+    fn latest_git_index_snapshot(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<Option<GitIndexSnapshot>> {
+        SqliteStorage::latest_git_index_snapshot(self, project_id, branch_id)
+    }
 }
 
 impl IndexStore for &SqliteStorage {
@@ -1749,6 +1839,18 @@ impl IndexStore for &SqliteStorage {
 
     fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
         SqliteStorage::record_parse_failure(self, &failure)
+    }
+
+    fn record_git_index_snapshot(&self, snapshot: GitIndexSnapshot) -> ContractResult<()> {
+        SqliteStorage::record_git_index_snapshot(self, &snapshot)
+    }
+
+    fn latest_git_index_snapshot(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<Option<GitIndexSnapshot>> {
+        SqliteStorage::latest_git_index_snapshot(self, project_id, branch_id)
     }
 }
 
@@ -1797,6 +1899,20 @@ impl IndexStore for SharedSqliteIndexStore {
 
     fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
         self.with_storage(|storage| SqliteStorage::record_parse_failure(storage, &failure))
+    }
+
+    fn record_git_index_snapshot(&self, snapshot: GitIndexSnapshot) -> ContractResult<()> {
+        self.with_storage(|storage| SqliteStorage::record_git_index_snapshot(storage, &snapshot))
+    }
+
+    fn latest_git_index_snapshot(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+    ) -> ContractResult<Option<GitIndexSnapshot>> {
+        self.with_storage(|storage| {
+            SqliteStorage::latest_git_index_snapshot(storage, project_id, branch_id)
+        })
     }
 }
 
@@ -3082,6 +3198,30 @@ fn query_symbol_from_row(row: &Row<'_>) -> rusqlite::Result<QuerySymbol> {
     })
 }
 
+fn git_index_snapshot_from_row(row: &Row<'_>) -> rusqlite::Result<GitIndexSnapshot> {
+    let warnings_json: String = row.get(16)?;
+    let warnings = serde_json::from_str(&warnings_json).unwrap_or_default();
+    Ok(GitIndexSnapshot {
+        project_id: ProjectId::new(row.get::<_, String>(0)?),
+        branch_id: BranchId::new(row.get::<_, String>(1)?),
+        is_git_repo: row.get::<_, i64>(2)? != 0,
+        git_repo_root: row.get(3)?,
+        git_dir: row.get(4)?,
+        indexed_branch: row.get(5)?,
+        indexed_commit: row.get(6)?,
+        indexed_short_commit: row.get(7)?,
+        indexed_detached_head: row.get::<_, i64>(8)? != 0,
+        indexed_dirty: row.get::<_, i64>(9)? != 0,
+        indexed_staged_count: row.get::<_, i64>(10)? as usize,
+        indexed_unstaged_count: row.get::<_, i64>(11)? as usize,
+        indexed_untracked_count: row.get::<_, i64>(12)? as usize,
+        indexed_conflicted_count: row.get::<_, i64>(13)? as usize,
+        indexed_total_changed_count: row.get::<_, i64>(14)? as usize,
+        indexed_at_unix_ms: row.get::<_, i64>(15)? as u64,
+        git_status_warnings: warnings,
+    })
+}
+
 fn normalize_fts_query(query: &str) -> String {
     query
         .split(|character: char| !character.is_alphanumeric() && character != '_')
@@ -3249,12 +3389,19 @@ mod tests {
         assert!(storage
             .table_exists("parse_failures")
             .expect("parse failures"));
+        assert!(storage
+            .table_exists("index_git_snapshots")
+            .expect("git snapshots"));
         assert!(storage.migration_applied(1).expect("migration"));
         assert!(storage.migration_applied(3).expect("parse migration"));
+        assert!(storage.migration_applied(6).expect("git migration"));
         assert!(storage.index_exists("idx_edges_from").expect("edge index"));
         assert!(storage
             .index_exists("idx_parse_failures_scope")
             .expect("parse failure scope index"));
+        assert!(storage
+            .index_exists("idx_index_git_snapshots_indexed_at")
+            .expect("git snapshot index"));
         assert!(storage
             .index_exists("idx_files_branch_id")
             .expect("branch index"));
@@ -3898,6 +4045,78 @@ mod tests {
         let failures = storage.recent_parse_failures(5).expect("recent");
         assert_eq!(failures[0].file_path, "src/lib.rs");
         assert_eq!(failures[0].retry_count, 1);
+    }
+
+    #[test]
+    fn git_index_snapshots_round_trip_no_git_and_dirty_detached_metadata() {
+        let storage = SqliteStorage::open_in_memory().expect("open sqlite storage");
+        let project_id = ProjectId::new("project");
+        let branch_id = BranchId::new("main");
+        storage
+            .ensure_project_branch(&project_id, &branch_id, ".")
+            .expect("branch");
+
+        let no_git = GitIndexSnapshot {
+            project_id: project_id.clone(),
+            branch_id: branch_id.clone(),
+            is_git_repo: false,
+            git_repo_root: None,
+            git_dir: None,
+            indexed_branch: None,
+            indexed_commit: None,
+            indexed_short_commit: None,
+            indexed_detached_head: false,
+            indexed_dirty: false,
+            indexed_staged_count: 0,
+            indexed_unstaged_count: 0,
+            indexed_untracked_count: 0,
+            indexed_conflicted_count: 0,
+            indexed_total_changed_count: 0,
+            indexed_at_unix_ms: 100,
+            git_status_warnings: vec!["Git repository was not detected".to_string()],
+        };
+        storage
+            .record_git_index_snapshot(&no_git)
+            .expect("record no-git");
+        assert_eq!(
+            storage
+                .latest_git_index_snapshot(&project_id, &branch_id)
+                .expect("read no-git"),
+            Some(no_git)
+        );
+
+        let detached_dirty = GitIndexSnapshot {
+            project_id: project_id.clone(),
+            branch_id: branch_id.clone(),
+            is_git_repo: true,
+            git_repo_root: Some("D:/repo".to_string()),
+            git_dir: Some("D:/repo/.git".to_string()),
+            indexed_branch: None,
+            indexed_commit: Some("0123456789abcdef".to_string()),
+            indexed_short_commit: Some("0123456789ab".to_string()),
+            indexed_detached_head: true,
+            indexed_dirty: true,
+            indexed_staged_count: 2,
+            indexed_unstaged_count: 3,
+            indexed_untracked_count: 4,
+            indexed_conflicted_count: 1,
+            indexed_total_changed_count: 10,
+            indexed_at_unix_ms: 200,
+            git_status_warnings: vec!["Git working tree has 1 conflicted path(s)".to_string()],
+        };
+        storage
+            .record_git_index_snapshot(&detached_dirty)
+            .expect("record dirty");
+
+        let stored = storage
+            .latest_git_index_snapshot(&project_id, &branch_id)
+            .expect("read dirty")
+            .expect("snapshot");
+        assert_eq!(stored, detached_dirty);
+        assert!(stored.indexed_detached_head);
+        assert!(stored.indexed_dirty);
+        assert_eq!(stored.indexed_conflicted_count, 1);
+        assert_eq!(stored.git_status_warnings.len(), 1);
     }
 
     #[test]

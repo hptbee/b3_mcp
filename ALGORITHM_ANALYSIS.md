@@ -1162,12 +1162,11 @@ services, external APIs, telemetry, or internet access.
 
 ## Phase 21 Git Intelligence Design
 
-Phase 21.1 implements local Git status detection using bounded read-only local
-Git CLI output only. The reader detects repository root, `.git` directory,
-current branch or detached HEAD, HEAD commit, and basic porcelain status counts
-for staged, unstaged, untracked, conflicted, dirty, and total changed paths.
-Commands use null stdin, timeouts, bounded stdout parsing, and graceful no-git
-failure behavior.
+Phase 21.2 records branch-aware index metadata using the Phase 21.1 bounded
+read-only local Git status reader. At index time B3 stores a compact snapshot:
+no-git state, repository root, `.git` directory, indexed branch/commit, short
+commit, detached HEAD, dirty state, staged/unstaged/untracked/conflicted/total
+changed counts, timestamp, and warnings.
 
 Git Intelligence must not execute mutating or remote operations: no checkout,
 switch, commit, merge, rebase, reset, clean, push, pull, fetch, branch/tag/ref
@@ -1179,7 +1178,7 @@ Planned algorithms are stale-index detection from indexed branch/commit/worktree
 snapshot metadata, changed-file classification from local status/diff evidence,
 and diff-aware impact by mapping changed paths to existing indexed symbols,
 routes, components, data-access, messaging, infrastructure, WPF/XAML,
-architecture matches, and context-pack recommendations. Phase 21.1 does not add
-schema migrations, Control APIs, MCP tools, Web UI panels, indexing behavior,
-auto-reindex, changed-file diff summaries, stale-index detection, or live
-capabilities changes.
+architecture matches, and context-pack recommendations. Phase 21.2 adds a local
+SQLite metadata migration only; it does not add Control APIs, MCP tools, Web UI
+panels, auto-reindex, changed-file diff summaries, stale-index detection,
+diff-aware impact, or live capabilities changes.

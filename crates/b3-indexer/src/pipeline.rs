@@ -6,8 +6,8 @@ use std::{
 
 use b3_core::{
     ContractResult, DomainEvent, EventBus, FileDiscovered, FileId, FileParsed, FileRecord,
-    FileSkipped, IndexCompleted, IndexJob, IndexStarted, IndexStore, IndexSummary,
-    IndexedEdgeRecord, IndexedFileRecord, Indexer, ParseFailed, ParseFailureRecord,
+    FileSkipped, GitIndexSnapshot, IndexCompleted, IndexJob, IndexStarted, IndexStore,
+    IndexSummary, IndexedEdgeRecord, IndexedFileRecord, Indexer, ParseFailed, ParseFailureRecord,
     ParseFailureRecorded, ParserCrashed, ProjectId, SymbolRecord,
 };
 
@@ -67,6 +67,11 @@ where
             branch_id: self.config.branch_id.clone(),
             root_path: root.to_string_lossy().to_string(),
         }))?;
+
+        let root_path = root.to_string_lossy().to_string();
+        self.store
+            .ensure_project_branch(project_id, &self.config.branch_id, &root_path)?;
+        self.record_git_snapshot(root, project_id)?;
 
         let mut files_seen = 0;
         let mut files_parsed = 0;
@@ -406,6 +411,17 @@ where
     fn publish(&self, event: DomainEvent) -> ContractResult<()> {
         self.event_bus.publish(event)
     }
+
+    fn record_git_snapshot(&self, root: &Path, project_id: &ProjectId) -> ContractResult<()> {
+        let status = b3_git::read_git_status(root, b3_git::GitReaderConfig::default());
+        let snapshot = GitIndexSnapshot::from_status(
+            project_id.clone(),
+            self.config.branch_id.clone(),
+            status,
+            now_unix_ms(),
+        );
+        self.store.record_git_index_snapshot(snapshot)
+    }
 }
 
 impl<P, S, B> Indexer for LocalIndexer<P, S, B>
@@ -427,6 +443,7 @@ where
 
         self.store
             .ensure_project_branch(&project_id, &self.config.branch_id, &root_path)?;
+        self.record_git_snapshot(&root, &project_id)?;
 
         let files = self.discover(&root, &project_id)?;
         let live_file_ids: Vec<FileId> = files.iter().map(|file| file.id.clone()).collect();

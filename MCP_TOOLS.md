@@ -4,7 +4,7 @@ Phase 6 exposes query-engine capabilities through thin MCP tool adapters.
 
 ## Phase 21 Git Intelligence MCP Plan
 
-Phase 21.1 adds internal local Git status detection only. It does not add MCP
+Phase 21.2 adds internal branch-aware index metadata only. It does not add MCP
 tools, change MCP profile membership, or change tool counts.
 
 Planned future Git MCP tools are:

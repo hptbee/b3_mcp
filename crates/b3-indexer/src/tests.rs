@@ -7,6 +7,7 @@ struct MemoryStore {
     files: Mutex<HashMap<String, FileRecord>>,
     symbols: Mutex<Vec<SymbolRecord>>,
     failures: Mutex<Vec<ParseFailureRecord>>,
+    git_snapshots: Mutex<Vec<b3_core::GitIndexSnapshot>>,
 }
 
 impl IndexStore for MemoryStore {
@@ -73,6 +74,73 @@ impl IndexStore for MemoryStore {
             .map_err(|_| ContractError::new("failures lock poisoned"))?
             .push(failure);
         Ok(())
+    }
+
+    fn record_git_index_snapshot(&self, snapshot: b3_core::GitIndexSnapshot) -> ContractResult<()> {
+        self.git_snapshots
+            .lock()
+            .map_err(|_| ContractError::new("git snapshots lock poisoned"))?
+            .push(snapshot);
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+struct SharedMemoryStore(Arc<MemoryStore>);
+
+impl IndexStore for SharedMemoryStore {
+    fn ensure_project_branch(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        root_path: &str,
+    ) -> ContractResult<()> {
+        self.0
+            .as_ref()
+            .ensure_project_branch(project_id, branch_id, root_path)
+    }
+
+    fn existing_file(&self, file_id: &FileId) -> ContractResult<Option<FileRecord>> {
+        self.0.as_ref().existing_file(file_id)
+    }
+
+    fn cleanup_deleted_files(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        live_file_ids: &[FileId],
+    ) -> ContractResult<()> {
+        self.0
+            .as_ref()
+            .cleanup_deleted_files(project_id, branch_id, live_file_ids)
+    }
+
+    fn upsert_indexed_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        file: IndexedFileRecord,
+    ) -> ContractResult<()> {
+        self.0
+            .as_ref()
+            .upsert_indexed_file(project_id, branch_id, file)
+    }
+
+    fn remove_file(
+        &self,
+        project_id: &ProjectId,
+        branch_id: &BranchId,
+        path: &str,
+    ) -> ContractResult<()> {
+        self.0.as_ref().remove_file(project_id, branch_id, path)
+    }
+
+    fn record_parse_failure(&self, failure: ParseFailureRecord) -> ContractResult<()> {
+        self.0.as_ref().record_parse_failure(failure)
+    }
+
+    fn record_git_index_snapshot(&self, snapshot: b3_core::GitIndexSnapshot) -> ContractResult<()> {
+        self.0.as_ref().record_git_index_snapshot(snapshot)
     }
 }
 

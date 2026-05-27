@@ -188,6 +188,7 @@ name = "b3-indexer"
 version = "0.1.0"
 dependencies = [
  "b3-core",
+ "b3-git",
  "notify",
  "serde",
  "serde_json",
