@@ -20,6 +20,8 @@ cargo run -p b3-control --bin b3-control-server -- serve --project "." --databas
 
 Watch mode ignores generated/vendor/runtime directories such as `.git`, `target`, `node_modules`, `.next`, and `.b3`.
 
+Note: Phase 21.7.1 completed — default ignore rules and DB bloat guards were added to indexing and Git surfaces. See REQUIREMENTS.md for recovery steps for a large `.b3/b3.db`.
+
 ## Localhost Security Model
 
 - Local-only by default.
@@ -197,6 +199,24 @@ Diagnostics and config:
 - `GET /api/events`
 
 The event stream emits server, watcher, debounce, indexing, and parser worker lifecycle events. Manual index requests can emit `indexing_started`, `file_indexed`, `file_skipped`, `indexing_completed`, `indexing_failed`, and `parse_failed`.
+
+## Recovery: Rebuild bloated `.b3/b3.db`
+
+If you discover a large or bloated `.b3/b3.db` (e.g. previously indexed generated artifacts), delete and rebuild the DB locally with these steps (PowerShell):
+
+```powershell
+Remove-Item .b3\b3.db -Force
+cargo run -p b3-control --bin b3-control-server -- init --project "." --database ".b3/b3.db"
+cargo run -p b3-control --bin b3-control-server -- index --project "." --database ".b3/b3.db"
+
+# Optional: check DB size
+Get-Item .b3\b3.db | Select-Object Name, Length
+
+# Optional: list largest files under repo
+Get-ChildItem -Recurse -File |
+  Sort-Object Length -Descending |
+  Select-Object -First 50 FullName, Length
+```
 
 ## Language Capabilities
 

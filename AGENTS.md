@@ -8,6 +8,8 @@ It combines:
 - TokenSave-style token-saving semantic graph queries
 - Codebase Memory MCP-style persistent tree-sitter knowledge graphs
 
+Note: Phase 21.7.1 completed — default ignore rules and DB bloat guards were added to indexing and Git surfaces to prevent accidental database bloat from generated artifacts.
+
 ## Offline-First Requirement
 
 This platform must remain fully functional offline.

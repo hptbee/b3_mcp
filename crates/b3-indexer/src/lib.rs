@@ -167,6 +167,9 @@ pub enum IndexStage {
 pub struct IndexerConfig {
     pub ignore: IgnoreRules,
     pub max_file_bytes: u64,
+    pub max_text_file_bytes: u64,
+    pub max_metadata_value_len: usize,
+    pub max_snippet_chars: usize,
     pub max_workers: usize,
     pub branch_id: BranchId,
     pub parser_isolation: ParserIsolation,
@@ -180,6 +183,9 @@ impl Default for IndexerConfig {
         Self {
             ignore: IgnoreRules::default(),
             max_file_bytes: DEFAULT_MAX_FILE_BYTES,
+            max_text_file_bytes: DEFAULT_MAX_FILE_BYTES,
+            max_metadata_value_len: 8 * 1024,
+            max_snippet_chars: 2 * 1024,
             max_workers: 1,
             branch_id: BranchId::new("default"),
             parser_isolation: ParserIsolation::InProcess,
@@ -194,6 +200,7 @@ impl Default for IndexerConfig {
 pub struct IgnoreRules {
     ignored_dirs: HashSet<String>,
     ignored_extensions: HashSet<String>,
+    ignored_file_names: HashSet<String>,
 }
 
 impl Default for IgnoreRules {
@@ -206,16 +213,89 @@ impl Default for IgnoreRules {
                 ".next",
                 "dist",
                 "out",
+                "coverage",
+                "bin",
+                "obj",
+                "build",
+                ".vs",
+                ".nuxt",
                 ".b3",
                 ".qdrant",
             ]
             .into_iter()
             .map(str::to_string)
             .collect(),
-            ignored_extensions: ["db", "sqlite", "sqlite3", "log"]
-                .into_iter()
-                .map(str::to_string)
-                .collect(),
+            ignored_extensions: [
+                "dll",
+                "exe",
+                "pdb",
+                "so",
+                "dylib",
+                "class",
+                "jar",
+                "wasm",
+                "bin",
+                "zip",
+                "rar",
+                "7z",
+                "tar",
+                "gz",
+                "tgz",
+                "bz2",
+                "png",
+                "jpg",
+                "jpeg",
+                "webp",
+                "gif",
+                "ico",
+                "svgz",
+                "mp4",
+                "mov",
+                "avi",
+                "mkv",
+                "mp3",
+                "wav",
+                "pdf",
+                "doc",
+                "docx",
+                "xls",
+                "xlsx",
+                "ppt",
+                "pptx",
+                "log",
+                "dmp",
+                "dump",
+                "trace",
+                "etl",
+                "har",
+                "db",
+                "sqlite",
+                "sqlite3",
+                "mdf",
+                "ldf",
+                "bak",
+                "trx",
+                "coverage",
+                "coveragexml",
+                "xml",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+            ignored_file_names: [
+                "project.assets.json",
+                "deps.json",
+                "*.deps.json",
+                "runtimeconfig.json",
+                "*.runtimeconfig.json",
+                "lcov.info",
+                "coverage.xml",
+                "junit.xml",
+                "app.deps.json",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
         }
     }
 }
@@ -224,18 +304,51 @@ impl IgnoreRules {
     pub fn should_skip(&self, path: &Path) -> Option<String> {
         for component in path.components() {
             let value = component.as_os_str().to_string_lossy();
+            // match directory segment exactly
             if self.ignored_dirs.contains(value.as_ref()) {
                 return Some(format!("ignored directory: {value}"));
             }
         }
 
-        let extension = path.extension()?.to_string_lossy().to_lowercase();
-        if self.ignored_extensions.contains(extension.as_str()) {
-            return Some(format!("ignored extension: {extension}"));
+        if let Some(file_name) = path.file_name().map(|s| s.to_string_lossy().to_string()) {
+            let lower_name = file_name.to_ascii_lowercase();
+            for pattern in &self.ignored_file_names {
+                let pat = pattern.as_str();
+                if pat.starts_with("*.") {
+                    if lower_name.ends_with(&pat[1..]) {
+                        return Some(format!("ignored file name pattern: {pat} (matched {file_name})"));
+                    }
+                } else if pat == lower_name {
+                    return Some(format!("ignored file name: {file_name}"));
+                }
+            }
+        }
+
+        if let Some(extension) = path.extension() {
+            let extension = extension.to_string_lossy().to_ascii_lowercase();
+            if self.ignored_extensions.contains(extension.as_str()) {
+                return Some(format!("ignored extension: {extension}"));
+            }
         }
 
         None
     }
+}
+
+/// Returns true if the provided path string contains a default ignored
+/// directory segment. This is a small convenience wrapper used by Git
+/// utilities and other crates that operate on path strings.
+pub fn is_default_ignored_path(path: &str) -> bool {
+    let normalized = path.replace('\\', "/");
+    for segment in normalized.split('/') {
+        if IgnoreRules::default()
+            .ignored_dirs
+            .contains(&segment.to_string())
+        {
+            return true;
+        }
+    }
+    false
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

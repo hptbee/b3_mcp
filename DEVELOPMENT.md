@@ -44,6 +44,8 @@ cargo check --workspace
 cargo test --workspace
 ```
 
+Note: Phase 21.7.1 implemented default ignore rules and DB bloat guards; see CONTROL_SERVER.md and PLAN.md for recovery commands to rebuild a `.b3/b3.db` if needed.
+
 For a stricter local pre-commit pass:
 
 ```powershell

@@ -7,12 +7,16 @@ use b3_core::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkPlannerConfig {
     pub max_chunk_chars: usize,
+    pub max_snippet_chars: usize,
+    pub max_metadata_value_len: usize,
 }
 
 impl Default for ChunkPlannerConfig {
     fn default() -> Self {
         Self {
             max_chunk_chars: 2_000,
+            max_snippet_chars: 2 * 1024,
+            max_metadata_value_len: 8 * 1024,
         }
     }
 }
@@ -82,6 +86,10 @@ impl ChunkPlanner {
             .into_iter()
             .enumerate()
             .map(|(chunk_index, chunk)| {
+                // enforce snippet and metadata caps from planner config
+                let text = Self::clamp_chars(&chunk.text, self.config.max_snippet_chars);
+                let metadata = Self::clamp_metadata(&source.metadata, self.config.max_metadata_value_len);
+
                 VectorDocument::new(VectorDocumentInput {
                     project_id: source.project_id.clone(),
                     branch_id: source.branch_id.clone(),
@@ -93,14 +101,36 @@ impl ChunkPlanner {
                     path: source.path.clone(),
                     content_hash: source.content_hash.clone(),
                     chunk_index,
-                    text: chunk.text,
+                    text,
                     start_line: chunk.start_line,
                     end_line: chunk.end_line,
-                    metadata: source.metadata.clone(),
+                    metadata,
                 })
             })
             .collect()
     }
+
+fn clamp_chars(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    text.chars().take(max_chars).collect::<String>()
+}
+
+fn clamp_metadata(
+    metadata: &std::collections::BTreeMap<String, String>,
+    max_len: usize,
+) -> std::collections::BTreeMap<String, String> {
+    let mut out = std::collections::BTreeMap::new();
+    for (k, v) in metadata.iter() {
+        if v.chars().count() > max_len {
+            out.insert(k.clone(), v.chars().take(max_len).collect::<String>());
+        } else {
+            out.insert(k.clone(), v.clone());
+        }
+    }
+    out
+}
 
     pub fn split_text(&self, text: &str, start_line: usize) -> Vec<ChunkCandidate> {
         let max_chars = self.config.max_chunk_chars.max(1);
@@ -215,6 +245,7 @@ mod tests {
     fn chunk_ids_and_ordering_are_stable() {
         let planner = ChunkPlanner::new(ChunkPlannerConfig {
             max_chunk_chars: 20,
+            ..ChunkPlannerConfig::default()
         });
         let first = planner.plan_source(source("alpha\nbeta\ngamma\ndelta\n"));
         let second = planner.plan_source(source("alpha\nbeta\ngamma\ndelta\n"));
@@ -229,6 +260,7 @@ mod tests {
     fn respects_max_chunk_chars_and_preserves_line_ranges() {
         let planner = ChunkPlanner::new(ChunkPlannerConfig {
             max_chunk_chars: 12,
+            ..ChunkPlannerConfig::default()
         });
         let chunks = planner.plan_source(source("alpha\nbeta\ngamma\n"));
 
@@ -246,5 +278,38 @@ mod tests {
         assert!(empty.is_empty());
         assert_eq!(chunks[0].source_kind, SourceKind::SymbolChunk);
         assert_eq!(chunks[0].metadata.get("symbol").expect("symbol"), "run");
+    }
+
+    #[test]
+    fn clamps_snippet_and_metadata_to_configured_limits() {
+        let mut meta = std::collections::BTreeMap::new();
+        meta.insert("long".to_string(), "x".repeat(5000));
+        let source = ChunkSource {
+            project_id: ProjectId::new("project"),
+            branch_id: BranchId::new("main"),
+            file_id: FileId::new("file"),
+            symbol_id: None,
+            language: None,
+            framework: None,
+            source_kind: SourceKind::FileChunk,
+            path: "src/lib.rs".to_string(),
+            content_hash: "hash".to_string(),
+            text: "a".repeat(5000),
+            start_line: 1,
+            metadata: meta,
+        };
+        let planner = ChunkPlanner::new(ChunkPlannerConfig {
+            max_chunk_chars: 2000,
+            max_snippet_chars: 1024,
+            max_metadata_value_len: 1024,
+        });
+        let docs = planner.plan_source(source);
+        assert!(!docs.is_empty());
+        for doc in docs {
+            assert!(doc.text.chars().count() <= 1024);
+            for (_k, v) in doc.metadata.iter() {
+                assert!(v.chars().count() <= 1024);
+            }
+        }
     }
 }

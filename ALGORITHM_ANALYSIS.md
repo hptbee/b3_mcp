@@ -15,6 +15,8 @@ Strategies adopted:
 - cross-session memory
 - token savings ledger
 - guardrails to reduce wasteful grep/read-file exploration
+
+Note: Phase 21.7.1 added default ignore rules and DB bloat guards to avoid indexing generated/vendor artifacts and very large files by default.
 - atomic edit primitives with re-index after writes
 
 ## Ideas Taken From Codebase Memory MCP

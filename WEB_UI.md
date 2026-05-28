@@ -4,6 +4,8 @@ The web UI is a local-only Next.js frontend for inspecting and controlling the B
 
 It does not access SQLite directly, own indexing logic, generate embeddings, upload source code, use SaaS auth, or emit telemetry. The UI can trigger local indexing through the control server.
 
+Note: Phase 21.7.1 completed — default ignore rules and DB bloat guards were added to indexing and Git surfaces. The UI's index preview reflects the same skipped-file diagnostics.
+
 Phase 20 refreshed the UI as a compact dark glass developer console. The
 refresh uses local CSS and Tailwind-style utility class names for the dark
 zinc/slate surface, glass panels, dense controls, monospace JSON/path display,

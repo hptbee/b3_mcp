@@ -37,6 +37,24 @@ pub use vector::*;
 
 pub const PRODUCT_NAME: &str = "b3_mcp";
 
+/// Returns true if the provided path string contains a default ignored
+/// directory segment (e.g. node_modules, target, .git). This helper is
+/// used by various crates that need to filter generated/build artifact
+/// paths from Git surfaces and indexing.
+pub fn is_default_ignored_path(path: &str) -> bool {
+    let normalized = path.replace('\\', "/");
+    for segment in normalized.split('/') {
+        let lower = segment.to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            ".git" | "target" | "node_modules" | ".next" | ".nuxt" | "dist" | "out" | "coverage" | "bin" | "obj" | "build" | ".vs" | ".b3" | ".qdrant"
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeKind {
     Project,

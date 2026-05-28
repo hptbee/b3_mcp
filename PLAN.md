@@ -87,6 +87,7 @@ Completed:
 - Phase 21.5 Diff-Aware Impact Analysis
 - Phase 21.6 Branch Comparison / Baseline Diff
 - Phase 21.7 Git APIs + Control Server Integration
+- Phase 21.7.1 Default Ignore Rules + DB Bloat Guard
 
 Current/Next:
 - Phase 21.8 Web UI Git Intelligence Panel

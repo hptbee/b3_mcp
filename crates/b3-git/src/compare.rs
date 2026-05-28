@@ -3,6 +3,7 @@ use b3_core::{
     GitBranchInfo, GitChangedFile, GitChangedFileStatus, GitCompareDiffMode, GitCompareRequest,
     GitCompareResult, GitDiffSummary, GitReaderConfig,
 };
+use b3_core::is_default_ignored_path;
 use std::{collections::BTreeMap, path::Path};
 
 pub const READ_ONLY_COMPARE_COMMANDS: &[&[&str]] = &[
@@ -99,6 +100,22 @@ pub fn read_branch_compare(project_root: &Path, request: GitCompareRequest) -> G
             Vec::new()
         }
     };
+
+    let pre_filter_count = changed_files.len();
+    changed_files.retain(|file| {
+        let dominated = is_default_ignored_path(&file.path)
+            && file
+                .old_path
+                .as_deref()
+                .map_or(true, |old| is_default_ignored_path(old));
+        !dominated
+    });
+    if changed_files.len() < pre_filter_count {
+        warnings.push(format!(
+            "{} changed file(s) excluded by default ignore rules",
+            pre_filter_count - changed_files.len()
+        ));
+    }
 
     if request.include_line_counts {
         match run_git(
@@ -381,6 +398,10 @@ fn combine_count(left: Option<u64>, right: Option<u64>) -> Option<u64> {
         (None, None) => None,
     }
 }
+
+/// Returns true if the path should be excluded from Git diff/changed-file
+/// surfaces because it belongs to a default-ignored directory segment.
+// is_default_ignored_path moved to `b3-indexer` crate; use that shared helper.
 
 #[cfg(test)]
 mod tests {

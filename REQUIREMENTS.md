@@ -52,6 +52,8 @@ Core functionality must not require:
 - SaaS dependencies
 - internet connectivity
 
+Note: Phase 21.7.1 added default ignore rules and DB bloat guards to avoid indexing generated/vendor artifacts and very large files by default. Recovery instructions for large `.b3/b3.db` are in PLAN.md and CONTROL_SERVER.md.
+
 External services may be supported only as optional plugins, disabled by default.
 
 Preferred local providers:

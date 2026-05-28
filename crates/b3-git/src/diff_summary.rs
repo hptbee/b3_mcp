@@ -2,6 +2,7 @@ use crate::{cli::run_git, read_git_status};
 use b3_core::{
     GitChangedFile, GitChangedFileStatus, GitDiffSummary, GitDiffSummaryConfig, GitReaderConfig,
 };
+use b3_core::is_default_ignored_path;
 use std::{collections::BTreeMap, path::Path};
 
 pub const READ_ONLY_DIFF_COMMANDS: &[&[&str]] = &[
@@ -62,6 +63,22 @@ pub fn read_diff_summary(project_root: &Path, config: GitDiffSummaryConfig) -> G
     };
     let mut changed_files =
         parse_porcelain_z_changed_files(&status_output, config.include_untracked);
+
+    let pre_filter_count = changed_files.len();
+    changed_files.retain(|file| {
+        let dominated = is_default_ignored_path(&file.path)
+            && file
+                .old_path
+                .as_deref()
+                .map_or(true, |old| is_default_ignored_path(old));
+        !dominated
+    });
+    if changed_files.len() < pre_filter_count {
+        warnings.push(format!(
+            "{} changed file(s) excluded by default ignore rules",
+            pre_filter_count - changed_files.len()
+        ));
+    }
 
     if config.include_line_counts && config.allow_numstat {
         let mut line_counts = BTreeMap::new();
@@ -321,6 +338,8 @@ fn is_conflict_status(index: char, worktree: char) -> bool {
         ('D', 'D') | ('A', 'U') | ('U', 'D') | ('U', 'A') | ('D', 'U') | ('A', 'A') | ('U', 'U')
     )
 }
+
+// `is_default_ignored_path` is provided by `b3-core` and imported above.
 
 #[cfg(test)]
 mod tests {
